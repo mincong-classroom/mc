@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"github.com/mincong-classroom/grading/cmd"
 )
 
 func main() {
