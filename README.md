@@ -17,13 +17,13 @@ Then build the CLI:
 
 ```sh
 go mod tidy
-go build -o mc
+go build -o dist/mc
 ```
 
 ## Usage
 
 ```sh
-./mc help
+./dist/mc help
 ```
 
 ```
