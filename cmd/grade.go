@@ -1,4 +1,3 @@
-// cmd/grade.go
 package cmd
 
 import (
@@ -25,7 +24,7 @@ func runGrade(cmd *cobra.Command, args []string) {
 
 	for _, team := range teams {
 		fmt.Printf("\n=== Grading Team %s ===\n", team)
-		
+
 		// Run the grading script as a subprocess
 		if err := runGradingScript(team); err != nil {
 			log.Printf("Warning: grading failed for team %s: %v", team, err)
@@ -33,15 +32,15 @@ func runGrade(cmd *cobra.Command, args []string) {
 		}
 
 		// Read and display README
-		readmePath := filepath.Join("/Users/mincong/github/classroom", 
+		readmePath := filepath.Join("/Users/mincong/github/classroom",
 			fmt.Sprintf("containers-%s", team), "README.md")
-		
+
 		content, err := os.ReadFile(readmePath)
 		if err != nil {
 			log.Printf("Warning: cannot read README.md for team %s: %v", team, err)
 			continue
 		}
-		
+
 		fmt.Printf("\nREADME Content:\n%s\n", string(content))
 	}
 }

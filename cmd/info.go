@@ -1,4 +1,3 @@
-// cmd/info.go
 package cmd
 
 import (
