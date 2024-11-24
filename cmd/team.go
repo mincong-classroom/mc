@@ -1,4 +1,3 @@
-// cmd/team.go
 package cmd
 
 import (
@@ -20,7 +19,7 @@ func runTeam(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("Failed to list teams: %v", err)
 	}
-	
+
 	fmt.Println("Registered teams:")
 	for _, team := range teams {
 		fmt.Printf("- %s\n", team)

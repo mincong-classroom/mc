@@ -1,4 +1,3 @@
-// cmd/rule.go
 package cmd
 
 import (

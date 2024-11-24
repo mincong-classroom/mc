@@ -1,6 +1,6 @@
-# grading
+# mc
 
-The AI teaching assistant for auto-grading assignments 🤖
+The CLI tool for Mincong Classroom (mc). It's mainly for auto-grading assignments 🤖
 
 ## Installation
 
