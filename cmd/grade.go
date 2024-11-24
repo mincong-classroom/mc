@@ -26,7 +26,7 @@ func runGrade(cmd *cobra.Command, args []string) {
 		fmt.Printf("\n=== Grading Team %s ===\n", team)
 
 		// Run the grading script as a subprocess
-		if err := runGradingScript(team); err != nil {
+		if err := runGradingScript(team.Name); err != nil {
 			log.Printf("Warning: grading failed for team %s: %v", team, err)
 			continue
 		}

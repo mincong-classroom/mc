@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var teamCmd = &cobra.Command{
@@ -22,27 +23,23 @@ func runTeam(cmd *cobra.Command, args []string) {
 
 	fmt.Println("Registered teams:")
 	for _, team := range teams {
-		fmt.Printf("- %s\n", team)
+		fmt.Printf("  - %s: %s\n", team.Name, team.GetMembersAsString())
 	}
 }
 
 // listTeams returns a list of team names by reading the classroom directory
-func listTeams() ([]string, error) {
-	baseDir := "/Users/mincong/github/classroom"
-	entries, err := os.ReadDir(baseDir)
+func listTeams() ([]Team, error) {
+	teamFile := fmt.Sprintf("%s/.mc/teams.yaml", os.Getenv("HOME"))
+	teamData, err := os.ReadFile(teamFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read directory: %v", err)
+		return nil, fmt.Errorf("failed to read file: %v", err)
 	}
 
-	var teams []string
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if len(name) > 11 && name[:11] == "containers-" {
-			teams = append(teams, name[11:])
-		}
+	var data TeamRegistry
+	err = yaml.Unmarshal(teamData, &data)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
 	}
-	return teams, nil
+	return data.Teams, nil
 }
