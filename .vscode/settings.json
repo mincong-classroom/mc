@@ -1,0 +1,13 @@
+{
+    "go.toolsEnvVars": {
+        "GOPRIVATE": "github.com/mincong-classroom"
+    },
+    "go.formatTool": "gofmt",
+    "go.useLanguageServer": true,
+    "[go]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    }
+}
