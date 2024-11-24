@@ -1,1 +1,0 @@
-/Users/mincong/.mc
