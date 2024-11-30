@@ -33,6 +33,10 @@ func NewGrader() (*Grader, error) {
 	}, nil
 }
 
+func (g *Grader) ListRuleRepresentations() []string {
+	return []string{g.mvnJarRule.Representation()}
+}
+
 func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 	fmt.Printf("\n=== Grading Team %s ===\n", team.Name)
 	results := make([]common.RuleEvaluationResult, 0)

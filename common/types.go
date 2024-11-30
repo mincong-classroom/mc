@@ -51,6 +51,9 @@ type Rule[T any] interface {
 
 	// Description The description of the rule.
 	Description() string
+
+	// Representation The representation of the rule.
+	Representation() string
 }
 
 type RuleEvaluationResult struct {

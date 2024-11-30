@@ -30,8 +30,18 @@ func (r MavenJarRule) Exercice() string {
 }
 
 func (r MavenJarRule) Description() string {
-	return `The team is expected to create a JAR manually using a maven command and the server
-	should start locally under the port 8080.`
+	return `
+  The team is expected to create a JAR manually using a maven command and the
+  server should start locally under the port 8080.`
+}
+
+func (r MavenJarRule) Representation() string {
+	ruleId := r.LabId() + "_" + r.Symbol()
+
+	// e.g. L1_JAR: JAR Creation Test (Ex 1.1)
+	title := fmt.Sprintf("%s: %s (Ex %s)\n  ", ruleId, r.Name(), r.Exercice())
+	body := r.Description()
+	return title + body
 }
 
 func (r MavenJarRule) Run(team common.Team, command string) common.RuleEvaluationResult {
