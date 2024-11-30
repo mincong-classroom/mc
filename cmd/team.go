@@ -21,7 +21,7 @@ func runTeam(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to list teams: %v", err)
 	}
 
-	fmt.Println("Registered teams:")
+	fmt.Printf("%d teams registered:\n", len(teams))
 	for _, team := range teams {
 		fmt.Printf("  - %s: %s\n", team.Name, team.GetMembersAsString())
 	}
