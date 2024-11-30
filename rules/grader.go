@@ -9,20 +9,7 @@ import (
 
 type Grader struct {
 	assignmentsL1 map[string]TeamAssignmentL1
-	mvnJarRule    MavenJarRule
-}
-
-func (g *Grader) GradeL1(team string) error {
-	if assigment, ok := g.assignmentsL1[team]; ok {
-		err := g.mvnJarRule.Run(team, assigment.MavenCommand)
-		if err != nil {
-			return err
-		}
-	} else {
-		return fmt.Errorf("team %s not found in assignments", team)
-	}
-
-	return nil
+	mvnJarRule    Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -42,4 +29,17 @@ func NewGrader() (*Grader, error) {
 		assignmentsL1: assignmentsL1,
 		mvnJarRule:    MavenJarRule{},
 	}, nil
+}
+
+func (g *Grader) GradeL1(team string) error {
+	if assigment, ok := g.assignmentsL1[team]; ok {
+		err := g.mvnJarRule.Run(team, assigment.MavenCommand)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("team %s not found in assignments", team)
+	}
+
+	return nil
 }
