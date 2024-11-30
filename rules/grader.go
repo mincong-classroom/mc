@@ -2,14 +2,16 @@ package rules
 
 import (
 	"fmt"
+	"log"
 	"os"
 
+	"github.com/mincong-classroom/mc/common"
 	"gopkg.in/yaml.v3"
 )
 
 type Grader struct {
-	assignmentsL1 map[string]TeamAssignmentL1
-	mvnJarRule    Rule[string]
+	assignmentsL1 map[string]common.TeamAssignmentL1
+	mvnJarRule    common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -19,7 +21,7 @@ func NewGrader() (*Grader, error) {
 		return nil, fmt.Errorf("failed to read file: %v", err)
 	}
 
-	var assignmentsL1 map[string]TeamAssignmentL1
+	var assignmentsL1 map[string]common.TeamAssignmentL1
 	err = yaml.Unmarshal(bytes, &assignmentsL1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
@@ -31,15 +33,17 @@ func NewGrader() (*Grader, error) {
 	}, nil
 }
 
-func (g *Grader) GradeL1(team string) error {
-	if assigment, ok := g.assignmentsL1[team]; ok {
-		err := g.mvnJarRule.Run(team, assigment.MavenCommand)
-		if err != nil {
-			return err
-		}
+func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
+	fmt.Printf("\n=== Grading Team %s ===\n", team.Name)
+	results := make([]common.RuleEvaluationResult, 0)
+
+	if assigment, ok := g.assignmentsL1[team.Name]; ok {
+		result := g.mvnJarRule.Run(team, assigment.MavenCommand)
+		results = append(results, result)
 	} else {
-		return fmt.Errorf("team %s not found in assignments", team)
+		log.Print(fmt.Printf("team %s not found in assignments", team.Name))
 	}
 
-	return nil
+	fmt.Print("Grading done")
+	return results
 }

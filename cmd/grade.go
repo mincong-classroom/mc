@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/mincong-classroom/grading/rules"
+	"github.com/mincong-classroom/mc/common"
+	"github.com/mincong-classroom/mc/rules"
 	"github.com/spf13/cobra"
 )
 
@@ -25,16 +26,18 @@ func runGrade(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to create grader: %v", err)
 	}
 
+	results := make(map[string][]common.RuleEvaluationResult)
+
 	for _, team := range teams {
-		fmt.Printf("\n=== Grading Team %s ===\n", team.Name)
-
-		err := grader.GradeL1(team.Name)
-
-		if err != nil {
-			log.Printf("Warning: %v", err)
-			continue
-		}
-
-		fmt.Print("Grading done")
+		results[team.Name] = grader.GradeL1(team)
 	}
+
+	report := "Report:\n"
+	for team, res := range results {
+		report += fmt.Sprintf("  %s:\n", team)
+		for _, r := range res {
+			report += fmt.Sprintf("    - %s: %.0f%% (%s)\n", r.RuleId, r.Completeness*100, r.Reason)
+		}
+	}
+	log.Println(report)
 }

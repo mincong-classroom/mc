@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/mincong-classroom/mc/common"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -28,14 +29,14 @@ func runTeam(cmd *cobra.Command, args []string) {
 }
 
 // listTeams returns a list of team names by reading the classroom directory
-func listTeams() ([]Team, error) {
+func listTeams() ([]common.Team, error) {
 	teamFile := fmt.Sprintf("%s/.mc/teams.yaml", os.Getenv("HOME"))
 	teamData, err := os.ReadFile(teamFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %v", err)
 	}
 
-	var data TeamRegistry
+	var data common.TeamRegistry
 	err = yaml.Unmarshal(teamData, &data)
 
 	if err != nil {

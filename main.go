@@ -1,11 +1,10 @@
-// main.go
 package main
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/mincong-classroom/grading/cmd"
+	"github.com/mincong-classroom/mc/cmd"
 )
 
 func main() {

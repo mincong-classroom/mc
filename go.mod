@@ -1,5 +1,5 @@
 // go.mod
-module github.com/mincong-classroom/grading
+module github.com/mincong-classroom/mc
 
 go 1.22
 
