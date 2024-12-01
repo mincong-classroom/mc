@@ -26,8 +26,11 @@ followed by 7 values, either using VARCHAR or INT as key for the table
 
 func (r SqlInitRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
 	result := common.RuleEvaluationResult{
-		Team:   team,
-		RuleId: r.Spec().Id(),
+		Team:         team,
+		RuleId:       r.Spec().Id(),
+		Completeness: 0,
+		Reason:       "",
+		ExecError:    nil,
 	}
 
 	bytes, err := os.ReadFile(fmt.Sprintf("%s/weekend-mysql/init.sql", team.GetRepoPath()))
