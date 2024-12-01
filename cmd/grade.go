@@ -41,7 +41,11 @@ func runGrade(cmd *cobra.Command, args []string) {
 	results := make(map[string][]common.RuleEvaluationResult)
 
 	for _, team := range teams {
-		results[team.Name] = grader.GradeL1(team)
+		var (
+			results1 = grader.GradeL1(team)
+			results2 = grader.GradeL2(team)
+		)
+		results[team.Name] = append(results1, results2...)
 	}
 
 	report := "Report:\n"
@@ -51,7 +55,7 @@ func runGrade(cmd *cobra.Command, args []string) {
 			report += fmt.Sprintf("    - %s: %3.0f%% (%s)\n", r.RuleId, r.Completeness*100, r.Reason)
 		}
 	}
-	log.Println(report)
+	fmt.Println(report)
 }
 
 func filterTeams(teams []common.Team, selectedTeamNames []string) []common.Team {
