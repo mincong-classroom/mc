@@ -87,14 +87,15 @@ func (r RegistryRule) Run(team common.Team, _ string) common.RuleEvaluationResul
 		result.Completeness += 0.5
 	}
 
-	commitTagRegex, _ := regexp.Compile(`^[a-f0-9]{40}$`)
+	fullCommitTagRegex, _ := regexp.Compile(`^[a-f0-9]{40}$`)
+	shortCommitTagRegex, _ := regexp.Compile(`^[a-f0-9]{7}$`)
 	for _, tag := range tagResponse.Results {
 		if !hasLatestTag && tag.Name == "latest" {
 			hasLatestTag = true
 			result.Completeness += 0.2
 		}
 		if !hasCommitTags {
-			if commitTagRegex.MatchString(tag.Name) {
+			if fullCommitTagRegex.MatchString(tag.Name) || shortCommitTagRegex.MatchString(tag.Name) {
 				hasCommitTags = true
 				result.Completeness += 0.3
 			}
