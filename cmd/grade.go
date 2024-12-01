@@ -10,6 +10,7 @@ import (
 )
 
 var selectedTeamNames []string
+var selectedLab string
 
 var gradeCmd = &cobra.Command{
 	Use:   "grade",
@@ -19,39 +20,51 @@ var gradeCmd = &cobra.Command{
 
 func init() {
 	gradeCmd.Flags().StringArrayVarP(&selectedTeamNames, "team", "t", []string{}, "Specify team(s) to grade")
+	gradeCmd.Flags().StringVarP(&selectedLab, "lab", "l", "", "Specify lab session to grade")
 }
 
 func runGrade(cmd *cobra.Command, args []string) {
 	teams, err := listTeams()
 	if err != nil {
-		log.Fatalf("Failed to list teams: %v", err)
+		fmt.Printf("Failed to list teams: %v", err)
+		return
 	}
 	if len(selectedTeamNames) > 0 {
-		log.Printf("Grading %d team(s): %s\n", len(selectedTeamNames), selectedTeamNames)
+		fmt.Printf("Grading %d team(s): %s\n", len(selectedTeamNames), selectedTeamNames)
 		teams = filterTeams(teams, selectedTeamNames)
 	} else {
-		log.Println("Grading all teams")
+		fmt.Println("Grading all teams")
 	}
 
 	grader, err := rules.NewGrader()
 	if err != nil {
 		log.Fatalf("Failed to create grader: %v", err)
+		return
 	}
 
-	results := make(map[string][]common.RuleEvaluationResult)
+	allResults := make(map[string][]common.RuleEvaluationResult)
 
 	for _, team := range teams {
 		var (
-			results1 = grader.GradeL1(team)
-			results2 = grader.GradeL2(team)
+			shouldGradeL1 = selectedLab == "" || selectedLab == "L1" || selectedLab == "1"
+			shouldGradeL2 = selectedLab == "" || selectedLab == "L2" || selectedLab == "2"
+			results       []common.RuleEvaluationResult
 		)
-		results[team.Name] = append(results1, results2...)
+		if shouldGradeL1 {
+			r := grader.GradeL1(team)
+			results = append(results, r...)
+		}
+		if shouldGradeL2 {
+			r := grader.GradeL2(team)
+			results = append(results, r...)
+		}
+		allResults[team.Name] = results
 	}
 
 	report := "Report:\n"
 	for _, team := range teams {
 		report += fmt.Sprintf("  %s:\n", team.Name)
-		for _, r := range results[team.Name] {
+		for _, r := range allResults[team.Name] {
 			report += fmt.Sprintf("    - %s: %3.0f%% (%s)\n", r.RuleId, r.Completeness*100, r.Reason)
 		}
 	}
