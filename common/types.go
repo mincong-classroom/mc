@@ -36,29 +36,33 @@ func (t Team) GetRepoPath() string {
 //
 // The type T is the type of the options to be used when executing the rule.
 type Rule[T any] interface {
-	// Id The ID of the rule. The combination of Symbol and LabId, such as "L1_JAR", "L1_MST", etc.
-	Id() string
-
-	// Symbol The symbol of the rule, such as "JAR", "MST", etc.
-	Symbol() string
-
-	// LabId The ID of the lab session of this rule, such as "L1", "L2", "L3", etc.
-	LabId() string
-
-	// Exercice The exercice of the rule, such as "1.1", "1.2", "2.1", etc.
-	Exercice() string
-
-	// Name The name of the rule.
-	Name() string
+	// Spec The specification of the rule.
+	Spec() RuleSpec
 
 	// Run Run the rule for the given team.
 	Run(team Team, opts T) RuleEvaluationResult
 
-	// Description The description of the rule.
-	Description() string
-
 	// Representation The representation of the rule.
 	Representation() string
+}
+
+type RuleSpec struct {
+	Symbol      string // The symbol of the rule, such as "JAR", "MST", etc.
+	LabId       string // The ID of the lab session of this rule, such as "L1", "L2", "L3", etc.
+	Exercice    string // The exercice of the rule, such as "1.1", "1.2", "2.1", etc.
+	Name        string // The name of the rule.
+	Description string // The description of the rule.
+}
+
+func (r RuleSpec) Id() string {
+	return fmt.Sprintf("%s_%s", r.LabId, r.Symbol)
+}
+
+func (r RuleSpec) Representation() string {
+	// e.g. L1_JAR: JAR Creation Test (Ex 1.1)
+	title := fmt.Sprintf("%s: %s (Ex %s)\n  ", r.Id(), r.Name, r.Exercice)
+	body := r.Description
+	return title + body
 }
 
 type RuleEvaluationResult struct {

@@ -7,48 +7,37 @@ import (
 	"github.com/mincong-classroom/mc/common"
 )
 
-type MavenJarRule struct{}
-
-func (r MavenJarRule) Id() string {
-	return fmt.Sprintf("%s_%s", r.LabId(), r.Symbol())
+type MavenJarRule struct {
+	spec common.RuleSpec
 }
 
-func (r MavenJarRule) LabId() string {
-	return "L1"
-}
-
-func (r MavenJarRule) Symbol() string {
-	return "JAR"
-}
-
-func (r MavenJarRule) Name() string {
-	return "JAR Creation Test"
-}
-
-func (r MavenJarRule) Exercice() string {
-	return "1.1"
-}
-
-func (r MavenJarRule) Description() string {
-	return `
+func NewMavenJarRule() MavenJarRule {
+	return MavenJarRule{
+		spec: common.RuleSpec{
+			LabId:    "L1",
+			Symbol:   "JAR",
+			Name:     "JAR Creation Test",
+			Exercice: "1.1",
+			Description: `
   The team is expected to create a JAR manually using a maven command and the
-  server should start locally under the port 8080.`
+  server should start locally under the port 8080.`,
+		},
+	}
+}
+
+func (r MavenJarRule) Spec() common.RuleSpec {
+	return r.spec
 }
 
 func (r MavenJarRule) Representation() string {
-	ruleId := r.LabId() + "_" + r.Symbol()
-
-	// e.g. L1_JAR: JAR Creation Test (Ex 1.1)
-	title := fmt.Sprintf("%s: %s (Ex %s)\n  ", ruleId, r.Name(), r.Exercice())
-	body := r.Description()
-	return title + body
+	return r.spec.Representation()
 }
 
 func (r MavenJarRule) Run(team common.Team, command string) common.RuleEvaluationResult {
 	if command == "" {
 		return common.RuleEvaluationResult{
 			Team:         team,
-			RuleId:       r.Id(),
+			RuleId:       r.spec.Id(),
 			Completeness: 0,
 			Reason:       "The maven command is empty",
 			ExecError:    nil,
@@ -66,7 +55,7 @@ cd "%s/weekend-server"
 	if err != nil {
 		return common.RuleEvaluationResult{
 			Team:         team,
-			RuleId:       r.Id(),
+			RuleId:       r.spec.Id(),
 			Completeness: 0,
 			Reason:       "The maven command failed",
 			ExecError:    err,
@@ -74,7 +63,7 @@ cd "%s/weekend-server"
 	} else {
 		return common.RuleEvaluationResult{
 			Team:         team,
-			RuleId:       r.Id(),
+			RuleId:       r.spec.Id(),
 			Completeness: 1,
 			Reason:       "The maven command succeeded",
 			ExecError:    nil,

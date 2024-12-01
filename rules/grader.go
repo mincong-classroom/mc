@@ -30,8 +30,8 @@ func NewGrader() (*Grader, error) {
 
 	return &Grader{
 		assignmentsL1:  assignmentsL1,
-		mvnJarRule:     MavenJarRule{},
-		dockerfileRule: DockerfileRule{},
+		mvnJarRule:     NewMavenJarRule(),
+		dockerfileRule: NewDockerfileRule(),
 	}, nil
 }
 

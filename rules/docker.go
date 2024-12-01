@@ -8,52 +8,41 @@ import (
 	"github.com/mincong-classroom/mc/common"
 )
 
-type DockerfileRule struct{}
-
-func (r DockerfileRule) Id() string {
-	return fmt.Sprintf("%s_%s", r.LabId(), r.Symbol())
+type DockerfileRule struct {
+	spec common.RuleSpec
 }
 
-func (r DockerfileRule) LabId() string {
-	return "L1"
-}
-
-func (r DockerfileRule) Symbol() string {
-	return "DKF"
-}
-
-func (r DockerfileRule) Name() string {
-	return "Dockerfile Test"
-}
-
-func (r DockerfileRule) Exercice() string {
-	return "1.2"
-}
-
-func (r DockerfileRule) Description() string {
-	return `
+func NewDockerfileRule() DockerfileRule {
+	return DockerfileRule{
+		spec: common.RuleSpec{
+			LabId:    "L1",
+			Symbol:   "DKF",
+			Name:     "Dockerfile Test",
+			Exercice: "1.2",
+			Description: `
   The team is expected to create a Dockerfile on the path
   "weekend-server/Dockerfile". The Java version should be 21, from the
   distribution "eclipse-temurin". The port 8080 should be exposed. Note that
   you can expose a container port at runtime even if the port is not specified
   with the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is
   primarily for documentation purposes and does not control or enforce which
-  ports are exposed at runtime.`
+  ports are exposed at runtime.`,
+		},
+	}
+}
+
+func (r DockerfileRule) Spec() common.RuleSpec {
+	return r.spec
 }
 
 func (r DockerfileRule) Representation() string {
-	ruleId := r.LabId() + "_" + r.Symbol()
-
-	// e.g. L1_JAR: JAR Creation Test (Ex 1.1)
-	title := fmt.Sprintf("%s: %s (Ex %s)\n  ", ruleId, r.Name(), r.Exercice())
-	body := r.Description()
-	return title + body
+	return r.spec.Representation()
 }
 
 func (r DockerfileRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
 	result := common.RuleEvaluationResult{
 		Team:         team,
-		RuleId:       r.Id(),
+		RuleId:       r.spec.Id(),
 		Completeness: 0,
 		Reason:       "",
 		ExecError:    nil,
