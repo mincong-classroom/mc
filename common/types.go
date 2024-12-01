@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -25,6 +26,10 @@ func (t Team) GetMembersAsString() string {
 		values = append(values, fmt.Sprintf("%s (@%s)", member.Name, member.Github))
 	}
 	return strings.Join(values, ", ")
+}
+
+func (t Team) GetRepoPath() string {
+	return fmt.Sprintf("%s/github/classroom/containers-%s", os.Getenv("HOME"), t.Name)
 }
 
 // Rule represents a rule to grade the assignment.

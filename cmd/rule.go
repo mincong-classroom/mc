@@ -22,5 +22,6 @@ func runRule(cmd *cobra.Command, args []string) {
 
 	for _, rr := range grader.ListRuleRepresentations() {
 		fmt.Println(rr)
+		fmt.Println()
 	}
 }

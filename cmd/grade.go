@@ -36,7 +36,7 @@ func runGrade(cmd *cobra.Command, args []string) {
 	for _, team := range teams {
 		report += fmt.Sprintf("  %s:\n", team.Name)
 		for _, r := range results[team.Name] {
-			report += fmt.Sprintf("    - %s: %.0f%% (%s)\n", r.RuleId, r.Completeness*100, r.Reason)
+			report += fmt.Sprintf("    - %s: %3.0f%% (%s)\n", r.RuleId, r.Completeness*100, r.Reason)
 		}
 	}
 	log.Println(report)

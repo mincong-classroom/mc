@@ -10,8 +10,9 @@ import (
 )
 
 type Grader struct {
-	assignmentsL1 map[string]common.TeamAssignmentL1
-	mvnJarRule    common.Rule[string]
+	assignmentsL1  map[string]common.TeamAssignmentL1
+	mvnJarRule     common.Rule[string]
+	dockerfileRule common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -28,13 +29,17 @@ func NewGrader() (*Grader, error) {
 	}
 
 	return &Grader{
-		assignmentsL1: assignmentsL1,
-		mvnJarRule:    MavenJarRule{},
+		assignmentsL1:  assignmentsL1,
+		mvnJarRule:     MavenJarRule{},
+		dockerfileRule: DockerfileRule{},
 	}, nil
 }
 
 func (g *Grader) ListRuleRepresentations() []string {
-	return []string{g.mvnJarRule.Representation()}
+	return []string{
+		g.mvnJarRule.Representation(),
+		g.dockerfileRule.Representation(),
+	}
 }
 
 func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
@@ -42,8 +47,11 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if assigment, ok := g.assignmentsL1[team.Name]; ok {
-		result := g.mvnJarRule.Run(team, assigment.MavenCommand)
-		results = append(results, result)
+		mavenResult := g.mvnJarRule.Run(team, assigment.MavenCommand)
+		results = append(results, mavenResult)
+
+		dockerfileResult := g.dockerfileRule.Run(team, "")
+		results = append(results, dockerfileResult)
 	} else {
 		log.Print(fmt.Printf("team %s not found in assignments", team.Name))
 	}
