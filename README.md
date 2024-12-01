@@ -87,4 +87,30 @@ L1_SQL: SQL Init Test (Ex 2.1.2)
     "weekend-mysql/init.sql". The script should contain an "INSERT INTO" statement
     followed by 7 values, either using VARCHAR or INT as key for the table
     "mappings" or a similar table.
+
+
+L2_MST: Maven Setup Test (Ex 1)
+
+    The team is expected to run unit tests with Maven in GitHub Actions on the path
+    ".github/workflows/app.yml". It should contain the keyword "mvn"
+
+
+L2_RGT: Registry Test (Ex 1)
+
+    The team is expected to upload the Docker image to the registry (Dockerhub).
+    This is the key of the whole lab session. By completing this exercise, it means
+    that the students were able to define the Dockerfile correctly, build the
+    Docker image, connect to the Dockerhub, and push the image with the right tag.
+    Else, teacher (Mincong) should check the steps by breaking it down into
+    multiple steps. Two kinds of tags are published to the registry, the "latest"
+    kind and the "commit" kind.
+
+
+L2_DST: Docker Setup Test (Ex 3)
+
+    The team is expected to build a Docker image and publish it to the Docker
+    registry. The docker login should be done by retrieving the username and
+    password from the secrets, such as "secrets.DOCKER_USERNAME". This is probably
+    done using the GitHub Action "docker/login-action" but other approaches are
+    fine too.
 ```
