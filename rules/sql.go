@@ -34,7 +34,14 @@ func (r SqlInitRule) Run(team common.Team, _ string) common.RuleEvaluationResult
 		ExecError:    nil,
 	}
 
-	bytes, err := os.ReadFile(fmt.Sprintf("%s/weekend-mysql/init.sql", team.GetRepoPath()))
+	templateBytes, err := os.ReadFile(fmt.Sprintf("%s/github/classroom/assignment-public-template/weekend-mysql/init.sql", os.Getenv("HOME")))
+	if err != nil {
+		result.Reason = "Internal error"
+		result.ExecError = fmt.Errorf("failed to read file: %v", err)
+		return result
+	}
+
+	assignmentBytes, err := os.ReadFile(fmt.Sprintf("%s/weekend-mysql/init.sql", team.GetRepoPath()))
 	if err != nil {
 		result.Reason = "The SQL script is missing"
 		result.ExecError = err
@@ -42,9 +49,10 @@ func (r SqlInitRule) Run(team common.Team, _ string) common.RuleEvaluationResult
 	}
 
 	var (
-		content      = string(bytes)
-		lowerContent = strings.ToLower(content)
-		daysOfWeek   = map[string]string{
+		originalContent = string(templateBytes)
+		content         = string(assignmentBytes)
+		lowerContent    = strings.ToLower(content)
+		daysOfWeek      = map[string]string{
 			"Monday":    "1",
 			"Tuesday":   "2",
 			"Wednesday": "3",
@@ -54,6 +62,12 @@ func (r SqlInitRule) Run(team common.Team, _ string) common.RuleEvaluationResult
 			"Sunday":    "7",
 		}
 	)
+
+	if content == originalContent {
+		result.Reason = "The SQL script is not modified"
+		return result
+	}
+
 	if strings.Contains(content, "VARCHAR") || strings.Contains(content, "INT") {
 		result.Completeness += 0.2
 	} else {
