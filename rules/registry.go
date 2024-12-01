@@ -82,10 +82,10 @@ func (r RegistryRule) Run(team common.Team, _ string) common.RuleEvaluationResul
 	}
 
 	if tagResponse.Count < 10 {
-		result.Reason = fmt.Sprintf("The image has less than 10 tags (%d), manual check required", tagResponse.Count)
-		return result
+		result.Reason = fmt.Sprintf("Only found %d tag, check https://hub.docker.com/r/%s/tags , ", tagResponse.Count, repo)
+	} else {
+		result.Completeness += 0.5
 	}
-	result.Completeness += 0.5
 
 	commitTagRegex, _ := regexp.Compile(`^[a-f0-9]{40}$`)
 	for _, tag := range tagResponse.Results {
