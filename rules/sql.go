@@ -3,6 +3,7 @@ package rules
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/mincong-classroom/mc/common"
@@ -59,14 +60,14 @@ func (r SqlInitRule) Run(team common.Team, _ string) common.RuleEvaluationResult
 		result.Reason += "The SQL script does not contain VARCHAR or INT. "
 	}
 
-	if strings.Contains(content, "INSERT INTO") {
+	if matched, _ := regexp.MatchString("INSERT (.+)INTO", content); matched {
 		result.Completeness += 0.1
 	} else {
 		result.Reason += "The SQL script does not contain insert statement. "
 	}
 
 	for day, dayId := range daysOfWeek {
-		if strings.Contains(lowerContent, day) || strings.Contains(content, dayId) {
+		if strings.Contains(lowerContent, strings.ToLower(day)) || strings.Contains(content, dayId) {
 			result.Completeness += 0.1
 		} else {
 			result.Reason += fmt.Sprintf("Missing weekday %s. ", day)
