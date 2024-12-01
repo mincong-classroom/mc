@@ -58,6 +58,12 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 
 		dockerfileResult := g.dockerfileRule.Run(team, "")
 		results = append(results, dockerfileResult)
+
+		dockerImageResult := g.dockerImageRule.Run(team, "")
+		results = append(results, dockerImageResult)
+
+		sqlResult := g.sqlInitRule.Run(team, "")
+		results = append(results, sqlResult)
 	} else {
 		log.Print(fmt.Printf("team %s not found in assignments", team.Name))
 	}

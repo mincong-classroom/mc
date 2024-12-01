@@ -36,19 +36,21 @@ func (r DockerfileRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 		ExecError:    nil,
 	}
 
-	content, err := os.ReadFile(fmt.Sprintf("%s/weekend-server/Dockerfile", team.GetRepoPath()))
+	bytes, err := os.ReadFile(fmt.Sprintf("%s/weekend-server/Dockerfile", team.GetRepoPath()))
 	if err != nil {
 		result.Reason = "The Dockerfile is missing"
+		result.ExecError = err
 		return result
 	}
 
-	if strings.Contains(string(content), "FROM eclipse-temurin:21") {
+	content := string(bytes)
+	if strings.Contains(content, "FROM eclipse-temurin:21") {
 		result.Completeness += 0.8
 	} else {
 		result.Reason += "The Dockerfile does not use the correct Java version or distribution. "
 	}
 
-	if strings.Contains(string(content), "EXPOSE 8080") {
+	if strings.Contains(content, "EXPOSE 8080") {
 		result.Completeness += 0.2
 	} else {
 		result.Reason += "The Dockerfile does not expose the port 8080. "
