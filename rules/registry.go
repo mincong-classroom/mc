@@ -82,7 +82,7 @@ func (r RegistryRule) Run(team common.Team, _ string) common.RuleEvaluationResul
 	}
 
 	if tagResponse.Count < 10 {
-		result.Reason = "The image has less than 10 tags, manual check required"
+		result.Reason = fmt.Sprintf("The image has less than 10 tags (%d), manual check required", tagResponse.Count)
 		return result
 	}
 	result.Completeness += 0.5
@@ -102,8 +102,14 @@ func (r RegistryRule) Run(team common.Team, _ string) common.RuleEvaluationResul
 	}
 
 	if result.Completeness == 1 {
-		result.Reason = fmt.Sprintf("Found %d tags including latest tag and commit tags", len(tagResponse.Results))
+		result.Reason = fmt.Sprintf("Found %d tags including latest tag and commit tags", tagResponse.Count)
 	} else {
+		if !hasLatestTag {
+			result.Reason += "Missing latest tag. "
+		}
+		if !hasCommitTags {
+			result.Reason += "Missing commit tags. "
+		}
 		result.Reason = strings.TrimSpace(result.Reason)
 	}
 
