@@ -19,8 +19,9 @@ type Grader struct {
 	sqlInitRule     common.Rule[string]
 
 	// L2
-	mavenSetupRule common.Rule[string]
-	registryRule   common.Rule[string]
+	mavenSetupRule  common.Rule[string]
+	registryRule    common.Rule[string]
+	dockerSetupRule common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -58,9 +59,10 @@ func NewGrader() (*Grader, error) {
 		dockerImageRule: DockerImageRule{},
 		sqlInitRule:     SqlInitRule{},
 
-		assignmentsL2:  assignmentsL2,
-		mavenSetupRule: MavenSetupRule{},
-		registryRule:   RegistryRule{},
+		assignmentsL2:   assignmentsL2,
+		mavenSetupRule:  MavenSetupRule{},
+		registryRule:    RegistryRule{},
+		dockerSetupRule: DockerSetupRule{},
 	}, nil
 }
 
@@ -75,6 +77,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 		// L2
 		g.mavenSetupRule.Spec().Representation(),
 		g.registryRule.Spec().Representation(),
+		g.dockerSetupRule.Spec().Representation(),
 	}
 }
 
@@ -112,6 +115,9 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 
 		registryResult := g.registryRule.Run(team, "")
 		results = append(results, registryResult)
+
+		dockerSetupResult := g.dockerSetupRule.Run(team, "")
+		results = append(results, dockerSetupResult)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
