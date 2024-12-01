@@ -32,6 +32,10 @@ func (t Team) GetRepoPath() string {
 	return fmt.Sprintf("%s/github/classroom/containers-%s", os.Getenv("HOME"), t.Name)
 }
 
+func (t Team) GetContainerRepoForWeekendServer() string {
+	return fmt.Sprintf("mincongclassroom/weekend-server-%s", t.Name)
+}
+
 // Rule represents a rule to grade the assignment.
 //
 // The type T is the type of the options to be used when executing the rule.

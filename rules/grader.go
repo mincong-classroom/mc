@@ -20,6 +20,7 @@ type Grader struct {
 
 	// L2
 	mavenSetupRule common.Rule[string]
+	registryRule   common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -59,6 +60,7 @@ func NewGrader() (*Grader, error) {
 
 		assignmentsL2:  assignmentsL2,
 		mavenSetupRule: MavenSetupRule{},
+		registryRule:   RegistryRule{},
 	}, nil
 }
 
@@ -72,6 +74,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 
 		// L2
 		g.mavenSetupRule.Spec().Representation(),
+		g.registryRule.Spec().Representation(),
 	}
 }
 
@@ -104,9 +107,11 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL1[team.Name]; ok {
-
 		mavenSetupResult := g.mavenSetupRule.Run(team, "")
 		results = append(results, mavenSetupResult)
+
+		registryResult := g.registryRule.Run(team, "")
+		results = append(results, registryResult)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
