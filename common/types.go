@@ -41,9 +41,6 @@ type Rule[T any] interface {
 
 	// Run Run the rule for the given team.
 	Run(team Team, opts T) RuleEvaluationResult
-
-	// Representation The representation of the rule.
-	Representation() string
 }
 
 type RuleSpec struct {

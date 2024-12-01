@@ -10,9 +10,10 @@ import (
 )
 
 type Grader struct {
-	assignmentsL1  map[string]common.TeamAssignmentL1
-	mvnJarRule     common.Rule[string]
-	dockerfileRule common.Rule[string]
+	assignmentsL1   map[string]common.TeamAssignmentL1
+	mvnJarRule      common.Rule[string]
+	dockerfileRule  common.Rule[string]
+	dockerImageRule common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -29,16 +30,18 @@ func NewGrader() (*Grader, error) {
 	}
 
 	return &Grader{
-		assignmentsL1:  assignmentsL1,
-		mvnJarRule:     NewMavenJarRule(),
-		dockerfileRule: NewDockerfileRule(),
+		assignmentsL1:   assignmentsL1,
+		mvnJarRule:      NewMavenJarRule(),
+		dockerfileRule:  NewDockerfileRule(),
+		dockerImageRule: NewDockerImageRule(),
 	}, nil
 }
 
 func (g *Grader) ListRuleRepresentations() []string {
 	return []string{
-		g.mvnJarRule.Representation(),
-		g.dockerfileRule.Representation(),
+		g.mvnJarRule.Spec().Representation(),
+		g.dockerfileRule.Spec().Representation(),
+		g.dockerImageRule.Spec().Representation(),
 	}
 }
 

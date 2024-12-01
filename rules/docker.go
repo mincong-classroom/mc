@@ -35,10 +35,6 @@ func (r DockerfileRule) Spec() common.RuleSpec {
 	return r.spec
 }
 
-func (r DockerfileRule) Representation() string {
-	return r.spec.Representation()
-}
-
 func (r DockerfileRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
 	result := common.RuleEvaluationResult{
 		Team:         team,
@@ -73,4 +69,38 @@ func (r DockerfileRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 	result.Reason = strings.TrimSpace(result.Reason)
 
 	return result
+}
+
+type DockerImageRule struct {
+	spec common.RuleSpec
+}
+
+func NewDockerImageRule() DockerImageRule {
+	return DockerImageRule{
+		spec: common.RuleSpec{
+			LabId:    "L1",
+			Symbol:   "IMG",
+			Name:     "Docker Image Test",
+			Exercice: "1.3+",
+			Description: `
+  The team is expected to build a Docker image using one single command. The
+  inspection should be done locally to verify the image is successfully created
+  and runnable. This rule includes the exercise 1.4, 1.5, 1.6 as well. This is
+  a manual verification.`,
+		},
+	}
+}
+
+func (r DockerImageRule) Spec() common.RuleSpec {
+	return r.spec
+}
+
+func (r DockerImageRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
+	return common.RuleEvaluationResult{
+		Team:         team,
+		RuleId:       r.spec.Id(),
+		Completeness: 0,
+		Reason:       "Check the report manually",
+		ExecError:    nil,
+	}
 }
