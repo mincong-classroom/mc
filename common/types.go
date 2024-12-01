@@ -58,8 +58,9 @@ func (r RuleSpec) Id() string {
 func (r RuleSpec) Representation() string {
 	// e.g. L1_JAR: JAR Creation Test (Ex 1.1)
 	title := fmt.Sprintf("%s: %s (Ex %s)\n  ", r.Id(), r.Name, r.Exercice)
-	body := r.Description
-	return title + body
+	body := strings.ReplaceAll(r.Description, "\n", "\n    ")
+
+	return title + body + "\n"
 }
 
 type RuleEvaluationResult struct {

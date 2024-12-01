@@ -14,6 +14,7 @@ type Grader struct {
 	mvnJarRule      common.Rule[string]
 	dockerfileRule  common.Rule[string]
 	dockerImageRule common.Rule[string]
+	sqlInitRule     common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -34,6 +35,7 @@ func NewGrader() (*Grader, error) {
 		mvnJarRule:      MavenJarRule{},
 		dockerfileRule:  DockerfileRule{},
 		dockerImageRule: DockerImageRule{},
+		sqlInitRule:     SqlInitRule{},
 	}, nil
 }
 
@@ -42,6 +44,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.mvnJarRule.Spec().Representation(),
 		g.dockerfileRule.Spec().Representation(),
 		g.dockerImageRule.Spec().Representation(),
+		g.sqlInitRule.Spec().Representation(),
 	}
 }
 
