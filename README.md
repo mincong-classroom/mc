@@ -23,7 +23,7 @@ go build -o dist/mc
 ## Usage
 
 ```sh
-./dist/mc help
+mc help
 ```
 
 ```
@@ -51,7 +51,7 @@ Use "mc [command] --help" for more information about a command.
 
 These are the rules which are part of the auto-grading. If some rules fail to evaluate, it require manual correction later on.
 
-```
+```sh
 mc rule
 ```
 
