@@ -7,37 +7,25 @@ import (
 	"github.com/mincong-classroom/mc/common"
 )
 
-type MavenJarRule struct {
-	spec common.RuleSpec
-}
-
-func NewMavenJarRule() MavenJarRule {
-	return MavenJarRule{
-		spec: common.RuleSpec{
-			LabId:    "L1",
-			Symbol:   "JAR",
-			Name:     "JAR Creation Test",
-			Exercice: "1.1",
-			Description: `
-  The team is expected to create a JAR manually using a maven command and the
-  server should start locally under the port 8080.`,
-		},
-	}
-}
+type MavenJarRule struct{}
 
 func (r MavenJarRule) Spec() common.RuleSpec {
-	return r.spec
-}
-
-func (r MavenJarRule) Representation() string {
-	return r.spec.Representation()
+	return common.RuleSpec{
+		LabId:    "L1",
+		Symbol:   "JAR",
+		Name:     "JAR Creation Test",
+		Exercice: "1.1",
+		Description: `
+The team is expected to create a JAR manually using a maven command and the
+server should start locally under the port 8080.`,
+	}
 }
 
 func (r MavenJarRule) Run(team common.Team, command string) common.RuleEvaluationResult {
 	if command == "" {
 		return common.RuleEvaluationResult{
 			Team:         team,
-			RuleId:       r.spec.Id(),
+			RuleId:       r.Spec().Id(),
 			Completeness: 0,
 			Reason:       "The maven command is empty",
 			ExecError:    nil,
@@ -55,7 +43,7 @@ cd "%s/weekend-server"
 	if err != nil {
 		return common.RuleEvaluationResult{
 			Team:         team,
-			RuleId:       r.spec.Id(),
+			RuleId:       r.Spec().Id(),
 			Completeness: 0,
 			Reason:       "The maven command failed",
 			ExecError:    err,
@@ -63,7 +51,7 @@ cd "%s/weekend-server"
 	} else {
 		return common.RuleEvaluationResult{
 			Team:         team,
-			RuleId:       r.spec.Id(),
+			RuleId:       r.Spec().Id(),
 			Completeness: 1,
 			Reason:       "The maven command succeeded",
 			ExecError:    nil,
