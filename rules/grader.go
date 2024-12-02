@@ -11,6 +11,7 @@ import (
 type Grader struct {
 	assignmentsL1 map[string]common.TeamAssignmentL1
 	assignmentsL2 map[string]common.TeamAssignmentL2
+	assignmentsL3 map[string]common.TeamAssignmentL3
 
 	// L1
 	mavenJarRule    common.Rule[string]
@@ -22,12 +23,16 @@ type Grader struct {
 	mavenSetupRule  common.Rule[string]
 	registryRule    common.Rule[string]
 	dockerSetupRule common.Rule[string]
+
+	// L3
+	k8sNginxPodRule common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
 	var (
 		assignmentsL1 map[string]common.TeamAssignmentL1
 		assignmentsL2 map[string]common.TeamAssignmentL2
+		assignmentsL3 map[string]common.TeamAssignmentL3
 	)
 
 	path1 := fmt.Sprintf("%s/.mc/assignments-L1.yaml", os.Getenv("HOME"))
@@ -52,6 +57,17 @@ func NewGrader() (*Grader, error) {
 		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
 	}
 
+	path3 := fmt.Sprintf("%s/.mc/assignments-L3.yaml", os.Getenv("HOME"))
+	bytes3, err := os.ReadFile(path3)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %v", err)
+	}
+
+	err = yaml.Unmarshal(bytes3, &assignmentsL3)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
+	}
+
 	return &Grader{
 		assignmentsL1:   assignmentsL1,
 		mavenJarRule:    MavenJarRule{},
@@ -63,6 +79,9 @@ func NewGrader() (*Grader, error) {
 		mavenSetupRule:  MavenSetupRule{},
 		registryRule:    RegistryRule{},
 		dockerSetupRule: DockerSetupRule{},
+
+		assignmentsL3:   assignmentsL3,
+		k8sNginxPodRule: K8sNginxPodRule{},
 	}, nil
 }
 
@@ -78,6 +97,9 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.mavenSetupRule.Spec().Representation(),
 		g.registryRule.Spec().Representation(),
 		g.dockerSetupRule.Spec().Representation(),
+
+		// L3
+		g.k8sNginxPodRule.Spec().Representation(),
 	}
 }
 
@@ -118,6 +140,21 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 
 		dockerSetupResult := g.dockerSetupRule.Run(team, "")
 		results = append(results, dockerSetupResult)
+	} else {
+		fmt.Printf("team %s not found in assignments", team.Name)
+	}
+
+	fmt.Println("Grading done")
+	return results
+}
+
+func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
+	fmt.Printf("\n=== L3: Grading Team %s ===\n", team.Name)
+	results := make([]common.RuleEvaluationResult, 0)
+
+	if _, ok := g.assignmentsL1[team.Name]; ok {
+		k8sNginxPodResult := g.k8sNginxPodRule.Run(team, "")
+		results = append(results, k8sNginxPodResult)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}

@@ -79,5 +79,6 @@ type TeamAssignmentL1 struct {
 	MavenCommand string `yaml:"mvn_command"`
 }
 
-type TeamAssignmentL2 struct {
-}
+type TeamAssignmentL2 struct{}
+
+type TeamAssignmentL3 struct{}
