@@ -36,7 +36,7 @@ func (r K8sNginxPodRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 	)
 	applyCmd := exec.Command("kubectl", "apply", "-f", manifestPath, "-n", namespace, "--dry-run=client")
 	if err := applyCmd.Run(); err != nil {
-		result.Reason = "Failed to apply the manifest"
+		result.Reason = "Failed to apply the manifest: " + manifestPath
 		result.ExecError = err
 	} else {
 		result.Completeness = 1
