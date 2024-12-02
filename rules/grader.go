@@ -162,3 +162,17 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 	fmt.Println("Grading done")
 	return results
 }
+
+func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
+	fmt.Printf("\n=== L4: Grading Team %s ===\n", team.Name)
+	results := make([]common.RuleEvaluationResult, 0)
+	fmt.Println("Grading done")
+	return results
+}
+
+func (g *Grader) GradeL5(team common.Team) []common.RuleEvaluationResult {
+	fmt.Printf("\n=== L5: Grading Team %s ===\n", team.Name)
+	results := make([]common.RuleEvaluationResult, 0)
+	fmt.Println("Grading done")
+	return results
+}

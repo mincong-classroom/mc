@@ -1,6 +1,11 @@
 package rules
 
-import "github.com/mincong-classroom/mc/common"
+import (
+	"fmt"
+	"os/exec"
+
+	"github.com/mincong-classroom/mc/common"
+)
 
 type K8sNginxPodRule struct{}
 
@@ -24,6 +29,18 @@ func (r K8sNginxPodRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 		Completeness: 0,
 		Reason:       "",
 		ExecError:    nil,
+	}
+	var (
+		manifestPath = fmt.Sprintf("%s/k8s/pod-nginx.yaml", team.GetRepoPath())
+		namespace    = team.Name
+	)
+	applyCmd := exec.Command("kubectl", "apply", "-f", manifestPath, "-n", namespace, "--dry-run=client")
+	if err := applyCmd.Run(); err != nil {
+		result.Reason = "Failed to apply the manifest"
+		result.ExecError = err
+	} else {
+		result.Completeness = 1
+		result.Reason = "The manifest has been successfully applied"
 	}
 	return result
 }

@@ -48,6 +48,9 @@ func runGrade(cmd *cobra.Command, args []string) {
 		var (
 			shouldGradeL1 = selectedLab == "" || selectedLab == "L1" || selectedLab == "1"
 			shouldGradeL2 = selectedLab == "" || selectedLab == "L2" || selectedLab == "2"
+			shouldGradeL3 = selectedLab == "" || selectedLab == "L3" || selectedLab == "3"
+			shouldGradeL4 = selectedLab == "" || selectedLab == "L4" || selectedLab == "4"
+			shouldGradeL5 = selectedLab == "" || selectedLab == "L5" || selectedLab == "5"
 			results       []common.RuleEvaluationResult
 		)
 		if shouldGradeL1 {
@@ -56,6 +59,18 @@ func runGrade(cmd *cobra.Command, args []string) {
 		}
 		if shouldGradeL2 {
 			r := grader.GradeL2(team)
+			results = append(results, r...)
+		}
+		if shouldGradeL3 {
+			r := grader.GradeL3(team)
+			results = append(results, r...)
+		}
+		if shouldGradeL4 {
+			r := grader.GradeL4(team)
+			results = append(results, r...)
+		}
+		if shouldGradeL5 {
+			r := grader.GradeL5(team)
 			results = append(results, r...)
 		}
 		allResults[team.Name] = results
