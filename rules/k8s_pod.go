@@ -21,7 +21,9 @@ const (
 	localPort          = 8080
 )
 
-type K8sNginxPodRule struct{}
+type K8sNginxPodRule struct {
+	Assignments map[string]common.TeamAssignmentL3
+}
 
 func (r K8sNginxPodRule) Spec() common.RuleSpec {
 	return common.RuleSpec{
@@ -74,7 +76,21 @@ func (r K8sNginxPodRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 	fmt.Println("Setting up port-forward...")
 	if err := r.portForward(ctx, namespace, nginxPodName, localPort, nginxContainerPort); err != nil {
 		result.ExecError = fmt.Errorf("failed to set up port-forward: %v", err)
-		return result
+		fmt.Printf("Failed to port-forward: %v\n", err)
+		customPodName := r.Assignments[team.Name].NginxPodName
+		if customPodName == "" {
+			fmt.Println("Fallback port-forward: no custom pod name")
+			return result
+		}
+		fmt.Println("Fallback port-forward: custom pod name is " + customPodName)
+		fmt.Println("Setting up port-forward again with custom name " + customPodName + "...")
+		if err := r.portForward(ctx, namespace, customPodName, localPort, nginxContainerPort); err != nil {
+			result.ExecError = fmt.Errorf("failed to set up port-forward with custom name: %v", err)
+			return result
+		}
+		fmt.Println("Port-forwarding with custom name has been set up successfully")
+	} else {
+		result.Completeness += 0.2
 	}
 	defer cancel() // Ensure the port-forward process is terminated when we're done
 
@@ -86,7 +102,7 @@ func (r K8sNginxPodRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 	}
 
 	if strings.Contains(content, "Welcome to nginx!") {
-		result.Completeness = 1
+		result.Completeness += 0.8
 		result.Reason = "Nginx is running successfully"
 	} else {
 		result.Reason = "Nginx is not running successfully"
@@ -132,6 +148,7 @@ func (r K8sNginxPodRule) portForward(ctx context.Context, namespace, podName str
 
 	// Start the process
 	if err := cmd.Start(); err != nil {
+		fmt.Printf("Failed to start port-forward: %v\n", err)
 		return fmt.Errorf("failed to start port-forward: %w\nstderr: %s", err, stderr.String())
 	}
 
@@ -141,6 +158,7 @@ func (r K8sNginxPodRule) portForward(ctx context.Context, namespace, podName str
 		return nil
 	case <-ctx.Done():
 		err := fmt.Errorf("context canceled while waiting for port-forward")
+		fmt.Print("Context canceled while waiting for port-forward\n")
 		killErr := cmd.Process.Kill() // Ensure the process is terminated if the context is canceled
 		if killErr != nil {
 			return fmt.Errorf("%w, %w", err, killErr)

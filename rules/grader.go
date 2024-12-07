@@ -81,7 +81,7 @@ func NewGrader() (*Grader, error) {
 		dockerSetupRule: DockerSetupRule{},
 
 		assignmentsL3:   assignmentsL3,
-		k8sNginxPodRule: K8sNginxPodRule{},
+		k8sNginxPodRule: K8sNginxPodRule{Assignments: assignmentsL3},
 	}, nil
 }
 

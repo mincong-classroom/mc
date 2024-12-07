@@ -85,4 +85,6 @@ type TeamAssignmentL1 struct {
 
 type TeamAssignmentL2 struct{}
 
-type TeamAssignmentL3 struct{}
+type TeamAssignmentL3 struct {
+	NginxPodName string `yaml:"nginx_pod_name"`
+}
