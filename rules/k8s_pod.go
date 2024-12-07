@@ -14,6 +14,13 @@ import (
 	"github.com/mincong-classroom/mc/common"
 )
 
+const (
+	nginxPodName       = "nginx"
+	nginxManifestPath  = "k8s/pod-nginx.yaml"
+	nginxContainerPort = 80
+	localPort          = 8080
+)
+
 type K8sNginxPodRule struct{}
 
 func (r K8sNginxPodRule) Spec() common.RuleSpec {
@@ -22,10 +29,11 @@ func (r K8sNginxPodRule) Spec() common.RuleSpec {
 		Symbol:   "NGY",
 		Name:     "Nginx Yaml Test",
 		Exercice: "3",
-		Description: `
+		Description: fmt.Sprintf(`
 The team is expected to create a new pod running with Nginx using a kubectl-apply
-command. This pod should be reachable using the port 80. The manifest should
-be saved under the path k8s/pod-nginx.yaml of the Git repository.`,
+command. This pod should be reachable using the port %d and should be named as "%s".
+The manifest should be saved under the path %s of the Git repository.`,
+			nginxContainerPort, nginxPodName, nginxManifestPath),
 	}
 }
 
@@ -38,9 +46,8 @@ func (r K8sNginxPodRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 		ExecError:    nil,
 	}
 	var (
-		manifestPath = fmt.Sprintf("%s/k8s/pod-nginx.yaml", team.GetRepoPath())
+		manifestPath = fmt.Sprintf("%s/%s", team.GetRepoPath(), nginxManifestPath)
 		namespace    = team.GetKubeNamespace()
-		port         = 8080
 	)
 	if _, err := os.ReadFile(manifestPath); err != nil {
 		result.Reason = "The manifest file is missing: " + manifestPath + ", please grade manually."
@@ -65,15 +72,14 @@ func (r K8sNginxPodRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 
 	// Start port-forwarding
 	fmt.Println("Setting up port-forward...")
-	podName := "nginx-pod"
-	if err := r.portForward(ctx, namespace, podName, port, 80); err != nil {
+	if err := r.portForward(ctx, namespace, nginxPodName, localPort, nginxContainerPort); err != nil {
 		result.ExecError = fmt.Errorf("failed to set up port-forward: %v", err)
 		return result
 	}
 	defer cancel() // Ensure the port-forward process is terminated when we're done
 
 	fmt.Println("Fetching content from pod...")
-	content, err := r.getContent(fmt.Sprintf("http://localhost:%d", port))
+	content, err := r.getContent(fmt.Sprintf("http://localhost:%d", localPort))
 	if err != nil {
 		result.ExecError = fmt.Errorf("failed to curl localhost: %v", err)
 		return result
