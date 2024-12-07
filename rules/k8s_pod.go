@@ -40,8 +40,9 @@ func (r K8sNginxPodRule) Spec() common.RuleSpec {
 		Exercice: "3",
 		Description: fmt.Sprintf(`
 The team is expected to create a new pod running with Nginx using a kubectl-apply
-command. This pod should be reachable using the port %d and should be named as %q.
-The manifest should be saved under the path %s of the Git repository.`,
+command. This pod should be reachable using the port %d and should be named as
+%q. The manifest should be saved under the path %s
+of the Git repository.`,
 			nginxContainerPort, nginxPodName, nginxManifestPath),
 	}
 }
@@ -54,11 +55,11 @@ func (r K8sJavaPodRule) Spec() common.RuleSpec {
 		Exercice: "4",
 		Description: fmt.Sprintf(`
 The team is expected to create a new pod running with Java using a kubectl-apply
-command. This pod should be reachable using the port %d and should be named as %q.
-The manifest should be saved under the path %s of the Git repository. The HTTP
-response of the root API (/) should contains the team and authors. The Docker image
-should be pulled from the Docker Hub repository "mincongclassroom/weekend-server-${team}",
-such as "mincongclassroom/weekend-server-red".`,
+command. This pod should be reachable using the port %d and should be named as
+%q. The manifest should be saved under the path %s
+of the Git repository. The HTTP response of the root API (/) should contains the
+team and authors. The Docker image should be pulled from the Docker Hub repository
+"mincongclassroom/weekend-server-${team}", such as "mincongclassroom/weekend-server-red".`,
 			javaContainerPort, javaPodName, javaManifestPath),
 	}
 }

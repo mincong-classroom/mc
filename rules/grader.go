@@ -102,6 +102,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 
 		// L3
 		g.k8sNginxPodRule.Spec().Representation(),
+		g.k8sJavaPodRule.Spec().Representation(),
 	}
 }
 

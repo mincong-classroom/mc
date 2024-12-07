@@ -118,6 +118,17 @@ L2_DST: Docker Setup Test (Ex 3)
 L3_NGY: Nginx Yaml Test (Ex 3)
 
     The team is expected to create a new pod running with Nginx using a kubectl-apply
-    command. This pod should be reachable using the port 80 and should be named as "nginx".
-    The manifest should be saved under the path k8s/pod-nginx.yaml of the Git repository.
+    command. This pod should be reachable using the port 80 and should be named as
+    "nginx". The manifest should be saved under the path k8s/pod-nginx.yaml
+    of the Git repository.
+
+
+L3_JVY: Java Yaml Test (Ex 4)
+
+    The team is expected to create a new pod running with Java using a kubectl-apply
+    command. This pod should be reachable using the port 8080 and should be named as
+    "weekend-server". The manifest should be saved under the path k8s/pod-weekend-server.yaml
+    of the Git repository. The HTTP response of the root API (/) should contains the
+    team and authors. The Docker image should be pulled from the Docker Hub repository
+    "mincongclassroom/weekend-server-${team}", such as "mincongclassroom/weekend-server-red".
 ```
