@@ -20,4 +20,5 @@ func init() {
 	RootCmd.AddCommand(infoCmd)
 	RootCmd.AddCommand(teamCmd)
 	RootCmd.AddCommand(ruleCmd)
+	RootCmd.AddCommand(k8sCmd)
 }
