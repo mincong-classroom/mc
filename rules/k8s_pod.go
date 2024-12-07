@@ -134,8 +134,12 @@ func (r K8sNginxPodRule) portForward(ctx context.Context, namespace, podName str
 	case <-time.After(2 * time.Second):
 		return nil
 	case <-ctx.Done():
-		cmd.Process.Kill() // Ensure the process is terminated if the context is canceled
-		return fmt.Errorf("context canceled while waiting for port-forward")
+		err := fmt.Errorf("context canceled while waiting for port-forward")
+		killErr := cmd.Process.Kill() // Ensure the process is terminated if the context is canceled
+		if killErr != nil {
+			return fmt.Errorf("%w, %w", err, killErr)
+		}
+		return err
 	}
 }
 
