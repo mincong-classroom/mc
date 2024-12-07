@@ -56,7 +56,9 @@ func (r K8sJavaPodRule) Spec() common.RuleSpec {
 The team is expected to create a new pod running with Java using a kubectl-apply
 command. This pod should be reachable using the port %d and should be named as %q.
 The manifest should be saved under the path %s of the Git repository. The HTTP
-response of the root API (/) should contains the team and authors.`,
+response of the root API (/) should contains the team and authors. The Docker image
+should be pulled from the Docker Hub repository "mincongclassroom/weekend-server-${team}",
+such as "mincongclassroom/weekend-server-red".`,
 			javaContainerPort, javaPodName, javaManifestPath),
 	}
 }
@@ -165,23 +167,13 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	time.Sleep(5 * time.Second) // Wait for the pod to be ready
+
 	// Start port-forwarding
 	fmt.Println("Setting up port-forward...")
-	if err := kubePortForward(ctx, namespace, nginxPodName, localPort, nginxContainerPort); err != nil {
+	if err := kubePortForward(ctx, namespace, javaPodName, localPort, javaContainerPort); err != nil {
 		result.ExecError = fmt.Errorf("failed to set up port-forward: %v", err)
 		fmt.Printf("Failed to port-forward: %v\n", err)
-		customPodName := r.Assignments[team.Name].NginxPodName
-		if customPodName == "" {
-			fmt.Println("Fallback port-forward: no custom pod name")
-			return result
-		}
-		fmt.Println("Fallback port-forward: custom pod name is " + customPodName)
-		fmt.Println("Setting up port-forward again with custom name " + customPodName + "...")
-		if err := kubePortForward(ctx, namespace, customPodName, localPort, nginxContainerPort); err != nil {
-			result.ExecError = fmt.Errorf("failed to set up port-forward with custom name: %v", err)
-			return result
-		}
-		fmt.Println("Port-forwarding with custom name has been set up successfully")
 	}
 	defer cancel() // Ensure the port-forward process is terminated when we're done
 
@@ -241,6 +233,7 @@ func kubePortForward(ctx context.Context, namespace, podName string, localPort, 
 	cmd.Stderr = &stderr
 
 	// Start the process
+	fmt.Printf("Starting port-forward: %v\n", cmd)
 	if err := cmd.Start(); err != nil {
 		fmt.Printf("Failed to start port-forward: %v\n", err)
 		return fmt.Errorf("failed to start port-forward: %w\nstderr: %s", err, stderr.String())
