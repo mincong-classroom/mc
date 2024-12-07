@@ -152,6 +152,9 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 	fmt.Printf("\n=== L3: Grading Team %s ===\n", team.Name)
 	results := make([]common.RuleEvaluationResult, 0)
 
+	fmt.Println("Current PATH:", os.Getenv("PATH"))
+	fmt.Println("KUBECONFIG:", os.Getenv("KUBECONFIG"))
+
 	if _, ok := g.assignmentsL1[team.Name]; ok {
 		k8sNginxPodResult := g.k8sNginxPodRule.Run(team, "")
 		results = append(results, k8sNginxPodResult)
