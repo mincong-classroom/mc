@@ -40,6 +40,31 @@ func (t Team) GetKubeNamespace() string {
 	return "team-" + t.Name
 }
 
+func (t Team) HasAllMembers(content string) bool {
+	var founds []bool = make([]bool, len(t.Members))
+	var lowerContent = strings.ToLower(content)
+
+	for i, member := range t.Members {
+		parts := strings.Split(member.Name, " ")
+		for _, part := range parts {
+			if strings.Contains(lowerContent, strings.ToLower(part)) {
+				founds[i] = true
+				break
+			}
+		}
+	}
+
+	var allFound = true
+	for _, found := range founds {
+		if !found {
+			allFound = false
+			break
+		}
+	}
+
+	return allFound
+}
+
 // Rule represents a rule to grade the assignment.
 //
 // The type T is the type of the options to be used when executing the rule.
