@@ -113,4 +113,11 @@ L2_DST: Docker Setup Test (Ex 3)
     password from the secrets, such as "secrets.DOCKER_USERNAME". This is probably
     done using the GitHub Action "docker/login-action" but other approaches are
     fine too.
+
+
+L3_NGY: Nginx Yaml Test (Ex 3)
+
+    The team is expected to create a new pod running with Nginx using a kubectl-apply
+    command. This pod should be reachable using the port 80 and should be named as "nginx".
+    The manifest should be saved under the path k8s/pod-nginx.yaml of the Git repository.
 ```
