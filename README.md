@@ -131,4 +131,25 @@ L3_JVY: Java Yaml Test (Ex 4)
     of the Git repository. The HTTP response of the root API (/) should contains the
     team and authors. The Docker image should be pulled from the Docker Hub repository
     "mincongclassroom/weekend-server-${team}", such as "mincongclassroom/weekend-server-red".
+
+
+L4_RST: ReplicaSet Test (Ex 1)
+
+    The team is expected to create a new ReplicaSet and put the definition under the path
+    k8s/replicaset-nginx.yaml of the Git repository. Operations should be assessed
+    manually by the professor.
+
+
+L4_DPL: Deployment Test (Ex 2)
+
+    The team is expected to create a new Deployment and put the definition under the path
+    k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
+    manually by the professor.
+
+
+L4_SVC: Service Test (Ex 3)
+
+    The team is expected to create a new Service and put the definition under the path
+    k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
+    manually by the professor.
 ```
