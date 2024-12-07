@@ -182,8 +182,6 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 			return result
 		}
 		fmt.Println("Port-forwarding with custom name has been set up successfully")
-	} else {
-		result.Completeness += 0.8
 	}
 	defer cancel() // Ensure the port-forward process is terminated when we're done
 
@@ -192,6 +190,8 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 	if err != nil {
 		result.ExecError = fmt.Errorf("failed to curl localhost: %v", err)
 		return result
+	} else {
+		result.Completeness += 0.8
 	}
 
 	if strings.Contains(content, team.Name) {

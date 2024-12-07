@@ -26,6 +26,7 @@ type Grader struct {
 
 	// L3
 	k8sNginxPodRule common.Rule[string]
+	k8sJavaPodRule  common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -82,6 +83,7 @@ func NewGrader() (*Grader, error) {
 
 		assignmentsL3:   assignmentsL3,
 		k8sNginxPodRule: K8sNginxPodRule{Assignments: assignmentsL3},
+		k8sJavaPodRule:  K8sJavaPodRule{Assignments: assignmentsL3},
 	}, nil
 }
 
@@ -158,6 +160,9 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 	if _, ok := g.assignmentsL1[team.Name]; ok {
 		k8sNginxPodResult := g.k8sNginxPodRule.Run(team, "")
 		results = append(results, k8sNginxPodResult)
+
+		k8sJavaPodResult := g.k8sJavaPodRule.Run(team, "")
+		results = append(results, k8sJavaPodResult)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
