@@ -93,3 +93,52 @@ func (r DockerImageRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 		ExecError:    nil,
 	}
 }
+
+type DockerProcessRule struct{}
+
+func (r DockerProcessRule) Spec() common.RuleSpec {
+	return common.RuleSpec{
+		LabId:    "L1",
+		Symbol:   "DPS",
+		Name:     "Docker Process Test",
+		Exercice: "5",
+		Description: `
+The team is expected to inspect a Docker container using docker-ps. This is a
+manual verification.`,
+	}
+}
+
+func (r DockerProcessRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
+	return common.RuleEvaluationResult{
+		Team:         team,
+		RuleId:       r.Spec().Id(),
+		Completeness: 0,
+		Reason:       "Check the report manually",
+		ExecError:    nil,
+	}
+}
+
+type DockerTeamRule struct{}
+
+func (r DockerTeamRule) Spec() common.RuleSpec {
+	return common.RuleSpec{
+		LabId:    "L1",
+		Symbol:   "DTM",
+		Name:     "Docker Team Test",
+		Exercice: "6",
+		Description: `
+The team is expected to update the source code to include their team name and
+publish a new version of the Docker image under version 1.1.0. This is a manual
+verification.`,
+	}
+}
+
+func (r DockerTeamRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
+	return common.RuleEvaluationResult{
+		Team:         team,
+		RuleId:       r.Spec().Id(),
+		Completeness: 0,
+		Reason:       "Check the report manually",
+		ExecError:    nil,
+	}
+}
