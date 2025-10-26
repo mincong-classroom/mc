@@ -51,6 +51,10 @@ func (t Team) GetRepoURL() string {
 	return fmt.Sprintf("git@github.com:mincong-classroom/%s.git", repoName)
 }
 
+func (t Team) GetLocalRepoDirName() string {
+	return "k8s-" + t.Name
+}
+
 func (t Team) GetKubeNamespace() string {
 	return "team-" + t.Name
 }
