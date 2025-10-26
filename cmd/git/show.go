@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 
 	"github.com/mincong-classroom/mc/common"
@@ -30,13 +31,16 @@ func runShow(cmd *cobra.Command, args []string) {
 	}
 
 	fileExpr := args[0]
-
 	for _, team := range teams {
 		targetDir := fmt.Sprintf("/Users/mincong/github/mincong-classroom/%s", team.GetLocalRepoDirName())
-		cmd := exec.Command("git", "-C", targetDir, "show", fileExpr)
 
-		fmt.Printf("[team: %s] %s\n", team.Name, cmd.String())
+		cmd := exec.Command("git", "--no-pager", "-C", targetDir, "show", fileExpr)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		fmt.Printf("\033[1m[team: %s] %s\033[0m\n", team.Name, cmd.String())
 		err := cmd.Run()
+		fmt.Println()
 
 		if err != nil {
 			log.Printf("Failed to show content for team %q: %v", team.Name, err)
