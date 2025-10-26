@@ -118,6 +118,8 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.mavenJarRule.Spec().Representation(),
 		g.dockerfileRule.Spec().Representation(),
 		g.dockerImageRule.Spec().Representation(),
+		g.dockerProcessRule.Spec().Representation(),
+		g.dockerTeamRule.Spec().Representation(),
 
 		// L2
 		g.mavenSetupRule.Spec().Representation(),

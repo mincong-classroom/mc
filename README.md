@@ -66,47 +66,54 @@ mc rule
 ```
 
 ```
-L1_JAR: JAR Creation Test (Ex 1.1)
-
+L1_JAR: JAR Creation Test (Ex 1)
+  
     The team is expected to create a JAR manually using a maven command and the
-    server should start locally under the port 8080.
+    server should start locally under the port 8080. The team is also expected to
+    extract the JAR file to inspect the content of the MANIFEST.MF file.
 
 
-L1_DKF: Dockerfile Test (Ex 1.2)
+L1_DKF: Dockerfile Test (Ex 2)
+  
+    The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
+    version should be 21+, from the distribution "eclipse-temurin". The port 8080 should be exposed.
+    Note that the team can expose a container port at runtime even if the port is not specified with
+    the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
+    purposes and does not control or enforce which ports are exposed at runtime. If the team did not
+    commit the content of the Dockerfile, but provided a correct Dockerfile implementation in the
+    report, we provide 80% of the score for this rule.
 
-    The team is expected to create a Dockerfile on the path
-    "weekend-server/Dockerfile". The Java version should be 21, from the
-    distribution "eclipse-temurin". The port 8080 should be exposed. Note that
-    you can expose a container port at runtime even if the port is not specified
-    with the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is
-    primarily for documentation purposes and does not control or enforce which
-    ports are exposed at runtime.
 
-
-L1_IMG: Docker Image Test (Ex 1.3+)
-
+L1_IMG: Docker Image Test (Ex 3, 4)
+  
     The team is expected to build a Docker image using one single command. The
-    inspection should be done locally to verify the image is successfully created
-    and runnable. This rule includes the exercise 1.4, 1.5, 1.6 as well. This is
-    a manual verification.
+    Docker image should be published to DockerHub under the mincongclassroom
+    namespace: mincongclassroom/spring-petclinic-{team}, where {team} is the team
+    name in lowercase. Inspection is done locally to verify the image published,
+    runnable, and accessible. This is a manual verification.
 
 
-L1_SQL: SQL Init Test (Ex 2.1.2)
+L1_DPS: Docker Process Test (Ex 5)
+  
+    The team is expected to inspect a Docker container using docker-ps. This is a
+    manual verification.
 
-    The team is expected to complete the SQL script located at the path
-    "weekend-mysql/init.sql". The script should contain an "INSERT INTO" statement
-    followed by 7 values, either using VARCHAR or INT as key for the table
-    "mappings" or a similar table.
+
+L1_DTM: Docker Team Test (Ex 6)
+  
+    The team is expected to update the source code to include their team name and
+    publish a new version of the Docker image under version 1.1.0. This is a manual
+    verification.
 
 
 L2_MST: Maven Setup Test (Ex 1)
-
+  
     The team is expected to run unit tests with Maven in GitHub Actions on the path
     ".github/workflows/app.yml". It should contain the keyword "mvn"
 
 
 L2_RGT: Registry Test (Ex 1)
-
+  
     The team is expected to upload the Docker image to the registry (Dockerhub).
     This is the key of the whole lab session. By completing this exercise, it means
     that the students were able to define the Dockerfile correctly, build the
@@ -117,7 +124,7 @@ L2_RGT: Registry Test (Ex 1)
 
 
 L2_DST: Docker Setup Test (Ex 3)
-
+  
     The team is expected to build a Docker image and publish it to the Docker
     registry. The docker login should be done by retrieving the username and
     password from the secrets, such as "secrets.DOCKER_USERNAME". This is probably
@@ -126,7 +133,7 @@ L2_DST: Docker Setup Test (Ex 3)
 
 
 L3_NGY: Nginx Yaml Test (Ex 3)
-
+  
     The team is expected to create a new pod running with Nginx using a kubectl-apply
     command. This pod should be reachable using the port 80 and should be named as
     "nginx". The manifest should be saved under the path k8s/pod-nginx.yaml
@@ -134,7 +141,7 @@ L3_NGY: Nginx Yaml Test (Ex 3)
 
 
 L3_JVY: Java Yaml Test (Ex 4)
-
+  
     The team is expected to create a new pod running with Java using a kubectl-apply
     command. This pod should be reachable using the port 8080 and should be named as
     "weekend-server". The manifest should be saved under the path k8s/pod-weekend-server.yaml
@@ -144,24 +151,25 @@ L3_JVY: Java Yaml Test (Ex 4)
 
 
 L4_RST: ReplicaSet Test (Ex 1)
-
+  
     The team is expected to create a new ReplicaSet and put the definition under the path
     k8s/replicaset-nginx.yaml of the Git repository. Operations should be assessed
     manually by the professor.
 
 
 L4_DPL: Deployment Test (Ex 2)
-
+  
     The team is expected to create a new Deployment and put the definition under the path
     k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
     manually by the professor.
 
 
 L4_SVC: Service Test (Ex 3)
-
+  
     The team is expected to create a new Service and put the definition under the path
     k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
     manually by the professor.
+
 ```
 
 ## Key Components
