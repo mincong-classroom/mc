@@ -36,6 +36,10 @@ func (t Team) GetContainerRepoForWeekendServer() string {
 	return fmt.Sprintf("mincongclassroom/weekend-server-%s", t.Name)
 }
 
+func (t Team) GetRepoURL() string {
+	return fmt.Sprintf("git@github.com:mincong-classroom/k8s-%s.git", t.Name)
+}
+
 func (t Team) GetKubeNamespace() string {
 	return "team-" + t.Name
 }
