@@ -2,11 +2,17 @@ package rules
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/mincong-classroom/mc/common"
 )
 
+// MavenJarRule checks whether the team can create a JAR file using maven.
+//
+// To find the Maven commands, use the following bash command:
+//
+//	rg -g 'k8s*/docs/lab-1.md' mvn -C 3
+//
+// Then, extract the command manually and put it into the file "assignments-L1.yaml".
 type MavenJarRule struct{}
 
 func (r MavenJarRule) Spec() common.RuleSpec {
@@ -14,10 +20,11 @@ func (r MavenJarRule) Spec() common.RuleSpec {
 		LabId:    "L1",
 		Symbol:   "JAR",
 		Name:     "JAR Creation Test",
-		Exercice: "1.1",
+		Exercice: "1",
 		Description: `
 The team is expected to create a JAR manually using a maven command and the
-server should start locally under the port 8080.`,
+server should start locally under the port 8080. The team is also expected to
+extract the JAR file to inspect the content of the MANIFEST.MF file.`,
 	}
 }
 
@@ -32,10 +39,14 @@ func (r MavenJarRule) Run(team common.Team, command string) common.RuleEvaluatio
 		}
 	}
 
-	gitPath := fmt.Sprintf("%s/github/classroom/containers-%s", os.Getenv("HOME"), team.Name)
+	gitPath := team.GetRepoPath()
 
+	// -Dmaven.test.skip=true to always skip tests because some of them fail randomly
+	//   and they are not relevant to this course.
 	script := fmt.Sprintf(`#!/bin/bash
-cd "%s/weekend-server"
+
+export MAVEN_OPTS="-Dmaven.test.skip=true"
+cd "%s/apps/spring-petclinic"
 %s
 `, gitPath, command)
 

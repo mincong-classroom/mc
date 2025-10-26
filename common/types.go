@@ -34,7 +34,7 @@ func (t Team) GetMembersAsString() string {
 }
 
 func (t Team) GetRepoPath() string {
-	return fmt.Sprintf("%s/github/classroom/containers-%s", os.Getenv("HOME"), t.Name)
+	return fmt.Sprintf("%s/github/mincong-classroom/k8s-%s", os.Getenv("HOME"), t.Name)
 }
 
 func (t Team) GetContainerRepoForWeekendServer() string {

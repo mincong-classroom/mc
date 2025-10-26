@@ -15,10 +15,11 @@ type Grader struct {
 	assignmentsL4 map[string]common.TeamAssignmentL4
 
 	// L1
-	mavenJarRule    common.Rule[string]
-	dockerfileRule  common.Rule[string]
-	dockerImageRule common.Rule[string]
-	sqlInitRule     common.Rule[string]
+	mavenJarRule      common.Rule[string]
+	dockerfileRule    common.Rule[string]
+	dockerImageRule   common.Rule[string]
+	dockerProcessRule common.Rule[string]
+	dockerTeamRule    common.Rule[string]
 
 	// L2
 	mavenSetupRule  common.Rule[string]
@@ -88,11 +89,12 @@ func NewGrader() (*Grader, error) {
 	}
 
 	return &Grader{
-		assignmentsL1:   assignmentsL1,
-		mavenJarRule:    MavenJarRule{},
-		dockerfileRule:  DockerfileRule{},
-		dockerImageRule: DockerImageRule{},
-		sqlInitRule:     SqlInitRule{},
+		assignmentsL1:     assignmentsL1,
+		mavenJarRule:      MavenJarRule{},
+		dockerfileRule:    DockerfileRule{},
+		dockerImageRule:   DockerImageRule{},
+		dockerProcessRule: DockerProcessRule{},
+		dockerTeamRule:    DockerTeamRule{},
 
 		assignmentsL2:   assignmentsL2,
 		mavenSetupRule:  MavenSetupRule{},
@@ -116,7 +118,8 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.mavenJarRule.Spec().Representation(),
 		g.dockerfileRule.Spec().Representation(),
 		g.dockerImageRule.Spec().Representation(),
-		g.sqlInitRule.Spec().Representation(),
+		g.dockerProcessRule.Spec().Representation(),
+		g.dockerTeamRule.Spec().Representation(),
 
 		// L2
 		g.mavenSetupRule.Spec().Representation(),
@@ -138,9 +141,9 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 	fmt.Printf("\n=== L1: Grading Team %s ===\n", team.Name)
 	results := make([]common.RuleEvaluationResult, 0)
 
-	if assignment, ok := g.assignmentsL1[team.Name]; ok {
-		mavenResult := g.mavenJarRule.Run(team, assignment.MavenCommand)
-		results = append(results, mavenResult)
+	if _, ok := g.assignmentsL1[team.Name]; ok {
+		// mavenResult := g.mavenJarRule.Run(team, assignment.MavenCommand)
+		// results = append(results, mavenResult)
 
 		dockerfileResult := g.dockerfileRule.Run(team, "")
 		results = append(results, dockerfileResult)
@@ -148,8 +151,11 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 		dockerImageResult := g.dockerImageRule.Run(team, "")
 		results = append(results, dockerImageResult)
 
-		sqlResult := g.sqlInitRule.Run(team, "")
-		results = append(results, sqlResult)
+		dockerProcessResult := g.dockerProcessRule.Run(team, "")
+		results = append(results, dockerProcessResult)
+
+		dockerTeamResult := g.dockerTeamRule.Run(team, "")
+		results = append(results, dockerTeamResult)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
