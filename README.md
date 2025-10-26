@@ -6,7 +6,7 @@ The CLI tool for Mincong Classroom (mc). It's mainly for auto-grading assignment
 
 ### Managing Git Repositories
 
-There are about 25-30 students in a classroom each year. If they group as teams of two members, there are tens of repositories. It is hard to manage without a specific tool. Especially, all the Git repositories have the same structure since they are cloned from the same template [`mincong-classroom/containers`](https://github.com/mincong-classroom/containers).
+There are about 25-30 students in a classroom each year. If they group into teams of two members, there are tens of repositories. It is hard to manage without a specific tool. In particular, all the Git repositories have the same structure because they are cloned from the same template [`mincong-classroom/containers`](https://github.com/mincong-classroom/containers). This is challenging for updating the repository, printing the content of a specific file, etc.
 
 ## Installation
 
@@ -16,7 +16,7 @@ Install Golang:
 brew install go
 
 go version
-# go version go1.23.3 darwin/arm64
+# go version go1.24.1 darwin/arm64
 ```
 
 Then build the CLI:

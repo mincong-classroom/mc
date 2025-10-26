@@ -16,4 +16,5 @@ func Execute() error {
 
 func init() {
 	GitCmd.AddCommand(cloneCmd)
+	GitCmd.AddCommand(showCmd)
 }
