@@ -41,8 +41,12 @@ func (r MavenJarRule) Run(team common.Team, command string) common.RuleEvaluatio
 
 	gitPath := team.GetRepoPath()
 
+	// -Dmaven.test.skip=true to always skip tests because some of them fail randomly
+	//   and they are not relevant to this course.
 	script := fmt.Sprintf(`#!/bin/bash
-cd "%s/weekend-server"
+
+export MAVEN_OPTS="-Dmaven.test.skip=true"
+cd "%s/apps/spring-petclinic"
 %s
 `, gitPath, command)
 
