@@ -6,6 +6,13 @@ import (
 	"github.com/mincong-classroom/mc/common"
 )
 
+// MavenJarRule checks whether the team can create a JAR file using maven.
+//
+// To find the Maven commands, use the following bash command:
+//
+//	rg -g 'k8s*/docs/lab-1.md' mvn -C 3
+//
+// Then, extract the command manually and put it into the file "assignments-L1.yaml".
 type MavenJarRule struct{}
 
 func (r MavenJarRule) Spec() common.RuleSpec {
