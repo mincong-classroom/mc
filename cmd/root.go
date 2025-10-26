@@ -8,7 +8,7 @@ var RootCmd = &cobra.Command{
 	Use:   "mc",
 	Short: "Mincong Classroom - A CLI tool for grading assignments",
 	Long: `Mincong Classroom (mc) is a command line interface for grading student
-assignments in the Software Containerization and Orchestration course.`,
+assignments in the Kubernetes course.`,
 }
 
 func Execute() error {
