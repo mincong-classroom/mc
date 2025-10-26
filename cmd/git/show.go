@@ -10,10 +10,11 @@ import (
 )
 
 var showCmd = &cobra.Command{
-	Use:     "show",
-	Short:   "Show content of the specific file of all teams",
-	Run:     runShow,
-	Example: "show main:k8s/pod-nginx.yaml",
+	Use:   "show",
+	Short: "Show content of the specific file of all teams",
+	Run:   runShow,
+	Example: `  Show the content of k8s/pod-nginx.yaml file:
+  mc git show main:k8s/pod-nginx.yaml`,
 }
 
 func runShow(cmd *cobra.Command, args []string) {
