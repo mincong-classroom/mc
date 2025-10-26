@@ -16,9 +16,10 @@ func Execute() error {
 }
 
 func init() {
+	RootCmd.AddCommand(gitCmd)
 	RootCmd.AddCommand(gradeCmd)
 	RootCmd.AddCommand(infoCmd)
-	RootCmd.AddCommand(teamCmd)
-	RootCmd.AddCommand(ruleCmd)
 	RootCmd.AddCommand(k8sCmd)
+	RootCmd.AddCommand(ruleCmd)
+	RootCmd.AddCommand(teamCmd)
 }
