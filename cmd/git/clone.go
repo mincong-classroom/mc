@@ -1,25 +1,22 @@
-package cmd
+package git
 
 import (
 	"fmt"
 	"log"
 	"os/exec"
 
+	"github.com/mincong-classroom/mc/common"
 	"github.com/spf13/cobra"
 )
 
-var gitCmd = &cobra.Command{
-	Use:   "git",
-	Short: "Perform git operations in bulk",
-	Run:   runGit,
+var cloneCmd = &cobra.Command{
+	Use:   "clone",
+	Short: "Clone repositories for all teams",
+	Run:   runClone,
 }
 
-func runGit(cmd *cobra.Command, args []string) {
-	teams, err := listTeams()
-	if err != nil {
-		log.Fatalf("Failed to list teams: %v", err)
-	}
-
+func runClone(cmd *cobra.Command, args []string) {
+	teams, _ := common.ListTeams()
 	for _, team := range teams {
 		fmt.Printf("Cloning repository: %s\n", team.GetRepoURL())
 		targetDir := fmt.Sprintf("/Users/mincong/github/mincong-classroom/%s", team.Name)

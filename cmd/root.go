@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/mincong-classroom/mc/cmd/git"
 )
 
 var RootCmd = &cobra.Command{
@@ -16,7 +18,7 @@ func Execute() error {
 }
 
 func init() {
-	RootCmd.AddCommand(gitCmd)
+	RootCmd.AddCommand(git.GitCmd)
 	RootCmd.AddCommand(gradeCmd)
 	RootCmd.AddCommand(infoCmd)
 	RootCmd.AddCommand(k8sCmd)

@@ -19,7 +19,7 @@ var teamCmd = &cobra.Command{
 }
 
 func runTeam(cmd *cobra.Command, args []string) {
-	teams, err := listTeams()
+	teams, err := ListTeams()
 	if err != nil {
 		log.Fatalf("Failed to list teams: %v", err)
 	}
@@ -30,8 +30,9 @@ func runTeam(cmd *cobra.Command, args []string) {
 	}
 }
 
-// listTeams returns a list of team names by reading the classroom directory
-func listTeams() ([]common.Team, error) {
+// TODO Remove this function, use common.ListTeams instead
+// ListTeams returns a list of team names by reading the classroom directory
+func ListTeams() ([]common.Team, error) {
 	teamFile := fmt.Sprintf("%s/.mc/teams-%d.yaml", os.Getenv("HOME"), year)
 	teamData, err := os.ReadFile(teamFile)
 	if err != nil {
