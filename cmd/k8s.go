@@ -25,7 +25,7 @@ func init() {
 }
 
 func createNamespaces(cmd *cobra.Command, args []string) {
-	teams, err := listTeams()
+	teams, err := common.ListTeams()
 	if err != nil {
 		fmt.Printf("Failed to list teams: %v", err)
 		return

@@ -2,13 +2,15 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/mincong-classroom/mc/cmd/git"
 )
 
 var RootCmd = &cobra.Command{
 	Use:   "mc",
 	Short: "Mincong Classroom - A CLI tool for grading assignments",
 	Long: `Mincong Classroom (mc) is a command line interface for grading student
-assignments in the Software Containerization and Orchestration course.`,
+assignments in the Kubernetes course.`,
 }
 
 func Execute() error {
@@ -16,9 +18,10 @@ func Execute() error {
 }
 
 func init() {
+	RootCmd.AddCommand(git.GitCmd)
 	RootCmd.AddCommand(gradeCmd)
 	RootCmd.AddCommand(infoCmd)
-	RootCmd.AddCommand(teamCmd)
-	RootCmd.AddCommand(ruleCmd)
 	RootCmd.AddCommand(k8sCmd)
+	RootCmd.AddCommand(ruleCmd)
+	RootCmd.AddCommand(teamCmd)
 }

@@ -3,11 +3,9 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/mincong-classroom/mc/common"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var teamCmd = &cobra.Command{
@@ -17,7 +15,7 @@ var teamCmd = &cobra.Command{
 }
 
 func runTeam(cmd *cobra.Command, args []string) {
-	teams, err := listTeams()
+	teams, err := common.ListTeams()
 	if err != nil {
 		log.Fatalf("Failed to list teams: %v", err)
 	}
@@ -26,21 +24,4 @@ func runTeam(cmd *cobra.Command, args []string) {
 	for _, team := range teams {
 		fmt.Printf("  - %s: %s\n", team.Name, team.GetMembersAsString())
 	}
-}
-
-// listTeams returns a list of team names by reading the classroom directory
-func listTeams() ([]common.Team, error) {
-	teamFile := fmt.Sprintf("%s/.mc/teams.yaml", os.Getenv("HOME"))
-	teamData, err := os.ReadFile(teamFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %v", err)
-	}
-
-	var data common.TeamRegistry
-	err = yaml.Unmarshal(teamData, &data)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
-	}
-	return data.Teams, nil
 }

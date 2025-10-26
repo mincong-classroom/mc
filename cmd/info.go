@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/mincong-classroom/mc/common"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,7 @@ var infoCmd = &cobra.Command{
 }
 
 func runInfo(cmd *cobra.Command, args []string) {
-	teams, _ := listTeams()
+	teams, _ := common.ListTeams()
 	fmt.Printf("CLI Version: %s\n", version)
 	fmt.Printf("Go Version: %s\n", goVersion)
 	fmt.Printf("AI Model: %s\n", aiModel)
