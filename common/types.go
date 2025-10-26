@@ -13,6 +13,11 @@ type TeamRegistry struct {
 type Team struct {
 	Name    string
 	Members []TeamMember
+	// CustomRepoName is optional. It overrides the default repository name. This is useful for
+	// teams that encountered name conflicts during the team registration on GitHub Classroom. For
+	// example, one team took the name "alpha", but decided to use another name. A second team
+	// tried to register with the same name "alpha" but failed because the name was taken.
+	CustomRepoName *string `yaml:"repo_name"`
 }
 
 type TeamMember struct {
@@ -37,7 +42,13 @@ func (t Team) GetContainerRepoForWeekendServer() string {
 }
 
 func (t Team) GetRepoURL() string {
-	return fmt.Sprintf("git@github.com:mincong-classroom/k8s-%s.git", t.Name)
+	var repoName string
+	if t.CustomRepoName != nil {
+		repoName = *t.CustomRepoName
+	} else {
+		repoName = "k8s-" + t.Name
+	}
+	return fmt.Sprintf("git@github.com:mincong-classroom/%s.git", repoName)
 }
 
 func (t Team) GetKubeNamespace() string {
