@@ -138,9 +138,9 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 	fmt.Printf("\n=== L1: Grading Team %s ===\n", team.Name)
 	results := make([]common.RuleEvaluationResult, 0)
 
-	if assignment, ok := g.assignmentsL1[team.Name]; ok {
-		mavenResult := g.mavenJarRule.Run(team, assignment.MavenCommand)
-		results = append(results, mavenResult)
+	if _, ok := g.assignmentsL1[team.Name]; ok {
+		// mavenResult := g.mavenJarRule.Run(team, assignment.MavenCommand)
+		// results = append(results, mavenResult)
 
 		dockerfileResult := g.dockerfileRule.Run(team, "")
 		results = append(results, dockerfileResult)

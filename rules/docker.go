@@ -17,7 +17,7 @@ func (r DockerfileRule) Spec() common.RuleSpec {
 		Name:     "Dockerfile Test",
 		Exercice: "2",
 		Description: `
-The team is expected to create a Dockerfile on the path "app/spring-petclinic/Dockerfile". The Java
+The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
 version should be 21+, from the distribution "eclipse-temurin". The port 8080 should be exposed.
 Note that the team can expose a container port at runtime even if the port is not specified with
 the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
@@ -34,7 +34,7 @@ func (r DockerfileRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 		ExecError:    nil,
 	}
 
-	bytes, err := os.ReadFile(fmt.Sprintf("%s/weekend-server/Dockerfile", team.GetRepoPath()))
+	bytes, err := os.ReadFile(fmt.Sprintf("%s/apps/spring-petclinic/Dockerfile", team.GetRepoPath()))
 	if err != nil {
 		result.Reason = "The Dockerfile is missing"
 		result.ExecError = err
@@ -42,7 +42,9 @@ func (r DockerfileRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 	}
 
 	content := string(bytes)
-	if strings.Contains(content, "FROM eclipse-temurin:21") {
+	// note: we encountered an incident from DockerHub, so we switched to ECR public registry
+	if strings.Contains(content, "FROM eclipse-temurin:21") ||
+		strings.Contains(content, "FROM public.ecr.aws/docker/library/eclipse-temurin:21") {
 		result.Completeness += 0.8
 	} else {
 		result.Reason += "The Dockerfile does not use the correct Java version or distribution. "
