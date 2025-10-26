@@ -8,6 +8,10 @@ The CLI tool for Mincong Classroom (mc). It's mainly for auto-grading assignment
 
 There are about 25-30 students in a classroom each year. If they group into teams of two members, there are tens of repositories. It is hard to manage without a specific tool. In particular, all the Git repositories have the same structure because they are cloned from the same template [`mincong-classroom/containers`](https://github.com/mincong-classroom/containers). This is challenging for updating the repository, printing the content of a specific file, etc.
 
+### Running Team Specific Commands
+
+It's a bit difficult to run all the team specific commands manually. I could do that with a for-loop but inside that for-loop, there are some variables that need to be computed, all of which are team-specific. For example, the Git repo name, the path of a specific file, ...
+
 ## Installation
 
 Install Golang:
