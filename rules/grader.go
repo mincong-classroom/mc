@@ -142,8 +142,8 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 		mavenResult := g.mavenJarRule.Run(team, assignment.MavenCommand)
 		results = append(results, mavenResult)
 
-		// dockerfileResult := g.dockerfileRule.Run(team, "")
-		// results = append(results, dockerfileResult)
+		dockerfileResult := g.dockerfileRule.Run(team, "")
+		results = append(results, dockerfileResult)
 
 		// dockerImageResult := g.dockerImageRule.Run(team, "")
 		// results = append(results, dockerImageResult)

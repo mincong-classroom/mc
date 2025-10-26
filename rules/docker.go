@@ -15,15 +15,13 @@ func (r DockerfileRule) Spec() common.RuleSpec {
 		LabId:    "L1",
 		Symbol:   "DKF",
 		Name:     "Dockerfile Test",
-		Exercice: "1.2",
+		Exercice: "2",
 		Description: `
-The team is expected to create a Dockerfile on the path
-"weekend-server/Dockerfile". The Java version should be 21, from the
-distribution "eclipse-temurin". The port 8080 should be exposed. Note that
-you can expose a container port at runtime even if the port is not specified
-with the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is
-primarily for documentation purposes and does not control or enforce which
-ports are exposed at runtime.`,
+The team is expected to create a Dockerfile on the path "app/spring-petclinic/Dockerfile". The Java
+version should be 21+, from the distribution "eclipse-temurin". The port 8080 should be exposed.
+Note that the team can expose a container port at runtime even if the port is not specified with
+the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
+purposes and does not control or enforce which ports are exposed at runtime.`,
 	}
 }
 
