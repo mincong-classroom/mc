@@ -159,3 +159,11 @@ L4_SVC: Service Test (Ex 3)
     k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
     manually by the professor.
 ```
+
+## Key Components
+
+The `cmd` directory contains all the commands exposed in the command line interface. Each command is registered in the `root.go`.
+
+The `rules` directory contains all the rules for the auto-grading.
+
+The `.mc` directory is private. It contains all the team information `.mc/teams.yaml` and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.
