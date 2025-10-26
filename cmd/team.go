@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const year = 2025
-
 var teamCmd = &cobra.Command{
 	Use:   "team",
 	Short: "List all teams",
