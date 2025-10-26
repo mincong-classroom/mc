@@ -74,12 +74,13 @@ func (r DockerImageRule) Spec() common.RuleSpec {
 		LabId:    "L1",
 		Symbol:   "IMG",
 		Name:     "Docker Image Test",
-		Exercice: "1.3+",
+		Exercice: "3, 4",
 		Description: `
 The team is expected to build a Docker image using one single command. The
-inspection should be done locally to verify the image is successfully created
-and runnable. This rule includes the exercise 1.4, 1.5, 1.6 as well. This is
-a manual verification.`,
+Docker image should be published to DockerHub under the mincongclassroom
+namespace: mincongclassroom/spring-petclinic-{team}, where {team} is the team
+name in lowercase. Inspection is done locally to verify the image published,
+runnable, and accessible. This is a manual verification.`,
 	}
 }
 
