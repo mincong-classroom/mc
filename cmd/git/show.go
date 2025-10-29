@@ -19,8 +19,7 @@ var showCmd = &cobra.Command{
   mc git show main:k8s/pod-nginx.yaml
 
   Show the content of Dockerfile:
-  mc git show main:apps/spring-petclinic/Dockerfile
-`,
+  mc git show main:apps/spring-petclinic/Dockerfile`,
 }
 
 func runShow(cmd *cobra.Command, args []string) {

@@ -16,8 +16,7 @@ var pullCmd = &cobra.Command{
 	Run:   runPull,
 	Example: `
   Pull latest changes for all teams:
-  mc git pull
-`,
+  mc git pull`,
 }
 
 func runPull(cmd *cobra.Command, args []string) {
