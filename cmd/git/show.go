@@ -14,12 +14,12 @@ var showCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show content of the specific file of all teams",
 	Run:   runShow,
-	Example: `  Show the content of k8s/pod-nginx.yaml file:
+	Example: `
+  Show the content of k8s/pod-nginx.yaml file:
   mc git show main:k8s/pod-nginx.yaml
 
   Show the content of Dockerfile:
-  mc git show main:apps/spring-petclinic/Dockerfile
-`,
+  mc git show main:apps/spring-petclinic/Dockerfile`,
 }
 
 func runShow(cmd *cobra.Command, args []string) {
