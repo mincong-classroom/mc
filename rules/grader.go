@@ -23,10 +23,11 @@ type Grader struct {
 
 	// L2
 	k8sControlPlaneRule common.Rule[string]
+	k8sRunNginxPodRule  common.Rule[string]
+	k8sNginxPodRule     common.Rule[string]
 
 	// L3
-	k8sNginxPodRule common.Rule[string]
-	k8sJavaPodRule  common.Rule[string]
+	k8sJavaPodRule common.Rule[string]
 
 	// L4
 	k8sNginxReplicaSetRule   common.Rule[string]
@@ -96,10 +97,11 @@ func NewGrader() (*Grader, error) {
 
 		assignmentsL2:       assignmentsL2,
 		k8sControlPlaneRule: ManualRule{ruleSpec: k8sControlPlaneRuleSet},
+		k8sRunNginxPodRule:  ManualRule{ruleSpec: k8sRunNginxPodRuleSet},
+		k8sNginxPodRule:     K8sNginxPodRule{Assignments: assignmentsL3},
 
-		assignmentsL3:   assignmentsL3,
-		k8sNginxPodRule: K8sNginxPodRule{Assignments: assignmentsL3},
-		k8sJavaPodRule:  K8sJavaPodRule{Assignments: assignmentsL3},
+		assignmentsL3:  assignmentsL3,
+		k8sJavaPodRule: K8sJavaPodRule{Assignments: assignmentsL3},
 
 		assignmentsL4:            assignmentsL4,
 		k8sNginxReplicaSetRule:   K8sNginxReplicaSetRule{Assignments: assignmentsL4},
@@ -165,6 +167,9 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 	if _, ok := g.assignmentsL1[team.Name]; ok {
 		k8sControlPlaneRuleResults := g.k8sControlPlaneRule.Run(team, "")
 		results = append(results, k8sControlPlaneRuleResults)
+
+		k8sRunNginxPodRuleResults := g.k8sRunNginxPodRule.Run(team, "")
+		results = append(results, k8sRunNginxPodRuleResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}

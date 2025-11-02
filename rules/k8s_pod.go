@@ -209,3 +209,17 @@ func kubeApply(manifestPath, namespace string) error {
 	fmt.Printf("kubectl apply output:\n%s\n", out.String())
 	return nil
 }
+
+var k8sRunNginxPodRuleSet = common.RuleSpec{
+	LabId:    "L2",
+	Symbol:   "RUN",
+	Exercice: "2",
+	Name:     "Kubernetes Run Nginx Pod Test",
+	Description: `
+The team is expected to create a new Pod using the command kubectl-run. The Pod
+needs to be running and accessible. The students should provide evidence of the
+HTTP response from the Pod, such as a screenshot or the command output. A list
+of fields are expected to be filled in the report for describing the
+characteristics of the Pod. Also, the resource should be deleted after the
+test.`,
+}

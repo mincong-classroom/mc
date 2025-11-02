@@ -80,9 +80,9 @@ var k8sControlPlaneRuleSet = common.RuleSpec{
 	Symbol:   "CTL",
 	Exercice: "1",
 	Name:     "Kubernetes Control Plane Test",
-	Description: fmt.Sprintf(`
+	Description: `
 The team is expected to list all the Pods running in all namespaces in
 Kubernetes. Then, list all the nodes available in the cluster. It allows the
 students to get familiar with the Kubernetes and ensure that the command line
-tool kubectl is properly installed on their local machines.`),
+tool kubectl is properly installed on their local machines.`,
 }
