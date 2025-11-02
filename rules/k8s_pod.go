@@ -22,15 +22,15 @@ type K8sJavaPodRule struct {
 
 func (r K8sNginxPodRule) Spec() common.RuleSpec {
 	return common.RuleSpec{
-		LabId:    "L3",
+		LabId:    "L2",
 		Symbol:   "NGY",
-		Name:     "Nginx Yaml Test",
+		Name:     "Nginx YAML Test",
 		Exercice: "3",
 		Description: fmt.Sprintf(`
 The team is expected to create a new Pod running with Nginx using a kubectl-apply
 command. This Pod should be reachable using the port %d and should be named as
 %q. The manifest should be saved under the path %s
-of the Git repository.`,
+of the Git repository. Also, a team label should be added to the Pod definition.`,
 			nginxContainerPort, nginxPodName, nginxManifestPath),
 	}
 }
