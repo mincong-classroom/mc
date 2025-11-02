@@ -22,9 +22,7 @@ type Grader struct {
 	dockerTeamRule    common.Rule[string]
 
 	// L2
-	mavenSetupRule  common.Rule[string]
-	registryRule    common.Rule[string]
-	dockerSetupRule common.Rule[string]
+	k8sControlPlaneRule common.Rule[string]
 
 	// L3
 	k8sNginxPodRule common.Rule[string]
@@ -96,8 +94,8 @@ func NewGrader() (*Grader, error) {
 		dockerProcessRule: DockerProcessRule{},
 		dockerTeamRule:    DockerTeamRule{},
 
-		assignmentsL2: assignmentsL2,
-		registryRule:  RegistryRule{},
+		assignmentsL2:       assignmentsL2,
+		k8sControlPlaneRule: ManualRule{ruleSpec: k8sControlPlaneRuleSet},
 
 		assignmentsL3:   assignmentsL3,
 		k8sNginxPodRule: K8sNginxPodRule{Assignments: assignmentsL3},
@@ -120,9 +118,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.dockerTeamRule.Spec().Representation(),
 
 		// L2
-		g.mavenSetupRule.Spec().Representation(),
-		g.registryRule.Spec().Representation(),
-		g.dockerSetupRule.Spec().Representation(),
+		g.k8sControlPlaneRule.Spec().Representation(),
 
 		// L3
 		g.k8sNginxPodRule.Spec().Representation(),
@@ -167,14 +163,8 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL1[team.Name]; ok {
-		mavenSetupResult := g.mavenSetupRule.Run(team, "")
-		results = append(results, mavenSetupResult)
-
-		registryResult := g.registryRule.Run(team, "")
-		results = append(results, registryResult)
-
-		dockerSetupResult := g.dockerSetupRule.Run(team, "")
-		results = append(results, dockerSetupResult)
+		k8sControlPlaneRuleResults := g.k8sControlPlaneRule.Run(team, "")
+		results = append(results, k8sControlPlaneRuleResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
