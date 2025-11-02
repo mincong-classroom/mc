@@ -121,6 +121,8 @@ func (g *Grader) ListRuleRepresentations() []string {
 
 		// L2
 		g.k8sControlPlaneRule.Spec().Representation(),
+		g.k8sRunNginxPodRule.Spec().Representation(),
+		g.k8sNginxPodRule.Spec().Representation(),
 
 		// L3
 		g.k8sNginxPodRule.Spec().Representation(),
@@ -170,6 +172,9 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 
 		k8sRunNginxPodRuleResults := g.k8sRunNginxPodRule.Run(team, "")
 		results = append(results, k8sRunNginxPodRuleResults)
+
+		k8sNginxPodRuleResults := g.k8sNginxPodRule.Run(team, "")
+		results = append(results, k8sNginxPodRuleResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
