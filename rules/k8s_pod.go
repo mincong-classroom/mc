@@ -27,8 +27,8 @@ func (r K8sNginxPodRule) Spec() common.RuleSpec {
 		Name:     "Nginx Yaml Test",
 		Exercice: "3",
 		Description: fmt.Sprintf(`
-The team is expected to create a new pod running with Nginx using a kubectl-apply
-command. This pod should be reachable using the port %d and should be named as
+The team is expected to create a new Pod running with Nginx using a kubectl-apply
+command. This Pod should be reachable using the port %d and should be named as
 %q. The manifest should be saved under the path %s
 of the Git repository.`,
 			nginxContainerPort, nginxPodName, nginxManifestPath),
