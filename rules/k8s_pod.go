@@ -85,6 +85,10 @@ func (r K8sNginxPodRule) Run(team common.Team, _ string) common.RuleEvaluationRe
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	const sleepSeconds = 5
+	fmt.Printf("Waiting %d seconds for the Pod to be ready...\n", sleepSeconds)
+	time.Sleep(sleepSeconds * time.Second) // Wait for the pod to be ready
+
 	// Start port-forwarding
 	fmt.Println("Setting up port-forward...")
 	if err := kubePortForward(ctx, namespace, nginxPodName, localPort, nginxContainerPort); err != nil {
