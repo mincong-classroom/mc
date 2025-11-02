@@ -96,10 +96,8 @@ func NewGrader() (*Grader, error) {
 		dockerProcessRule: DockerProcessRule{},
 		dockerTeamRule:    DockerTeamRule{},
 
-		assignmentsL2:   assignmentsL2,
-		mavenSetupRule:  MavenSetupRule{},
-		registryRule:    RegistryRule{},
-		dockerSetupRule: DockerSetupRule{},
+		assignmentsL2: assignmentsL2,
+		registryRule:  RegistryRule{},
 
 		assignmentsL3:   assignmentsL3,
 		k8sNginxPodRule: K8sNginxPodRule{Assignments: assignmentsL3},
