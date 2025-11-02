@@ -125,7 +125,6 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.k8sNginxPodRule.Spec().Representation(),
 
 		// L3
-		g.k8sNginxPodRule.Spec().Representation(),
 		g.k8sJavaPodRule.Spec().Representation(),
 
 		// L4

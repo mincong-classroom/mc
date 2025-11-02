@@ -106,38 +106,30 @@ L1_DTM: Docker Team Test (Ex 6)
     verification.
 
 
-L2_MST: Maven Setup Test (Ex 1)
+L2_CTL: Kubernetes Control Plane Test (Ex 1)
   
-    The team is expected to run unit tests with Maven in GitHub Actions on the path
-    ".github/workflows/app.yml". It should contain the keyword "mvn"
+    The team is expected to list all the Pods running in all namespaces in
+    Kubernetes. Then, list all the nodes available in the cluster. It allows the
+    students to get familiar with the Kubernetes and ensure that the command line
+    tool kubectl is properly installed on their local machines.
 
 
-L2_RGT: Registry Test (Ex 1)
+L2_RUN: Kubernetes Run Nginx Pod Test (Ex 2)
   
-    The team is expected to upload the Docker image to the registry (Dockerhub).
-    This is the key of the whole lab session. By completing this exercise, it means
-    that the students were able to define the Dockerfile correctly, build the
-    Docker image, connect to the Dockerhub, and push the image with the right tag.
-    Else, teacher (Mincong) should check the steps by breaking it down into
-    multiple steps. Two kinds of tags are published to the registry, the "latest"
-    kind and the "commit" kind.
+    The team is expected to create a new Pod using the command kubectl-run. The Pod
+    needs to be running and accessible. The students should provide evidence of the
+    HTTP response from the Pod, such as a screenshot or the command output. A list
+    of fields are expected to be filled in the report for describing the
+    characteristics of the Pod. Also, the resource should be deleted after the
+    test.
 
 
-L2_DST: Docker Setup Test (Ex 3)
+L2_NGY: Nginx YAML Test (Ex 3)
   
-    The team is expected to build a Docker image and publish it to the Docker
-    registry. The docker login should be done by retrieving the username and
-    password from the secrets, such as "secrets.DOCKER_USERNAME". This is probably
-    done using the GitHub Action "docker/login-action" but other approaches are
-    fine too.
-
-
-L3_NGY: Nginx Yaml Test (Ex 3)
-  
-    The team is expected to create a new pod running with Nginx using a kubectl-apply
-    command. This pod should be reachable using the port 80 and should be named as
+    The team is expected to create a new Pod running with Nginx using a kubectl-apply
+    command. This Pod should be reachable using the port 80 and should be named as
     "nginx". The manifest should be saved under the path k8s/pod-nginx.yaml
-    of the Git repository.
+    of the Git repository. Also, a team label should be added to the Pod definition.
 
 
 L3_JVY: Java Yaml Test (Ex 4)
