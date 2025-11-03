@@ -132,14 +132,32 @@ L2_NGY: Nginx YAML Test (Ex 3)
     of the Git repository. Also, a team label should be added to the Pod definition.
 
 
-L3_JVY: Java Yaml Test (Ex 4)
+L3_JVY: Java YAML Test (Ex 4)
   
     The team is expected to create a new pod running with Java using a kubectl-apply
     command. This pod should be reachable using the port 8080 and should be named as
-    "weekend-server". The manifest should be saved under the path k8s/pod-weekend-server.yaml
-    of the Git repository. The HTTP response of the root API (/) should contains the
-    team and authors. The Docker image should be pulled from the Docker Hub repository
-    "mincongclassroom/weekend-server-${team}", such as "mincongclassroom/weekend-server-red".
+    "spring-petclinic". The manifest should be saved under the path k8s/pod-petclinic.yaml
+    of the Git repository. The Pod should contain 2 labels, app=spring-petclinic and
+    team=${team}. The Pod must be up and running.
+
+
+L2_OJP: Kubernetes Operate Java Pod Test (Ex 5)
+
+    The team is expected to perform basic operations on the Java Pod they created.
+    These operations include executing a command inside the Pod to get the process
+    ID (PID) of the Java application, retrieving logs from the Pod, and finding the
+    Pod using kubectl-get with label selectors. The students should provide evidence
+    of each operation, such as command outputs or screenshots.
+
+
+L2_FBP: Kubernetes Fix Broken Pod Test (Ex 6)
+
+    The team is expected to troubleshoot and fix a broken Pod provided by the
+    teacher. The Pod is intentionally misconfigured to simulate common issues that
+    may arise in a Kubernetes environment. The students need to identify the two
+    problems, including the incorrect Docker image and the missing team name in the
+    environment variables. After fixing the issues, the Pod should be up and
+    running.
 
 
 L4_RST: ReplicaSet Test (Ex 1)
