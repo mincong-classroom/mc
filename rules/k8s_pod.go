@@ -39,15 +39,14 @@ func (r K8sJavaPodRule) Spec() common.RuleSpec {
 	return common.RuleSpec{
 		LabId:    "L3",
 		Symbol:   "JVY",
-		Name:     "Java Yaml Test",
+		Name:     "Java YAML Test",
 		Exercice: "4",
 		Description: fmt.Sprintf(`
 The team is expected to create a new pod running with Java using a kubectl-apply
 command. This pod should be reachable using the port %d and should be named as
 %q. The manifest should be saved under the path %s
-of the Git repository. The HTTP response of the root API (/) should contains the
-team and authors. The Docker image should be pulled from the Docker Hub repository
-"mincongclassroom/weekend-server-${team}", such as "mincongclassroom/weekend-server-red".`,
+of the Git repository. The Pod should contain 2 labels, app=spring-petclinic and
+team=${team}. The Pod must be up and running.`,
 			javaContainerPort, javaPodName, javaManifestPath),
 	}
 }
@@ -226,4 +225,31 @@ HTTP response from the Pod, such as a screenshot or the command output. A list
 of fields are expected to be filled in the report for describing the
 characteristics of the Pod. Also, the resource should be deleted after the
 test.`,
+}
+
+var k8sOperateJavaPodRuleSet = common.RuleSpec{
+	LabId:    "L2",
+	Symbol:   "OJP",
+	Exercice: "5",
+	Name:     "Kubernetes Operate Java Pod Test",
+	Description: `
+The team is expected to perform basic operations on the Java Pod they created.
+These operations include executing a command inside the Pod to get the process
+ID (PID) of the Java application, retrieving logs from the Pod, and finding the
+Pod using kubectl-get with label selectors. The students should provide evidence
+of each operation, such as command outputs or screenshots.`,
+}
+
+var k8sFixBrokenPodRuleSet = common.RuleSpec{
+	LabId:    "L2",
+	Symbol:   "FBP",
+	Exercice: "6",
+	Name:     "Kubernetes Fix Broken Pod Test",
+	Description: `
+The team is expected to troubleshoot and fix a broken Pod provided by the
+teacher. The Pod is intentionally misconfigured to simulate common issues that
+may arise in a Kubernetes environment. The students need to identify the two
+problems, including the incorrect Docker image and the missing team name in the
+environment variables. After fixing the issues, the Pod should be up and
+running.`,
 }

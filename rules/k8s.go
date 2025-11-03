@@ -17,9 +17,9 @@ const (
 	nginxManifestPath  = "k8s/pod-nginx.yaml"
 	nginxContainerPort = 80
 
-	javaPodName       = "weekend-server"
+	javaPodName       = "spring-petclinic"
 	javaContainerPort = 8080
-	javaManifestPath  = "k8s/pod-weekend-server.yaml"
+	javaManifestPath  = "k8s/pod-petclinic.yaml"
 
 	nginxReplicaSetManifestPath = "k8s/replicaset-nginx.yaml"
 	javaDeploymentManifestPath  = "k8s/deployment-weekend-server.yaml"
