@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os/exec"
 	"time"
+
+	"github.com/mincong-classroom/mc/common"
 )
 
 const (
@@ -15,9 +17,9 @@ const (
 	nginxManifestPath  = "k8s/pod-nginx.yaml"
 	nginxContainerPort = 80
 
-	javaPodName       = "weekend-server"
+	javaPodName       = "spring-petclinic"
 	javaContainerPort = 8080
-	javaManifestPath  = "k8s/pod-weekend-server.yaml"
+	javaManifestPath  = "k8s/pod-petclinic.yaml"
 
 	nginxReplicaSetManifestPath = "k8s/replicaset-nginx.yaml"
 	javaDeploymentManifestPath  = "k8s/deployment-weekend-server.yaml"
@@ -71,4 +73,16 @@ func getHttpContent(url string) (string, error) {
 		return "", err
 	}
 	return string(body), nil
+}
+
+var k8sControlPlaneRuleSet = common.RuleSpec{
+	LabId:    "L2",
+	Symbol:   "CTL",
+	Exercice: "1",
+	Name:     "Kubernetes Control Plane Test",
+	Description: `
+The team is expected to list all the Pods running in all namespaces in
+Kubernetes. Then, list all the nodes available in the cluster. It allows the
+students to get familiar with the Kubernetes and ensure that the command line
+tool kubectl is properly installed on their local machines.`,
 }

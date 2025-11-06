@@ -22,13 +22,14 @@ type Grader struct {
 	dockerTeamRule    common.Rule[string]
 
 	// L2
-	mavenSetupRule  common.Rule[string]
-	registryRule    common.Rule[string]
-	dockerSetupRule common.Rule[string]
+	k8sControlPlaneRule   common.Rule[string]
+	k8sRunNginxPodRule    common.Rule[string]
+	k8sNginxPodRule       common.Rule[string]
+	k8sJavaPodRule        common.Rule[string]
+	k8sOperateJavaPodRule common.Rule[string]
+	k8sFixBrokenPodRule   common.Rule[string]
 
 	// L3
-	k8sNginxPodRule common.Rule[string]
-	k8sJavaPodRule  common.Rule[string]
 
 	// L4
 	k8sNginxReplicaSetRule   common.Rule[string]
@@ -96,14 +97,15 @@ func NewGrader() (*Grader, error) {
 		dockerProcessRule: DockerProcessRule{},
 		dockerTeamRule:    DockerTeamRule{},
 
-		assignmentsL2:   assignmentsL2,
-		mavenSetupRule:  MavenSetupRule{},
-		registryRule:    RegistryRule{},
-		dockerSetupRule: DockerSetupRule{},
+		assignmentsL2:         assignmentsL2,
+		k8sControlPlaneRule:   ManualRule{ruleSpec: k8sControlPlaneRuleSet},
+		k8sRunNginxPodRule:    ManualRule{ruleSpec: k8sRunNginxPodRuleSet},
+		k8sNginxPodRule:       K8sNginxPodRule{Assignments: assignmentsL3},
+		k8sJavaPodRule:        K8sJavaPodRule{Assignments: assignmentsL3},
+		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSet},
+		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSet},
 
-		assignmentsL3:   assignmentsL3,
-		k8sNginxPodRule: K8sNginxPodRule{Assignments: assignmentsL3},
-		k8sJavaPodRule:  K8sJavaPodRule{Assignments: assignmentsL3},
+		assignmentsL3: assignmentsL3,
 
 		assignmentsL4:            assignmentsL4,
 		k8sNginxReplicaSetRule:   K8sNginxReplicaSetRule{Assignments: assignmentsL4},
@@ -122,13 +124,14 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.dockerTeamRule.Spec().Representation(),
 
 		// L2
-		g.mavenSetupRule.Spec().Representation(),
-		g.registryRule.Spec().Representation(),
-		g.dockerSetupRule.Spec().Representation(),
-
-		// L3
+		g.k8sControlPlaneRule.Spec().Representation(),
+		g.k8sRunNginxPodRule.Spec().Representation(),
 		g.k8sNginxPodRule.Spec().Representation(),
 		g.k8sJavaPodRule.Spec().Representation(),
+		g.k8sOperateJavaPodRule.Spec().Representation(),
+		g.k8sFixBrokenPodRule.Spec().Representation(),
+
+		// L3
 
 		// L4
 		g.k8sNginxReplicaSetRule.Spec().Representation(),
@@ -169,14 +172,20 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL1[team.Name]; ok {
-		mavenSetupResult := g.mavenSetupRule.Run(team, "")
-		results = append(results, mavenSetupResult)
+		k8sControlPlaneRuleResults := g.k8sControlPlaneRule.Run(team, "")
+		results = append(results, k8sControlPlaneRuleResults)
 
-		registryResult := g.registryRule.Run(team, "")
-		results = append(results, registryResult)
+		k8sRunNginxPodRuleResults := g.k8sRunNginxPodRule.Run(team, "")
+		results = append(results, k8sRunNginxPodRuleResults)
 
-		dockerSetupResult := g.dockerSetupRule.Run(team, "")
-		results = append(results, dockerSetupResult)
+		k8sNginxPodRuleResults := g.k8sNginxPodRule.Run(team, "")
+		results = append(results, k8sNginxPodRuleResults)
+
+		k8sOperateJavaPodRuleResults := g.k8sOperateJavaPodRule.Run(team, "")
+		results = append(results, k8sOperateJavaPodRuleResults)
+
+		k8sFixBrokenPodRuleResults := g.k8sFixBrokenPodRule.Run(team, "")
+		results = append(results, k8sFixBrokenPodRuleResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
