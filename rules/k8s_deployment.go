@@ -7,25 +7,30 @@ import (
 	"github.com/mincong-classroom/mc/common"
 )
 
-type K8sJavaDeploymentRule struct {
+type K8sDeploymentRule struct {
 	Assignments map[string]common.TeamAssignmentL4
 }
 
-func (r K8sJavaDeploymentRule) Spec() common.RuleSpec {
+func (r K8sDeploymentRule) Spec() common.RuleSpec {
 	return common.RuleSpec{
-		LabId:    "L4",
+		LabId:    "L3",
 		Symbol:   "DPL",
 		Name:     "Deployment Test",
 		Exercice: "2",
 		Description: fmt.Sprintf(`
 The team is expected to create a new Deployment and put the definition under the path
-%s of the Git repository. Operations should be assessed
-manually by the professor.`,
-			petclinicDeploymentManifestPath),
+%q of the Git repository. Operations should be assessed
+manually by the teacher. Most of the requirements are similar to the ReplicaSet.
+That is, the container should use port 8080 to receive incoming
+traffic; the container name should be "main"; the team should use 2 labels:
+petclinicDeploymentManifestPath),
+app=spring-petclinic and team=<team-name>. Then, they are expected to create a
+environment variable "TEAM" with the value in lowercase and observe the rollout
+history. Finally, they should disrupt the Deployment and observe what happens.`, petclinicDeploymentManifestPath),
 	}
 }
 
-func (r K8sJavaDeploymentRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
+func (r K8sDeploymentRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
 	result := common.RuleEvaluationResult{
 		Team:         team,
 		RuleId:       r.Spec().Id(),

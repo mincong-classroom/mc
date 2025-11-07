@@ -107,7 +107,7 @@ func NewGrader() (*Grader, error) {
 
 		assignmentsL3:            assignmentsL3,
 		k8sNginxReplicaSetRule:   K8sReplicaSetRule{Assignments: assignmentsL4},
-		k8sJavaDeploymentSetRule: K8sJavaDeploymentRule{Assignments: assignmentsL4},
+		k8sJavaDeploymentSetRule: K8sDeploymentRule{Assignments: assignmentsL4},
 
 		assignmentsL4:  assignmentsL4,
 		K8sServiceRule: K8sServiceRule{Assignments: assignmentsL4},

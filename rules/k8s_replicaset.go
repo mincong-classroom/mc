@@ -20,11 +20,12 @@ func (r K8sReplicaSetRule) Spec() common.RuleSpec {
 		Description: fmt.Sprintf(`
 The team is expected to create a new ReplicaSet and put the definition under the path
 %q of the Git repository. Operations should be assessed
-manually by the professor. The container should use port 8080 to receive incoming
-traffic. The team should use 2 labels: app=spring-petclinic and
-team=<team-name>. The ReplicaSet should be created successfully and the Pods
-should be running. Then, the team should describe how they scale the ReplicaSet
-and what happens if they delete a Pod managed by the ReplicaSet.`,
+manually by the teacher. The container should use port 8080 to receive incoming
+traffic. The container name should be "main". The team should use 2 labels:
+app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
+successfully and the Pods should be running. Then, the team should describe how
+they scale the ReplicaSet and what happens if they delete a Pod managed by the
+ReplicaSet.`,
 			petclinicReplicaSetManifestPath),
 	}
 }
