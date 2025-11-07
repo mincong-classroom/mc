@@ -21,9 +21,9 @@ const (
 	javaContainerPort = 8080
 	javaManifestPath  = "k8s/pod-petclinic.yaml"
 
-	nginxReplicaSetManifestPath = "k8s/replicaset-nginx.yaml"
-	javaDeploymentManifestPath  = "k8s/deployment-weekend-server.yaml"
-	javaServiceManifestPath     = "k8s/service-weekend-server.yaml"
+	petclinicReplicaSetManifestPath = "k8s/replicaset-petclinic.yaml"
+	javaDeploymentManifestPath      = "k8s/deployment-weekend-server.yaml"
+	javaServiceManifestPath         = "k8s/service-weekend-server.yaml"
 
 	localPort = 8080
 )

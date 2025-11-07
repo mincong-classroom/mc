@@ -105,12 +105,12 @@ func NewGrader() (*Grader, error) {
 		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSet},
 		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSet},
 
-		assignmentsL3: assignmentsL3,
-
-		assignmentsL4:            assignmentsL4,
-		k8sNginxReplicaSetRule:   K8sNginxReplicaSetRule{Assignments: assignmentsL4},
+		assignmentsL3:            assignmentsL3,
+		k8sNginxReplicaSetRule:   K8sReplicaSetRule{Assignments: assignmentsL4},
 		k8sJavaDeploymentSetRule: K8sJavaDeploymentRule{Assignments: assignmentsL4},
-		K8sServiceRule:           K8sServiceRule{Assignments: assignmentsL4},
+
+		assignmentsL4:  assignmentsL4,
+		K8sServiceRule: K8sServiceRule{Assignments: assignmentsL4},
 	}, nil
 }
 
@@ -132,10 +132,10 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.k8sFixBrokenPodRule.Spec().Representation(),
 
 		// L3
-
-		// L4
 		g.k8sNginxReplicaSetRule.Spec().Representation(),
 		g.k8sJavaDeploymentSetRule.Spec().Representation(),
+
+		// L4
 		g.K8sServiceRule.Spec().Representation(),
 	}
 }
