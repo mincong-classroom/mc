@@ -142,7 +142,7 @@ L3_JVY: Java YAML Test (Ex 4)
 
 
 L2_OJP: Kubernetes Operate Java Pod Test (Ex 5)
-
+  
     The team is expected to perform basic operations on the Java Pod they created.
     These operations include executing a command inside the Pod to get the process
     ID (PID) of the Java application, retrieving logs from the Pod, and finding the
@@ -151,7 +151,7 @@ L2_OJP: Kubernetes Operate Java Pod Test (Ex 5)
 
 
 L2_FBP: Kubernetes Fix Broken Pod Test (Ex 6)
-
+  
     The team is expected to troubleshoot and fix a broken Pod provided by the
     teacher. The Pod is intentionally misconfigured to simulate common issues that
     may arise in a Kubernetes environment. The students need to identify the two
@@ -160,25 +160,37 @@ L2_FBP: Kubernetes Fix Broken Pod Test (Ex 6)
     running.
 
 
-L4_RST: ReplicaSet Test (Ex 1)
+L3_RST: ReplicaSet Test (Ex 1)
   
     The team is expected to create a new ReplicaSet and put the definition under the path
-    k8s/replicaset-nginx.yaml of the Git repository. Operations should be assessed
-    manually by the professor.
+    "k8s/replicaset-petclinic.yaml" of the Git repository. Operations should be assessed
+    manually by the teacher. The container should use port 8080 to receive incoming
+    traffic. The container name should be "main". The team should use 2 labels:
+    app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
+    successfully and the Pods should be running. Then, the team should describe how
+    they scale the ReplicaSet and what happens if they delete a Pod managed by the
+    ReplicaSet.
 
 
-L4_DPL: Deployment Test (Ex 2)
+L3_DPL: Deployment Test (Ex 2)
   
     The team is expected to create a new Deployment and put the definition under the path
-    k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
-    manually by the professor.
+    "k8s/deployment-petclinic.yaml" of the Git repository. Operations should be assessed
+    manually by the teacher. Most of the requirements are similar to the ReplicaSet.
+    That is, the container should use port 8080 to receive incoming
+    traffic; the container name should be "main"; the team should use 2 labels:
+    petclinicDeploymentManifestPath),
+    app=spring-petclinic and team=<team-name>. Then, they are expected to create a
+    environment variable "TEAM" with the value in lowercase and observe the rollout
+    history. Finally, they should disrupt the Deployment and observe what happens.
 
 
 L4_SVC: Service Test (Ex 3)
   
     The team is expected to create a new Service and put the definition under the path
-    k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
+    k8s/deployment-petclinic.yaml of the Git repository. Operations should be assessed
     manually by the professor.
+
 
 ```
 
