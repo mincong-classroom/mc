@@ -47,7 +47,7 @@ command. This pod should be reachable using the port %d and should be named as
 %q. The manifest should be saved under the path %s
 of the Git repository. The Pod should contain 2 labels, app=spring-petclinic and
 team=${team}. The Pod must be up and running.`,
-			javaContainerPort, javaPodName, javaManifestPath),
+			petclinicContainerPort, petclinicPodName, petclinicPodManifestPath),
 	}
 }
 
@@ -135,7 +135,7 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 		ExecError:    nil,
 	}
 	var (
-		manifestPath = fmt.Sprintf("%s/%s", team.GetRepoPath(), javaManifestPath)
+		manifestPath = fmt.Sprintf("%s/%s", team.GetRepoPath(), petclinicPodManifestPath)
 		namespace    = team.GetKubeNamespace()
 	)
 	if _, err := os.ReadFile(manifestPath); err != nil {
@@ -163,7 +163,7 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 
 	// Start port-forwarding
 	fmt.Println("Setting up port-forward...")
-	if err := kubePortForward(ctx, namespace, javaPodName, localPort, javaContainerPort); err != nil {
+	if err := kubePortForward(ctx, namespace, petclinicPodName, localPort, petclinicContainerPort); err != nil {
 		result.ExecError = fmt.Errorf("failed to set up port-forward: %v", err)
 		fmt.Printf("Failed to port-forward: %v\n", err)
 	}

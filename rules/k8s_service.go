@@ -21,7 +21,7 @@ func (r K8sServiceRule) Spec() common.RuleSpec {
 The team is expected to create a new Service and put the definition under the path
 %s of the Git repository. Operations should be assessed
 manually by the professor.`,
-			javaDeploymentManifestPath),
+			petclinicDeploymentManifestPath),
 	}
 }
 

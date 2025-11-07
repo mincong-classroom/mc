@@ -21,7 +21,7 @@ func (r K8sJavaDeploymentRule) Spec() common.RuleSpec {
 The team is expected to create a new Deployment and put the definition under the path
 %s of the Git repository. Operations should be assessed
 manually by the professor.`,
-			javaDeploymentManifestPath),
+			petclinicDeploymentManifestPath),
 	}
 }
 
@@ -34,7 +34,7 @@ func (r K8sJavaDeploymentRule) Run(team common.Team, _ string) common.RuleEvalua
 		ExecError:    nil,
 	}
 	var (
-		manifestPath = fmt.Sprintf("%s/%s", team.GetRepoPath(), javaDeploymentManifestPath)
+		manifestPath = fmt.Sprintf("%s/%s", team.GetRepoPath(), petclinicDeploymentManifestPath)
 		namespace    = team.GetKubeNamespace()
 	)
 	if _, err := os.ReadFile(manifestPath); err != nil {
