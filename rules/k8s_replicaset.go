@@ -26,8 +26,8 @@ one published by the team in the previous lab, i.e.
 "mincongclassroom/spring-petclinic-{team}". The team should use 2 labels:
 app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
 successfully and the Pods should be running. Then, the team should describe how
-they scale the ReplicaSet and what happens if they delete a Pod managed by the
-ReplicaSet.`,
+they scale the ReplicaSet. Most importantly, they should explain the behavior
+of the system when they delete a Pod managed by the ReplicaSet.`,
 			petclinicReplicaSetManifestPath),
 	}
 }
