@@ -30,11 +30,11 @@ type Grader struct {
 	k8sFixBrokenPodRule   common.Rule[string]
 
 	// L3
-	k8sNginxReplicaSetRule         common.Rule[string]
-	k8sJavaDeploymentSetRule       common.Rule[string]
-	k8sDockerFrontendImageRule     common.Rule[string]
-	k8sDockerCustomerImageRule     common.Rule[string]
-	k8sDockerVeterinarianImageRule common.Rule[string]
+	k8sNginxReplicaSetRule      common.Rule[string]
+	k8sJavaDeploymentSetRule    common.Rule[string]
+	dockerFrontendImageRule     common.Rule[string]
+	dockerCustomerImageRule     common.Rule[string]
+	dockerVeterinarianImageRule common.Rule[string]
 
 	// L4
 	K8sServiceRule common.Rule[string]
@@ -108,12 +108,12 @@ func NewGrader() (*Grader, error) {
 		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSpec},
 		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSpec},
 
-		assignmentsL3:                  assignmentsL3,
-		k8sNginxReplicaSetRule:         K8sReplicaSetRule{Assignments: assignmentsL4},
-		k8sJavaDeploymentSetRule:       K8sDeploymentRule{Assignments: assignmentsL4},
-		k8sDockerFrontendImageRule:     ManualRule{ruleSpec: dockerFrontendImageRuleSpec},
-		k8sDockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
-		k8sDockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
+		assignmentsL3:               assignmentsL3,
+		k8sNginxReplicaSetRule:      K8sReplicaSetRule{Assignments: assignmentsL4},
+		k8sJavaDeploymentSetRule:    K8sDeploymentRule{Assignments: assignmentsL4},
+		dockerFrontendImageRule:     ManualRule{ruleSpec: dockerFrontendImageRuleSpec},
+		dockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
+		dockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
 
 		assignmentsL4:  assignmentsL4,
 		K8sServiceRule: K8sServiceRule{Assignments: assignmentsL4},
@@ -140,6 +140,9 @@ func (g *Grader) ListRuleRepresentations() []string {
 		// L3
 		g.k8sNginxReplicaSetRule.Spec().Representation(),
 		g.k8sJavaDeploymentSetRule.Spec().Representation(),
+		g.k8sDockerFrontendImageRule.Spec().Representation(),
+		g.k8sDockerCustomerImageRule.Spec().Representation(),
+		g.k8sDockerVeterinarianImageRule.Spec().Representation(),
 
 		// L4
 		g.K8sServiceRule.Spec().Representation(),
@@ -215,16 +218,16 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 		results = append(results, k8sJavaDeploymentSetResults)
 
 		if team.Role == "frontend" {
-			k8sDockerFrontendImageResults := g.k8sDockerFrontendImageRule.Run(team, "")
-			results = append(results, k8sDockerFrontendImageResults)
+			dockerFrontendImageResults := g.dockerFrontendImageRule.Run(team, "")
+			results = append(results, dockerFrontendImageResults)
 		}
 		if team.Role == "customer" {
-			k8sDockerCustomerImageResults := g.k8sDockerCustomerImageRule.Run(team, "")
-			results = append(results, k8sDockerCustomerImageResults)
+			dockerCustomerImageResults := g.dockerCustomerImageRule.Run(team, "")
+			results = append(results, dockerCustomerImageResults)
 		}
 		if team.Role == "veterinarian" {
-			k8sDockerVeterinarianImageResults := g.k8sDockerVeterinarianImageRule.Run(team, "")
-			results = append(results, k8sDockerVeterinarianImageResults)
+			dockerVeterinarianImageResults := g.dockerVeterinarianImageRule.Run(team, "")
+			results = append(results, dockerVeterinarianImageResults)
 		}
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
