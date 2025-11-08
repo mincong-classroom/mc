@@ -30,8 +30,11 @@ type Grader struct {
 	k8sFixBrokenPodRule   common.Rule[string]
 
 	// L3
-	k8sNginxReplicaSetRule   common.Rule[string]
-	k8sJavaDeploymentSetRule common.Rule[string]
+	k8sNginxReplicaSetRule         common.Rule[string]
+	k8sJavaDeploymentSetRule       common.Rule[string]
+	k8sDockerFrontendImageRule     common.Rule[string]
+	k8sDockerCustomerImageRule     common.Rule[string]
+	k8sDockerVeterinarianImageRule common.Rule[string]
 
 	// L4
 	K8sServiceRule common.Rule[string]
@@ -102,12 +105,15 @@ func NewGrader() (*Grader, error) {
 		k8sRunNginxPodRule:    ManualRule{ruleSpec: k8sRunNginxPodRuleSet},
 		k8sNginxPodRule:       K8sNginxPodRule{Assignments: assignmentsL3},
 		k8sJavaPodRule:        K8sJavaPodRule{Assignments: assignmentsL3},
-		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSet},
-		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSet},
+		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSpec},
+		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSpec},
 
-		assignmentsL3:            assignmentsL3,
-		k8sNginxReplicaSetRule:   K8sReplicaSetRule{Assignments: assignmentsL4},
-		k8sJavaDeploymentSetRule: K8sDeploymentRule{Assignments: assignmentsL4},
+		assignmentsL3:                  assignmentsL3,
+		k8sNginxReplicaSetRule:         K8sReplicaSetRule{Assignments: assignmentsL4},
+		k8sJavaDeploymentSetRule:       K8sDeploymentRule{Assignments: assignmentsL4},
+		k8sDockerFrontendImageRule:     ManualRule{ruleSpec: dockerFrontendImageRuleSpec},
+		k8sDockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
+		k8sDockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
 
 		assignmentsL4:  assignmentsL4,
 		K8sServiceRule: K8sServiceRule{Assignments: assignmentsL4},
@@ -207,6 +213,19 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 
 		k8sJavaDeploymentSetResults := g.k8sJavaDeploymentSetRule.Run(team, "")
 		results = append(results, k8sJavaDeploymentSetResults)
+
+		if team.Role == "frontend" {
+			k8sDockerFrontendImageResults := g.k8sDockerFrontendImageRule.Run(team, "")
+			results = append(results, k8sDockerFrontendImageResults)
+		}
+		if team.Role == "customer" {
+			k8sDockerCustomerImageResults := g.k8sDockerCustomerImageRule.Run(team, "")
+			results = append(results, k8sDockerCustomerImageResults)
+		}
+		if team.Role == "veterinarian" {
+			k8sDockerVeterinarianImageResults := g.k8sDockerVeterinarianImageRule.Run(team, "")
+			results = append(results, k8sDockerVeterinarianImageResults)
+		}
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}

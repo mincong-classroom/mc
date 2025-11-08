@@ -227,7 +227,7 @@ characteristics of the Pod. Also, the resource should be deleted after the
 test.`,
 }
 
-var k8sOperateJavaPodRuleSet = common.RuleSpec{
+var k8sOperateJavaPodRuleSpec = common.RuleSpec{
 	LabId:    "L2",
 	Symbol:   "OJP",
 	Exercice: "5",
@@ -240,7 +240,7 @@ Pod using kubectl-get with label selectors. The students should provide evidence
 of each operation, such as command outputs or screenshots.`,
 }
 
-var k8sFixBrokenPodRuleSet = common.RuleSpec{
+var k8sFixBrokenPodRuleSpec = common.RuleSpec{
 	LabId:    "L2",
 	Symbol:   "FBP",
 	Exercice: "6",

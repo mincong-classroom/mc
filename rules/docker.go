@@ -142,3 +142,48 @@ func (r DockerTeamRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 		ExecError:    nil,
 	}
 }
+
+var dockerFrontendImageRuleSpec = common.RuleSpec{
+	LabId:    "L3",
+	Symbol:   "DIF",
+	Exercice: "3",
+	Name:     "Docker Frontend Image Test",
+	Description: `
+The team is expected to build a Docker image for the frontend service. The image
+should be published to DockerHub under the mincongclassroom namespace:
+mincongclassroom/spring-petclinic-api-gateway-{team}, where {team} is the team
+name in lowercase. Inspection is done locally to verify the image published,
+runnable, and accessible. The footer should display the team name. This is a
+manual verification. The image tag should be 3.0 which corresponds to the Lab
+Session 3.`,
+}
+
+var dockerCustomerImageRuleSpec = common.RuleSpec{
+	LabId:    "L3",
+	Symbol:   "DIC",
+	Exercice: "3",
+	Name:     "Docker Customer Image Test",
+	Description: `
+The team is expected to build a Docker image for the customer service. The image
+should be published to DockerHub under the mincongclassroom namespace:
+mincongclassroom/spring-petclinic-customers-service-{clinic}, where {clinic} is
+the groupe name in lowercase. Inspection is done locally to verify the image
+published, runnable, and accessible. It should contain a new customer. This is
+a manual verification. The image tag should be 3.0 which corresponds to the Lab
+Session 3.`,
+}
+
+var dockerVeterinarianImageRuleSpec = common.RuleSpec{
+	LabId:    "L3",
+	Symbol:   "DIV",
+	Exercice: "3",
+	Name:     "Docker Veterinarian Image Test",
+	Description: `
+The team is expected to build a Docker image for the veterinarian service. The
+image should be published to DockerHub under the mincongclassroom namespace:
+mincongclassroom/spring-petclinic-vets-service-{clinic}, where {clinic} is
+the groupe name in lowercase. Inspection is done locally to verify the image
+published, runnable, and accessible. It should contain a new veterinarian.
+This is a manual verification. The image tag should be 3.0 which corresponds to
+the Lab Session 3.`,
+}
