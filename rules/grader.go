@@ -140,9 +140,9 @@ func (g *Grader) ListRuleRepresentations() []string {
 		// L3
 		g.k8sNginxReplicaSetRule.Spec().Representation(),
 		g.k8sJavaDeploymentSetRule.Spec().Representation(),
-		g.k8sDockerFrontendImageRule.Spec().Representation(),
-		g.k8sDockerCustomerImageRule.Spec().Representation(),
-		g.k8sDockerVeterinarianImageRule.Spec().Representation(),
+		g.dockerFrontendImageRule.Spec().Representation(),
+		g.dockerCustomerImageRule.Spec().Representation(),
+		g.dockerVeterinarianImageRule.Spec().Representation(),
 
 		// L4
 		g.K8sServiceRule.Spec().Representation(),
