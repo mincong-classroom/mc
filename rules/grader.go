@@ -245,8 +245,11 @@ func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL4[team.Name]; ok {
-		k8sServiceResult := g.K8sServiceRule.Run(team, "")
-		results = append(results, k8sServiceResult)
+		k8sHelloServerServiceResults := g.k8sHelloServerServiceRule.Run(team, "")
+		results = append(results, k8sHelloServerServiceResults)
+
+		k8sServiceResults := g.K8sServiceRule.Run(team, "")
+		results = append(results, k8sServiceResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
