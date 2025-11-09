@@ -165,11 +165,13 @@ L3_RST: ReplicaSet Test (Ex 1)
     The team is expected to create a new ReplicaSet and put the definition under the path
     "k8s/replicaset-petclinic.yaml" of the Git repository. Operations should be assessed
     manually by the teacher. The container should use port 8080 to receive incoming
-    traffic. The container name should be "main". The team should use 2 labels:
+    traffic. The container name should be "main". The docker image should be the
+    one published by the team in the previous lab, i.e.
+    "mincongclassroom/spring-petclinic-{team}". The team should use 2 labels:
     app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
     successfully and the Pods should be running. Then, the team should describe how
-    they scale the ReplicaSet and what happens if they delete a Pod managed by the
-    ReplicaSet.
+    they scale the ReplicaSet. Most importantly, they should explain the behavior
+    of the system when they delete a Pod managed by the ReplicaSet.
 
 
 L3_DPL: Deployment Test (Ex 2)
@@ -183,6 +185,39 @@ L3_DPL: Deployment Test (Ex 2)
     app=spring-petclinic and team=<team-name>. Then, they are expected to create a
     environment variable "TEAM" with the value in lowercase and observe the rollout
     history. Finally, they should disrupt the Deployment and observe what happens.
+
+
+L3_DIF: Docker Frontend Image Test (Ex 3)
+  
+    The team is expected to build a Docker image for the frontend service. The image
+    should be published to DockerHub under the mincongclassroom namespace:
+    mincongclassroom/spring-petclinic-api-gateway-{team}, where {team} is the team
+    name in lowercase. Inspection is done locally to verify the image published,
+    runnable, and accessible. The footer should display the team name. This is a
+    manual verification. The image tag should be 3.0 which corresponds to the Lab
+    Session 3.
+
+
+L3_DIC: Docker Customer Image Test (Ex 3)
+  
+    The team is expected to build a Docker image for the customer service. The image
+    should be published to DockerHub under the mincongclassroom namespace:
+    mincongclassroom/spring-petclinic-customers-service-{clinic}, where {clinic} is
+    the groupe name in lowercase. Inspection is done locally to verify the image
+    published, runnable, and accessible. It should contain a new customer. This is
+    a manual verification. The image tag should be 3.0 which corresponds to the Lab
+    Session 3.
+
+
+L3_DIV: Docker Veterinarian Image Test (Ex 3)
+  
+    The team is expected to build a Docker image for the veterinarian service. The
+    image should be published to DockerHub under the mincongclassroom namespace:
+    mincongclassroom/spring-petclinic-vets-service-{clinic}, where {clinic} is
+    the groupe name in lowercase. Inspection is done locally to verify the image
+    published, runnable, and accessible. It should contain a new veterinarian.
+    This is a manual verification. The image tag should be 3.0 which corresponds to
+    the Lab Session 3.
 
 
 L4_SVC: Service Test (Ex 3)
