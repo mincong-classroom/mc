@@ -37,7 +37,8 @@ type Grader struct {
 	dockerVeterinarianImageRule common.Rule[string]
 
 	// L4
-	K8sServiceRule common.Rule[string]
+	K8sServiceRule            common.Rule[string]
+	k8sHelloServerServiceRule common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -115,8 +116,9 @@ func NewGrader() (*Grader, error) {
 		dockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
 		dockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
 
-		assignmentsL4:  assignmentsL4,
-		K8sServiceRule: K8sServiceRule{Assignments: assignmentsL4},
+		assignmentsL4:             assignmentsL4,
+		k8sHelloServerServiceRule: ManualRule{ruleSpec: k8sHelloServerServiceRuleSpec},
+		K8sServiceRule:            K8sServiceRule{Assignments: assignmentsL4},
 	}, nil
 }
 
@@ -145,6 +147,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.dockerVeterinarianImageRule.Spec().Representation(),
 
 		// L4
+		g.k8sHelloServerServiceRule.Spec().Representation(),
 		g.K8sServiceRule.Spec().Representation(),
 	}
 }
