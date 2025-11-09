@@ -38,6 +38,7 @@ type Grader struct {
 
 	// L4
 	K8sServiceRule            common.Rule[string]
+	k8sNodePortRule           common.Rule[string]
 	k8sHelloServerServiceRule common.Rule[string]
 }
 
@@ -118,6 +119,7 @@ func NewGrader() (*Grader, error) {
 
 		assignmentsL4:             assignmentsL4,
 		k8sHelloServerServiceRule: ManualRule{ruleSpec: k8sHelloServerServiceRuleSpec},
+		k8sNodePortRule:           ManualRule{ruleSpec: k8sNodePortRuleSpec},
 		K8sServiceRule:            K8sServiceRule{Assignments: assignmentsL4},
 	}, nil
 }
@@ -148,6 +150,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 
 		// L4
 		g.k8sHelloServerServiceRule.Spec().Representation(),
+		g.k8sNodePortRule.Spec().Representation(),
 		g.K8sServiceRule.Spec().Representation(),
 	}
 }
@@ -247,6 +250,9 @@ func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
 	if _, ok := g.assignmentsL4[team.Name]; ok {
 		k8sHelloServerServiceResults := g.k8sHelloServerServiceRule.Run(team, "")
 		results = append(results, k8sHelloServerServiceResults)
+
+		k8sNodePortResults := g.k8sNodePortRule.Run(team, "")
+		results = append(results, k8sNodePortResults)
 
 		k8sServiceResults := g.K8sServiceRule.Run(team, "")
 		results = append(results, k8sServiceResults)

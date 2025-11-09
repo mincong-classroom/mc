@@ -20,6 +20,18 @@ prove that the networking is working successfully. This is a manual
 verification.`,
 }
 
+var k8sNodePortRuleSpec = common.RuleSpec{
+	LabId:    "L4",
+	Symbol:   "NPT",
+	Exercice: "2",
+	Name:     "K8s NodePort Test",
+	Description: `
+The team is expected to change the Service type of the API Gateway from
+ClusterIP to NodePort so that it can be accessed externally. They are expected
+to perform a validation to prove that the networking is working successfully.
+This is a manual verification.`,
+}
+
 type K8sServiceRule struct {
 	Assignments map[string]common.TeamAssignmentL4
 }
