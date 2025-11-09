@@ -13,6 +13,7 @@ type TeamRegistry struct {
 type Team struct {
 	Name    string
 	Members []TeamMember
+	Role    string // "frontend", "customer", "veterinarian"
 	// CustomRepoName is optional. It overrides the default repository name. This is useful for
 	// teams that encountered name conflicts during the team registration on GitHub Classroom. For
 	// example, one team took the name "alpha", but decided to use another name. A second team
@@ -109,10 +110,11 @@ func (r RuleSpec) Id() string {
 
 func (r RuleSpec) Representation() string {
 	// e.g. L1_JAR: JAR Creation Test (Ex 1.1)
-	title := fmt.Sprintf("%s: %s (Ex %s)\n  ", r.Id(), r.Name, r.Exercice)
-	body := strings.ReplaceAll(r.Description, "\n", "\n    ")
+	title := fmt.Sprintf("%s: %s (Ex %s)", r.Id(), r.Name, r.Exercice)
+	description := strings.TrimSpace(r.Description)
+	body := strings.ReplaceAll(description, "\n", "\n    ")
 
-	return title + body + "\n"
+	return title + "\n\n    " + body + "\n"
 }
 
 type RuleEvaluationResult struct {

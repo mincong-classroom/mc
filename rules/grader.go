@@ -30,11 +30,14 @@ type Grader struct {
 	k8sFixBrokenPodRule   common.Rule[string]
 
 	// L3
+	k8sNginxReplicaSetRule      common.Rule[string]
+	k8sJavaDeploymentSetRule    common.Rule[string]
+	dockerFrontendImageRule     common.Rule[string]
+	dockerCustomerImageRule     common.Rule[string]
+	dockerVeterinarianImageRule common.Rule[string]
 
 	// L4
-	k8sNginxReplicaSetRule   common.Rule[string]
-	k8sJavaDeploymentSetRule common.Rule[string]
-	K8sServiceRule           common.Rule[string]
+	K8sServiceRule common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -102,15 +105,18 @@ func NewGrader() (*Grader, error) {
 		k8sRunNginxPodRule:    ManualRule{ruleSpec: k8sRunNginxPodRuleSet},
 		k8sNginxPodRule:       K8sNginxPodRule{Assignments: assignmentsL3},
 		k8sJavaPodRule:        K8sJavaPodRule{Assignments: assignmentsL3},
-		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSet},
-		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSet},
+		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSpec},
+		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSpec},
 
-		assignmentsL3: assignmentsL3,
+		assignmentsL3:               assignmentsL3,
+		k8sNginxReplicaSetRule:      K8sReplicaSetRule{Assignments: assignmentsL4},
+		k8sJavaDeploymentSetRule:    K8sDeploymentRule{Assignments: assignmentsL4},
+		dockerFrontendImageRule:     ManualRule{ruleSpec: dockerFrontendImageRuleSpec},
+		dockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
+		dockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
 
-		assignmentsL4:            assignmentsL4,
-		k8sNginxReplicaSetRule:   K8sNginxReplicaSetRule{Assignments: assignmentsL4},
-		k8sJavaDeploymentSetRule: K8sJavaDeploymentRule{Assignments: assignmentsL4},
-		K8sServiceRule:           K8sServiceRule{Assignments: assignmentsL4},
+		assignmentsL4:  assignmentsL4,
+		K8sServiceRule: K8sServiceRule{Assignments: assignmentsL4},
 	}, nil
 }
 
@@ -132,10 +138,13 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.k8sFixBrokenPodRule.Spec().Representation(),
 
 		// L3
-
-		// L4
 		g.k8sNginxReplicaSetRule.Spec().Representation(),
 		g.k8sJavaDeploymentSetRule.Spec().Representation(),
+		g.dockerFrontendImageRule.Spec().Representation(),
+		g.dockerCustomerImageRule.Spec().Representation(),
+		g.dockerVeterinarianImageRule.Spec().Representation(),
+
+		// L4
 		g.K8sServiceRule.Spec().Representation(),
 	}
 }
@@ -181,6 +190,9 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 		k8sNginxPodRuleResults := g.k8sNginxPodRule.Run(team, "")
 		results = append(results, k8sNginxPodRuleResults)
 
+		k8sJavaPodResults := g.k8sJavaPodRule.Run(team, "")
+		results = append(results, k8sJavaPodResults)
+
 		k8sOperateJavaPodRuleResults := g.k8sOperateJavaPodRule.Run(team, "")
 		results = append(results, k8sOperateJavaPodRuleResults)
 
@@ -199,11 +211,24 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL1[team.Name]; ok {
-		k8sNginxPodResult := g.k8sNginxPodRule.Run(team, "")
-		results = append(results, k8sNginxPodResult)
+		k8sReplicaSetResults := g.k8sNginxReplicaSetRule.Run(team, "")
+		results = append(results, k8sReplicaSetResults)
 
-		k8sJavaPodResult := g.k8sJavaPodRule.Run(team, "")
-		results = append(results, k8sJavaPodResult)
+		k8sJavaDeploymentSetResults := g.k8sJavaDeploymentSetRule.Run(team, "")
+		results = append(results, k8sJavaDeploymentSetResults)
+
+		if team.Role == "frontend" {
+			dockerFrontendImageResults := g.dockerFrontendImageRule.Run(team, "")
+			results = append(results, dockerFrontendImageResults)
+		}
+		if team.Role == "customer" {
+			dockerCustomerImageResults := g.dockerCustomerImageRule.Run(team, "")
+			results = append(results, dockerCustomerImageResults)
+		}
+		if team.Role == "veterinarian" {
+			dockerVeterinarianImageResults := g.dockerVeterinarianImageRule.Run(team, "")
+			results = append(results, dockerVeterinarianImageResults)
+		}
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
@@ -217,12 +242,6 @@ func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL4[team.Name]; ok {
-		k8sNginxReplicaSetResult := g.k8sNginxReplicaSetRule.Run(team, "")
-		results = append(results, k8sNginxReplicaSetResult)
-
-		k8sJavaDeploymentSetResult := g.k8sJavaDeploymentSetRule.Run(team, "")
-		results = append(results, k8sJavaDeploymentSetResult)
-
 		k8sServiceResult := g.K8sServiceRule.Run(team, "")
 		results = append(results, k8sServiceResult)
 	} else {

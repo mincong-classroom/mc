@@ -7,25 +7,32 @@ import (
 	"github.com/mincong-classroom/mc/common"
 )
 
-type K8sNginxReplicaSetRule struct {
+type K8sReplicaSetRule struct {
 	Assignments map[string]common.TeamAssignmentL4
 }
 
-func (r K8sNginxReplicaSetRule) Spec() common.RuleSpec {
+func (r K8sReplicaSetRule) Spec() common.RuleSpec {
 	return common.RuleSpec{
-		LabId:    "L4",
+		LabId:    "L3",
 		Symbol:   "RST",
 		Name:     "ReplicaSet Test",
 		Exercice: "1",
 		Description: fmt.Sprintf(`
 The team is expected to create a new ReplicaSet and put the definition under the path
-%s of the Git repository. Operations should be assessed
-manually by the professor.`,
-			nginxReplicaSetManifestPath),
+%q of the Git repository. Operations should be assessed
+manually by the teacher. The container should use port 8080 to receive incoming
+traffic. The container name should be "main". The docker image should be the
+one published by the team in the previous lab, i.e.
+"mincongclassroom/spring-petclinic-{team}". The team should use 2 labels:
+app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
+successfully and the Pods should be running. Then, the team should describe how
+they scale the ReplicaSet. Most importantly, they should explain the behavior
+of the system when they delete a Pod managed by the ReplicaSet.`,
+			petclinicReplicaSetManifestPath),
 	}
 }
 
-func (r K8sNginxReplicaSetRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
+func (r K8sReplicaSetRule) Run(team common.Team, _ string) common.RuleEvaluationResult {
 	result := common.RuleEvaluationResult{
 		Team:         team,
 		RuleId:       r.Spec().Id(),
@@ -34,7 +41,7 @@ func (r K8sNginxReplicaSetRule) Run(team common.Team, _ string) common.RuleEvalu
 		ExecError:    nil,
 	}
 	var (
-		manifestPath = fmt.Sprintf("%s/%s", team.GetRepoPath(), nginxReplicaSetManifestPath)
+		manifestPath = fmt.Sprintf("%s/%s", team.GetRepoPath(), petclinicReplicaSetManifestPath)
 		namespace    = team.GetKubeNamespace()
 	)
 	if _, err := os.ReadFile(manifestPath); err != nil {

@@ -17,13 +17,13 @@ const (
 	nginxManifestPath  = "k8s/pod-nginx.yaml"
 	nginxContainerPort = 80
 
-	javaPodName       = "spring-petclinic"
-	javaContainerPort = 8080
-	javaManifestPath  = "k8s/pod-petclinic.yaml"
+	petclinicPodName         = "spring-petclinic"
+	petclinicContainerPort   = 8080
+	petclinicPodManifestPath = "k8s/pod-petclinic.yaml"
 
-	nginxReplicaSetManifestPath = "k8s/replicaset-nginx.yaml"
-	javaDeploymentManifestPath  = "k8s/deployment-weekend-server.yaml"
-	javaServiceManifestPath     = "k8s/service-weekend-server.yaml"
+	petclinicReplicaSetManifestPath = "k8s/replicaset-petclinic.yaml"
+	petclinicDeploymentManifestPath = "k8s/deployment-petclinic.yaml"
+	javaServiceManifestPath         = "k8s/service-weekend-server.yaml"
 
 	localPort = 8080
 )

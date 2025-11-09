@@ -67,14 +67,14 @@ mc rule
 
 ```
 L1_JAR: JAR Creation Test (Ex 1)
-  
+
     The team is expected to create a JAR manually using a maven command and the
     server should start locally under the port 8080. The team is also expected to
     extract the JAR file to inspect the content of the MANIFEST.MF file.
 
 
 L1_DKF: Dockerfile Test (Ex 2)
-  
+
     The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
     version should be 21+, from the distribution "eclipse-temurin". The port 8080 should be exposed.
     Note that the team can expose a container port at runtime even if the port is not specified with
@@ -85,7 +85,7 @@ L1_DKF: Dockerfile Test (Ex 2)
 
 
 L1_IMG: Docker Image Test (Ex 3, 4)
-  
+
     The team is expected to build a Docker image using one single command. The
     Docker image should be published to DockerHub under the mincongclassroom
     namespace: mincongclassroom/spring-petclinic-{team}, where {team} is the team
@@ -94,20 +94,20 @@ L1_IMG: Docker Image Test (Ex 3, 4)
 
 
 L1_DPS: Docker Process Test (Ex 5)
-  
+
     The team is expected to inspect a Docker container using docker-ps. This is a
     manual verification.
 
 
 L1_DTM: Docker Team Test (Ex 6)
-  
+
     The team is expected to update the source code to include their team name and
     publish a new version of the Docker image under version 1.1.0. This is a manual
     verification.
 
 
 L2_CTL: Kubernetes Control Plane Test (Ex 1)
-  
+
     The team is expected to list all the Pods running in all namespaces in
     Kubernetes. Then, list all the nodes available in the cluster. It allows the
     students to get familiar with the Kubernetes and ensure that the command line
@@ -115,7 +115,7 @@ L2_CTL: Kubernetes Control Plane Test (Ex 1)
 
 
 L2_RUN: Kubernetes Run Nginx Pod Test (Ex 2)
-  
+
     The team is expected to create a new Pod using the command kubectl-run. The Pod
     needs to be running and accessible. The students should provide evidence of the
     HTTP response from the Pod, such as a screenshot or the command output. A list
@@ -125,7 +125,7 @@ L2_RUN: Kubernetes Run Nginx Pod Test (Ex 2)
 
 
 L2_NGY: Nginx YAML Test (Ex 3)
-  
+
     The team is expected to create a new Pod running with Nginx using a kubectl-apply
     command. This Pod should be reachable using the port 80 and should be named as
     "nginx". The manifest should be saved under the path k8s/pod-nginx.yaml
@@ -133,7 +133,7 @@ L2_NGY: Nginx YAML Test (Ex 3)
 
 
 L3_JVY: Java YAML Test (Ex 4)
-  
+
     The team is expected to create a new pod running with Java using a kubectl-apply
     command. This pod should be reachable using the port 8080 and should be named as
     "spring-petclinic". The manifest should be saved under the path k8s/pod-petclinic.yaml
@@ -160,25 +160,72 @@ L2_FBP: Kubernetes Fix Broken Pod Test (Ex 6)
     running.
 
 
-L4_RST: ReplicaSet Test (Ex 1)
-  
+L3_RST: ReplicaSet Test (Ex 1)
+
     The team is expected to create a new ReplicaSet and put the definition under the path
-    k8s/replicaset-nginx.yaml of the Git repository. Operations should be assessed
-    manually by the professor.
+    "k8s/replicaset-petclinic.yaml" of the Git repository. Operations should be assessed
+    manually by the teacher. The container should use port 8080 to receive incoming
+    traffic. The container name should be "main". The docker image should be the
+    one published by the team in the previous lab, i.e.
+    "mincongclassroom/spring-petclinic-{team}". The team should use 2 labels:
+    app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
+    successfully and the Pods should be running. Then, the team should describe how
+    they scale the ReplicaSet. Most importantly, they should explain the behavior
+    of the system when they delete a Pod managed by the ReplicaSet.
 
 
-L4_DPL: Deployment Test (Ex 2)
-  
+L3_DPL: Deployment Test (Ex 2)
+
     The team is expected to create a new Deployment and put the definition under the path
-    k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
-    manually by the professor.
+    "k8s/deployment-petclinic.yaml" of the Git repository. Operations should be assessed
+    manually by the teacher. Most of the requirements are similar to the ReplicaSet.
+    That is, the container should use port 8080 to receive incoming
+    traffic; the container name should be "main"; the team should use 2 labels:
+    petclinicDeploymentManifestPath),
+    app=spring-petclinic and team=<team-name>. Then, they are expected to create a
+    environment variable "TEAM" with the value in lowercase and observe the rollout
+    history. Finally, they should disrupt the Deployment and observe what happens.
+
+
+L3_DIF: Docker Frontend Image Test (Ex 3)
+
+    The team is expected to build a Docker image for the frontend service. The image
+    should be published to DockerHub under the mincongclassroom namespace:
+    mincongclassroom/spring-petclinic-api-gateway-{team}, where {team} is the team
+    name in lowercase. Inspection is done locally to verify the image published,
+    runnable, and accessible. The footer should display the team name. This is a
+    manual verification. The image tag should be 3.0 which corresponds to the Lab
+    Session 3.
+
+
+L3_DIC: Docker Customer Image Test (Ex 3)
+
+    The team is expected to build a Docker image for the customer service. The image
+    should be published to DockerHub under the mincongclassroom namespace:
+    mincongclassroom/spring-petclinic-customers-service-{clinic}, where {clinic} is
+    the groupe name in lowercase. Inspection is done locally to verify the image
+    published, runnable, and accessible. It should contain a new customer. This is
+    a manual verification. The image tag should be 3.0 which corresponds to the Lab
+    Session 3.
+
+
+L3_DIV: Docker Veterinarian Image Test (Ex 3)
+
+    The team is expected to build a Docker image for the veterinarian service. The
+    image should be published to DockerHub under the mincongclassroom namespace:
+    mincongclassroom/spring-petclinic-vets-service-{clinic}, where {clinic} is
+    the groupe name in lowercase. Inspection is done locally to verify the image
+    published, runnable, and accessible. It should contain a new veterinarian.
+    This is a manual verification. The image tag should be 3.0 which corresponds to
+    the Lab Session 3.
 
 
 L4_SVC: Service Test (Ex 3)
-  
+
     The team is expected to create a new Service and put the definition under the path
-    k8s/deployment-weekend-server.yaml of the Git repository. Operations should be assessed
+    k8s/deployment-petclinic.yaml of the Git repository. Operations should be assessed
     manually by the professor.
+
 
 ```
 
