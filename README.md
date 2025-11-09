@@ -220,11 +220,44 @@ L3_DIV: Docker Veterinarian Image Test (Ex 3)
     the Lab Session 3.
 
 
-L4_SVC: Service Test (Ex 3)
+L4_HSV: K8s Hello Server Service Test (Ex 1)
 
-    The team is expected to create a new Service and put the definition under the path
-    k8s/deployment-petclinic.yaml of the Git repository. Operations should be assessed
-    manually by the professor.
+    The team is expected to expose the hello-server as a Kubernetes Service. They
+    are expected to create a Deployment for the container image "hello-server";
+    create a Service called "hello" under the port 80; and perform a validation to
+    prove that the networking is working successfully. This is a manual
+    verification.
+
+
+L4_NPT: K8s NodePort Test (Ex 2)
+
+    The team is expected to change the Service type of the API Gateway from
+    ClusterIP to NodePort so that it can be accessed externally. They are expected
+    to perform a validation to prove that the networking is working successfully.
+    This is a manual verification.
+
+
+L4_PNS: K8s PetClinic Namespace Test (Ex 3)
+
+    The team is expected to create two namespaces: "prod" and "dev". Each namespace
+    should contain the whole stack in microservice, including the API gateway and
+    the backend services. All resources should be up and running.
+
+
+L4_EML: PetClinic Email Support Test (Ex 4)
+
+    The team is expected to make necessary changes to support the email field for
+    the customers in the PetClinic application. This includes updating the database
+    schema, modifying the backend services, and ensuring that the frontend UI allows
+    users to input and view email addresses. This is a manual verification.
+
+
+L4_VTQ: PetClinic Veterinarian Qualification Test (Ex 4)
+
+    The team is expected to make necessary changes to support the qualification
+    field for the veterinarians in the PetClinic application. This includes updating the database
+    schema, modifying the backend services, and ensuring that the frontend UI allows
+    users to input and view qualifications. This is a manual verification.
 
 
 ```
