@@ -11,7 +11,9 @@ var petclinicEmailSupportRuleSpec = common.RuleSpec{
 The team is expected to make necessary changes to support the email field for
 the customers in the PetClinic application. This includes updating the database
 schema, modifying the backend services, and ensuring that the frontend UI allows
-users to input and view email addresses. This is a manual verification.`,
+users to input and view email addresses. This is a manual verification. This
+exercise is a bonus for Lab Session 4. Its score is not included in the base
+score of 20, but students who complete it can earn additional points.`,
 }
 
 var petclinicVeterinarianQualificationRuleSpec = common.RuleSpec{
@@ -23,5 +25,7 @@ var petclinicVeterinarianQualificationRuleSpec = common.RuleSpec{
 The team is expected to make necessary changes to support the qualification
 field for the veterinarians in the PetClinic application. This includes updating the database
 schema, modifying the backend services, and ensuring that the frontend UI allows
-users to input and view qualifications. This is a manual verification.`,
+users to input and view qualifications. This is a manual verification. This
+exercise is a bonus for Lab Session 4. Its score is not included in the base
+score of 20, but students who complete it can earn additional points.`,
 }
