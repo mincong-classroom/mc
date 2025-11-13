@@ -266,7 +266,10 @@ L5_SEC: Kubernetes Secret Test (Ex 1)
     data in the cluster. The secret must be named as "openai" and data entry should
     be "api-key". The value should be encoded in base64 format. And the resource
     should be applied to the "dev" namespace. The team should verify the result by
-    putting the analysis in the report. This is a manual verification.
+    putting the analysis in the report. A -30% penalty will be applied if the team
+    exposes the API key in the report. This is not acceptable: they have been
+    warned during the lecture; and in the description of the lab exercise. This is
+    a manual verification.
 
 
 L5_GAI: PetClinic GenAI Service Test (Ex 2)
