@@ -37,7 +37,11 @@ type Grader struct {
 	dockerVeterinarianImageRule common.Rule[string]
 
 	// L4
-	K8sServiceRule common.Rule[string]
+	k8sNodePortRule                            common.Rule[string]
+	k8sNamespaceRule                           common.Rule[string]
+	k8sHelloServerServiceRule                  common.Rule[string]
+	petclinicEmailSupportRuleSpec              common.Rule[string]
+	petclinicVeterinarianQualificationRuleSpec common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -115,8 +119,12 @@ func NewGrader() (*Grader, error) {
 		dockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
 		dockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
 
-		assignmentsL4:  assignmentsL4,
-		K8sServiceRule: K8sServiceRule{Assignments: assignmentsL4},
+		assignmentsL4:                              assignmentsL4,
+		k8sHelloServerServiceRule:                  ManualRule{ruleSpec: k8sHelloServerServiceRuleSpec},
+		k8sNodePortRule:                            ManualRule{ruleSpec: k8sNodePortRuleSpec},
+		k8sNamespaceRule:                           ManualRule{ruleSpec: k8sNamespaceRuleSpec},
+		petclinicEmailSupportRuleSpec:              ManualRule{ruleSpec: petclinicEmailSupportRuleSpec},
+		petclinicVeterinarianQualificationRuleSpec: ManualRule{ruleSpec: petclinicVeterinarianQualificationRuleSpec},
 	}, nil
 }
 
@@ -145,7 +153,11 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.dockerVeterinarianImageRule.Spec().Representation(),
 
 		// L4
-		g.K8sServiceRule.Spec().Representation(),
+		g.k8sHelloServerServiceRule.Spec().Representation(),
+		g.k8sNodePortRule.Spec().Representation(),
+		g.k8sNamespaceRule.Spec().Representation(),
+		g.petclinicEmailSupportRuleSpec.Spec().Representation(),
+		g.petclinicVeterinarianQualificationRuleSpec.Spec().Representation(),
 	}
 }
 
@@ -242,8 +254,20 @@ func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL4[team.Name]; ok {
-		k8sServiceResult := g.K8sServiceRule.Run(team, "")
-		results = append(results, k8sServiceResult)
+		k8sHelloServerServiceResults := g.k8sHelloServerServiceRule.Run(team, "")
+		results = append(results, k8sHelloServerServiceResults)
+
+		k8sNodePortResults := g.k8sNodePortRule.Run(team, "")
+		results = append(results, k8sNodePortResults)
+
+		k8sNamespaceResults := g.k8sNamespaceRule.Run(team, "")
+		results = append(results, k8sNamespaceResults)
+
+		petclinicEmailSupportResults := g.petclinicEmailSupportRuleSpec.Run(team, "")
+		results = append(results, petclinicEmailSupportResults)
+
+		petclinicVeterinarianQualificationResults := g.petclinicVeterinarianQualificationRuleSpec.Run(team, "")
+		results = append(results, petclinicVeterinarianQualificationResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
