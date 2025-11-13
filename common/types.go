@@ -136,3 +136,5 @@ type TeamAssignmentL3 struct {
 }
 
 type TeamAssignmentL4 struct{}
+
+type TeamAssignmentL5 struct{}

@@ -13,6 +13,7 @@ type Grader struct {
 	assignmentsL2 map[string]common.TeamAssignmentL2
 	assignmentsL3 map[string]common.TeamAssignmentL3
 	assignmentsL4 map[string]common.TeamAssignmentL4
+	assignmentsL5 map[string]common.TeamAssignmentL5
 
 	// L1
 	mavenJarRule      common.Rule[string]
@@ -37,11 +38,14 @@ type Grader struct {
 	dockerVeterinarianImageRule common.Rule[string]
 
 	// L4
-	k8sNodePortRule                            common.Rule[string]
-	k8sNamespaceRule                           common.Rule[string]
-	k8sHelloServerServiceRule                  common.Rule[string]
-	petclinicEmailSupportRuleSpec              common.Rule[string]
-	petclinicVeterinarianQualificationRuleSpec common.Rule[string]
+	k8sNodePortRule                        common.Rule[string]
+	k8sNamespaceRule                       common.Rule[string]
+	k8sHelloServerServiceRule              common.Rule[string]
+	petclinicEmailSupportRule              common.Rule[string]
+	petclinicVeterinarianQualificationRule common.Rule[string]
+
+	// L5
+	petclinicGenaiServiceRule common.Rule[string]
 }
 
 func NewGrader() (*Grader, error) {
@@ -50,6 +54,7 @@ func NewGrader() (*Grader, error) {
 		assignmentsL2 map[string]common.TeamAssignmentL2
 		assignmentsL3 map[string]common.TeamAssignmentL3
 		assignmentsL4 map[string]common.TeamAssignmentL4
+		assignmentsL5 map[string]common.TeamAssignmentL5
 	)
 
 	path1 := fmt.Sprintf("%s/.mc/assignments-L1.yaml", os.Getenv("HOME"))
@@ -119,12 +124,15 @@ func NewGrader() (*Grader, error) {
 		dockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
 		dockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
 
-		assignmentsL4:                              assignmentsL4,
-		k8sHelloServerServiceRule:                  ManualRule{ruleSpec: k8sHelloServerServiceRuleSpec},
-		k8sNodePortRule:                            ManualRule{ruleSpec: k8sNodePortRuleSpec},
-		k8sNamespaceRule:                           ManualRule{ruleSpec: k8sNamespaceRuleSpec},
-		petclinicEmailSupportRuleSpec:              ManualRule{ruleSpec: petclinicEmailSupportRuleSpec},
-		petclinicVeterinarianQualificationRuleSpec: ManualRule{ruleSpec: petclinicVeterinarianQualificationRuleSpec},
+		assignmentsL4:                          assignmentsL4,
+		k8sHelloServerServiceRule:              ManualRule{ruleSpec: k8sHelloServerServiceRuleSpec},
+		k8sNodePortRule:                        ManualRule{ruleSpec: k8sNodePortRuleSpec},
+		k8sNamespaceRule:                       ManualRule{ruleSpec: k8sNamespaceRuleSpec},
+		petclinicEmailSupportRule:              ManualRule{ruleSpec: petclinicEmailSupportRuleSpec},
+		petclinicVeterinarianQualificationRule: ManualRule{ruleSpec: petclinicVeterinarianQualificationRuleSpec},
+
+		assignmentsL5:             assignmentsL5,
+		petclinicGenaiServiceRule: ManualRule{ruleSpec: petclinicGenaiServiceRuleSpec},
 	}, nil
 }
 
@@ -156,8 +164,11 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.k8sHelloServerServiceRule.Spec().Representation(),
 		g.k8sNodePortRule.Spec().Representation(),
 		g.k8sNamespaceRule.Spec().Representation(),
-		g.petclinicEmailSupportRuleSpec.Spec().Representation(),
-		g.petclinicVeterinarianQualificationRuleSpec.Spec().Representation(),
+		g.petclinicEmailSupportRule.Spec().Representation(),
+		g.petclinicVeterinarianQualificationRule.Spec().Representation(),
+
+		// L5
+		g.petclinicGenaiServiceRule.Spec().Representation(),
 	}
 }
 
@@ -263,10 +274,10 @@ func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
 		k8sNamespaceResults := g.k8sNamespaceRule.Run(team, "")
 		results = append(results, k8sNamespaceResults)
 
-		petclinicEmailSupportResults := g.petclinicEmailSupportRuleSpec.Run(team, "")
+		petclinicEmailSupportResults := g.petclinicEmailSupportRule.Run(team, "")
 		results = append(results, petclinicEmailSupportResults)
 
-		petclinicVeterinarianQualificationResults := g.petclinicVeterinarianQualificationRuleSpec.Run(team, "")
+		petclinicVeterinarianQualificationResults := g.petclinicVeterinarianQualificationRule.Run(team, "")
 		results = append(results, petclinicVeterinarianQualificationResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
@@ -279,6 +290,14 @@ func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
 func (g *Grader) GradeL5(team common.Team) []common.RuleEvaluationResult {
 	fmt.Printf("\n=== L5: Grading Team %s ===\n", team.Name)
 	results := make([]common.RuleEvaluationResult, 0)
+
+	if _, ok := g.assignmentsL5[team.Name]; ok {
+		petclinicGenaiServiceResults := g.petclinicGenaiServiceRule.Run(team, "")
+		results = append(results, petclinicGenaiServiceResults)
+	} else {
+		fmt.Printf("team %s not found in assignments", team.Name)
+	}
+
 	fmt.Println("Grading done")
 	return results
 }
