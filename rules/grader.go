@@ -45,6 +45,7 @@ type Grader struct {
 	petclinicVeterinarianQualificationRule common.Rule[string]
 
 	// L5
+	k8sSecretRule             common.Rule[string]
 	petclinicGenaiServiceRule common.Rule[string]
 }
 
@@ -132,6 +133,7 @@ func NewGrader() (*Grader, error) {
 		petclinicVeterinarianQualificationRule: ManualRule{ruleSpec: petclinicVeterinarianQualificationRuleSpec},
 
 		assignmentsL5:             assignmentsL5,
+		k8sSecretRule:             ManualRule{ruleSpec: k8sSecretRuleSpec},
 		petclinicGenaiServiceRule: ManualRule{ruleSpec: petclinicGenaiServiceRuleSpec},
 	}, nil
 }
@@ -168,6 +170,7 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.petclinicVeterinarianQualificationRule.Spec().Representation(),
 
 		// L5
+		g.k8sSecretRule.Spec().Representation(),
 		g.petclinicGenaiServiceRule.Spec().Representation(),
 	}
 }
@@ -292,6 +295,9 @@ func (g *Grader) GradeL5(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL5[team.Name]; ok {
+		k8sSecretResults := g.k8sSecretRule.Run(team, "")
+		results = append(results, k8sSecretResults)
+
 		petclinicGenaiServiceResults := g.petclinicGenaiServiceRule.Run(team, "")
 		results = append(results, petclinicGenaiServiceResults)
 	} else {
