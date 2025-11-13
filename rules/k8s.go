@@ -86,3 +86,14 @@ Kubernetes. Then, list all the nodes available in the cluster. It allows the
 students to get familiar with the Kubernetes and ensure that the command line
 tool kubectl is properly installed on their local machines.`,
 }
+
+var k8sSecretRuleSpec = common.RuleSpec{
+	LabId:    "L5",
+	Symbol:   "SEC",
+	Exercice: "1",
+	Name:     "Kubernetes Secret Test",
+	Description: `
+The team is expected to create a Kubernetes Secret to an API key as sensitive
+data in the cluster.
+`,
+}
