@@ -86,3 +86,20 @@ Kubernetes. Then, list all the nodes available in the cluster. It allows the
 students to get familiar with the Kubernetes and ensure that the command line
 tool kubectl is properly installed on their local machines.`,
 }
+
+var k8sSecretRuleSpec = common.RuleSpec{
+	LabId:    "L5",
+	Symbol:   "SEC",
+	Exercice: "1",
+	Name:     "Kubernetes Secret Test",
+	Description: `
+The team is expected to create a Kubernetes Secret to an API key as sensitive
+data in the cluster. The secret must be named as "openai" and data entry should
+be "api-key". The value should be encoded in base64 format. And the resource
+should be applied to the "dev" namespace. The team should verify the result by
+putting the analysis in the report. A -30% penalty will be applied if the team
+exposes the API key in the report. This is not acceptable: they have been
+warned during the lecture; and in the description of the lab exercise. This is
+a manual verification.
+`,
+}
