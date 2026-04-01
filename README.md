@@ -224,9 +224,9 @@ L4_HSV: K8s Hello Server Service Test (Ex 1)
 
     The team is expected to expose the hello-server as a Kubernetes Service. They
     are expected to create a Deployment for the container image "hello-server";
-    create a Service called "hello" under the port 80; and perform a validation to
-    prove that the networking is working successfully. This is a manual
-    verification.
+    create a Service called "hello-server" under the port 80; and perform a
+    validation to prove that the networking is working successfully. This is a
+    manual verification.
 
 
 L4_NPT: K8s NodePort Test (Ex 2)
