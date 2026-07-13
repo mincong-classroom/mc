@@ -220,44 +220,41 @@ L3_DIV: Docker Veterinarian Image Test (Ex 3)
     the Lab Session 3.
 
 
-L4_HSV: K8s Hello Server Service Test (Ex 1)
+L4_NSC: Namespace Creation Test (Ex 1)
 
-    The team is expected to expose the hello-server as a Kubernetes Service. They
-    are expected to create a Deployment for the container image "hello-server";
-    create a Service called "hello-server" under the port 80; and perform a
-    validation to prove that the networking is working successfully. This is a
+    The team is expected to create a new namespace called "classroom" and list all
+    the existing namespaces in the cluster. The namespace can be created either
+    imperatively with "kubectl create namespace" or declaratively via a YAML
+    manifest applied with "kubectl apply". This is a manual verification based on the
+    evidence provided in the report.
+
+
+L4_TIS: Team Info Server Deployment Test (Ex 2)
+
+    The team is expected to deploy and expose the classroom application
+    "team-info-server" (image mincongclassroom/team-info-server) in the "classroom"
+    namespace. They must create a Deployment named "team-info" with 1 replica and a
+    ClusterIP Service named "team-info" exposing port 80 and targeting the container
+    port 8090, stored in a single manifest committed at "k8s/lab-4/app-team-info.yaml".
+    The web server fails to start until the required TEAM_ID environment variable is
+    set (the same style of fix as Lab Session 1). This rule applies the manifest,
+    waits for the Pod, and queries the Service: it checks that the manifest is
+    committed (0.2), the Service is reachable (0.3), TEAM_ID matches the team name
+    (0.3), and the team members are listed (0.2). The cross-namespace DNS validation
+    is documented in the report and reviewed manually.
+
+
+L4_AGR: API Gateway About Route Test (Ex 3)
+
+    The team is expected to make the PetClinic "About" page work by configuring
+    Kubernetes networking only (no frontend or Java code). They must route requests
+    for "/api/about" from the API Gateway to the "team-info" Service in the
+    "classroom" namespace, using cross-namespace DNS ("team-info.classroom") rather
+    than hard-coding the team information. The route is added to the
+    "api-gateway-config" ConfigMap. Validation: opening http://localhost:8080/#!/about
+    displays the information served by the Team Info Server, and
+    "curl http://localhost:8080/api/about/" returns the expected JSON. This is a
     manual verification.
-
-
-L4_NPT: K8s NodePort Test (Ex 2)
-
-    The team is expected to change the Service type of the API Gateway from
-    ClusterIP to NodePort so that it can be accessed externally. They are expected
-    to perform a validation to prove that the networking is working successfully.
-    This is a manual verification.
-
-
-L4_PNS: K8s PetClinic Namespace Test (Ex 3)
-
-    The team is expected to create two namespaces: "prod" and "dev". Each namespace
-    should contain the whole stack in microservice, including the API gateway and
-    the backend services. All resources should be up and running.
-
-
-L4_EML: PetClinic Email Support Test (Ex 4)
-
-    The team is expected to make necessary changes to support the email field for
-    the customers in the PetClinic application. This includes updating the database
-    schema, modifying the backend services, and ensuring that the frontend UI allows
-    users to input and view email addresses. This is a manual verification.
-
-
-L4_VTQ: PetClinic Veterinarian Qualification Test (Ex 4)
-
-    The team is expected to make necessary changes to support the qualification
-    field for the veterinarians in the PetClinic application. This includes updating the database
-    schema, modifying the backend services, and ensuring that the frontend UI allows
-    users to input and view qualifications. This is a manual verification.
 
 
 L5_SEC: Kubernetes Secret Test (Ex 1)

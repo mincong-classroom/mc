@@ -38,11 +38,9 @@ type Grader struct {
 	dockerVeterinarianImageRule common.Rule[string]
 
 	// L4
-	k8sNodePortRule                        common.Rule[string]
-	k8sNamespaceRule                       common.Rule[string]
-	k8sHelloServerServiceRule              common.Rule[string]
-	petclinicEmailSupportRule              common.Rule[string]
-	petclinicVeterinarianQualificationRule common.Rule[string]
+	k8sNamespaceCreateRule   common.Rule[string]
+	k8sTeamInfoServerRule    common.Rule[string]
+	apiGatewayAboutRouteRule common.Rule[string]
 
 	// L5
 	k8sSecretRule             common.Rule[string]
@@ -125,12 +123,10 @@ func NewGrader() (*Grader, error) {
 		dockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
 		dockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
 
-		assignmentsL4:                          assignmentsL4,
-		k8sHelloServerServiceRule:              ManualRule{ruleSpec: k8sHelloServerServiceRuleSpec},
-		k8sNodePortRule:                        ManualRule{ruleSpec: k8sNodePortRuleSpec},
-		k8sNamespaceRule:                       ManualRule{ruleSpec: k8sNamespaceRuleSpec},
-		petclinicEmailSupportRule:              ManualRule{ruleSpec: petclinicEmailSupportRuleSpec},
-		petclinicVeterinarianQualificationRule: ManualRule{ruleSpec: petclinicVeterinarianQualificationRuleSpec},
+		assignmentsL4:            assignmentsL4,
+		k8sNamespaceCreateRule:   ManualRule{ruleSpec: k8sNamespaceCreateRuleSpec},
+		k8sTeamInfoServerRule:    K8sTeamInfoServerRule{},
+		apiGatewayAboutRouteRule: ManualRule{ruleSpec: apiGatewayAboutRouteRuleSpec},
 
 		assignmentsL5:             assignmentsL5,
 		k8sSecretRule:             ManualRule{ruleSpec: k8sSecretRuleSpec},
@@ -163,11 +159,9 @@ func (g *Grader) ListRuleRepresentations() []string {
 		g.dockerVeterinarianImageRule.Spec().Representation(),
 
 		// L4
-		g.k8sHelloServerServiceRule.Spec().Representation(),
-		g.k8sNodePortRule.Spec().Representation(),
-		g.k8sNamespaceRule.Spec().Representation(),
-		g.petclinicEmailSupportRule.Spec().Representation(),
-		g.petclinicVeterinarianQualificationRule.Spec().Representation(),
+		g.k8sNamespaceCreateRule.Spec().Representation(),
+		g.k8sTeamInfoServerRule.Spec().Representation(),
+		g.apiGatewayAboutRouteRule.Spec().Representation(),
 
 		// L5
 		g.k8sSecretRule.Spec().Representation(),
@@ -268,20 +262,14 @@ func (g *Grader) GradeL4(team common.Team) []common.RuleEvaluationResult {
 	results := make([]common.RuleEvaluationResult, 0)
 
 	if _, ok := g.assignmentsL4[team.Name]; ok {
-		k8sHelloServerServiceResults := g.k8sHelloServerServiceRule.Run(team, "")
-		results = append(results, k8sHelloServerServiceResults)
+		k8sNamespaceCreateResults := g.k8sNamespaceCreateRule.Run(team, "")
+		results = append(results, k8sNamespaceCreateResults)
 
-		k8sNodePortResults := g.k8sNodePortRule.Run(team, "")
-		results = append(results, k8sNodePortResults)
+		k8sTeamInfoServerResults := g.k8sTeamInfoServerRule.Run(team, "")
+		results = append(results, k8sTeamInfoServerResults)
 
-		k8sNamespaceResults := g.k8sNamespaceRule.Run(team, "")
-		results = append(results, k8sNamespaceResults)
-
-		petclinicEmailSupportResults := g.petclinicEmailSupportRule.Run(team, "")
-		results = append(results, petclinicEmailSupportResults)
-
-		petclinicVeterinarianQualificationResults := g.petclinicVeterinarianQualificationRule.Run(team, "")
-		results = append(results, petclinicVeterinarianQualificationResults)
+		apiGatewayAboutRouteResults := g.apiGatewayAboutRouteRule.Run(team, "")
+		results = append(results, apiGatewayAboutRouteResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}
