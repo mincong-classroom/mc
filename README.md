@@ -232,29 +232,48 @@ L4_NSC: Namespace Creation Test (Ex 1)
 L4_TIS: Team Info Server Deployment Test (Ex 2)
 
     The team is expected to deploy and expose the classroom application
-    "team-info-server" (image mincongclassroom/team-info-server) in the "classroom"
-    namespace. They must create a Deployment named "team-info" with 1 replica and a
-    ClusterIP Service named "team-info" exposing port 80 and targeting the container
-    port 8090, stored in a single manifest committed at "k8s/lab-4/app-team-info.yaml".
-    The web server fails to start until the required TEAM_ID environment variable is
-    set (the same style of fix as Lab Session 1). This rule applies the manifest,
-    waits for the Pod, and queries the Service: it checks that the manifest is
-    committed (0.2), the Service is reachable (0.3), TEAM_ID matches the team name
-    (0.3), and the team members are listed (0.2). The cross-namespace DNS validation
-    is documented in the report and reviewed manually.
+    "team-info-server" (image mincongclassroom/team-info-server) in the
+    "classroom" namespace. They must create a Deployment named "team-info" with 1
+    replica and a ClusterIP Service named "team-info" exposing port 80 and
+    targeting the container port 8090, stored in a single manifest committed at
+    "k8s/lab-4/app-team-info.yaml". The web server fails to start until the
+    required TEAM_ID environment variable is set (the same style of fix as Lab
+    Session 1); the optional TEAM_MEMBERS variable lists the members shown on the
+    About page. The report must also cover the two validation scenarios: querying
+    the Service from a temporary Pod with the current context set to the
+    "classroom" namespace, then with the context set to "default". It is expected
+    to explain how the namespace is switched, how the resources of that namespace
+    are verified, how the temporary Pod is created, which URL is used for the HTTP
+    request and what it means for the DNS, and how the response is analysed — in
+    particular that the short name "team-info" only resolves from within
+    "classroom", while "team-info.classroom" or the fully-qualified name
+    "team-info.classroom.svc.cluster.local" is required from "default". This rule
+    applies the manifest, waits for the Pod, and queries the Service: it checks
+    that the manifest is committed (0.2), the Service is reachable (0.3), TEAM_ID
+    matches the team name (0.3), and the team members are listed (0.2). The
+    cross-namespace DNS write-up is reviewed manually.
 
 
 L4_AGR: API Gateway About Route Test (Ex 3)
 
     The team is expected to make the PetClinic "About" page work by configuring
-    Kubernetes networking only (no frontend or Java code). They must route requests
-    for "/api/about" from the API Gateway to the "team-info" Service in the
-    "classroom" namespace, using cross-namespace DNS ("team-info.classroom") rather
-    than hard-coding the team information. The route is added to the
-    "api-gateway-config" ConfigMap. Validation: opening http://localhost:8080/#!/about
-    displays the information served by the Team Info Server, and
-    "curl http://localhost:8080/api/about/" returns the expected JSON. This is a
-    manual verification.
+    Kubernetes networking only (no frontend or Java code). They must route
+    requests for "/api/about" from the API Gateway to the "team-info" Service in
+    the "classroom" namespace, using cross-namespace DNS ("team-info.classroom",
+    or the fully-qualified name "team-info.classroom.svc.cluster.local") rather
+    than hard-coding the team information. The route belongs to the
+    "api-gateway-config" ConfigMap: it matches the predicate "Path=/api/about/**"
+    and strips the two prefix segments ("StripPrefix=2") so that the request
+    reaches "/" on the Team Info Server. The updated manifest must be committed at
+    "k8s/lab-4/microservices.yaml". Validation: opening
+    http://localhost:8080/#!/about displays the team, the team members and the
+    source code served by the Team Info Server, and "curl
+    http://localhost:8080/api/about/" returns the expected JSON. The report is
+    expected to trace the request through the logs: without a matching route the
+    API Gateway logs no "Route matched" line and returns 404, whereas a matching
+    route pointing at an unreachable backend surfaces as 405 — the circuit breaker
+    forwards the GET to the POST-only "/fallback" endpoint. This is a manual
+    verification.
 
 
 L5_SEC: Kubernetes Secret Test (Ex 1)
