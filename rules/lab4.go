@@ -16,8 +16,8 @@ import (
 //
 // The lab has three exercises: (1) create the "classroom" namespace, (2) deploy
 // and expose the team-info-server in that namespace and validate cross-namespace
-// DNS, and (3) route "/api/about" from the API Gateway to the team-info Service.
-// See ../esigelec/slides/lab-4.md for the reference implementation.
+// DNS, and (3) route "/api/about" from the API Gateway to the team-info Service
+// so that the PetClinic "About" page displays the team information.
 
 const (
 	teamInfoNamespace     = "classroom"
@@ -26,6 +26,9 @@ const (
 	teamInfoContainerPort = 8090 // the port the team-info-server listens on
 	teamInfoManifestPath  = "k8s/lab-4/app-team-info.yaml"
 	teamInfoLocalPort     = 8090 // local port used for port-forward (avoids 8080 used by petclinic)
+
+	microservicesManifestPath = "k8s/lab-4/microservices.yaml"
+	apiGatewayConfigMapName   = "api-gateway-config"
 )
 
 // Exercise 1 — create the "classroom" namespace and list the namespaces. There
@@ -52,16 +55,25 @@ var apiGatewayAboutRouteRuleSpec = common.RuleSpec{
 	Symbol:   "AGR",
 	Exercice: "3",
 	Name:     "API Gateway About Route Test",
-	Description: `
+	Description: fmt.Sprintf(`
 The team is expected to make the PetClinic "About" page work by configuring
 Kubernetes networking only (no frontend or Java code). They must route requests
-for "/api/about" from the API Gateway to the "team-info" Service in the
-"classroom" namespace, using cross-namespace DNS ("team-info.classroom") rather
-than hard-coding the team information. The route is added to the
-"api-gateway-config" ConfigMap. Validation: opening http://localhost:8080/#!/about
-displays the information served by the Team Info Server, and
-"curl http://localhost:8080/api/about/" returns the expected JSON. This is a
-manual verification.`,
+for "/api/about" from the API Gateway to the %q Service in the %q namespace,
+using cross-namespace DNS ("team-info.classroom", or the fully-qualified name
+"team-info.classroom.svc.cluster.local") rather than hard-coding the team
+information. The route belongs to the %q ConfigMap: it matches the predicate
+"Path=/api/about/**" and strips the two prefix segments ("StripPrefix=2") so
+that the request reaches "/" on the Team Info Server. The updated manifest must
+be committed at %q. Validation: opening http://localhost:8080/#!/about displays
+the team, the team members and the source code served by the Team Info Server,
+and "curl http://localhost:8080/api/about/" returns the expected JSON. The
+report is expected to trace the request through the logs: without a matching
+route the API Gateway logs no "Route matched" line and returns 404, whereas a
+matching route pointing at an unreachable backend surfaces as 405 — the circuit
+breaker forwards the GET to the POST-only "/fallback" endpoint. This is a manual
+verification.`,
+		teamInfoServiceName, teamInfoNamespace, apiGatewayConfigMapName,
+		microservicesManifestPath),
 }
 
 // K8sTeamInfoServerRule grades Exercise 2. It is automated: it applies the
@@ -82,13 +94,23 @@ The team is expected to deploy and expose the classroom application
 They must create a Deployment named %q with 1 replica and a ClusterIP Service
 named %q exposing port %d and targeting the container port %d, stored in a single
 manifest committed at %q. The web server fails to start until the required
-TEAM_ID environment variable is set (the same style of fix as Lab Session 1).
-This rule applies the manifest, waits for the Pod, and queries the Service: it
-checks that the manifest is committed (0.2), the Service is reachable (0.3),
-TEAM_ID matches the team name (0.3), and the team members are listed (0.2). The
-cross-namespace DNS validation is documented in the report and reviewed manually.`,
+TEAM_ID environment variable is set (the same style of fix as Lab Session 1);
+the optional TEAM_MEMBERS variable lists the members shown on the About page.
+The report must also cover the two validation scenarios: querying the Service
+from a temporary Pod with the current context set to the %q namespace, then with
+the context set to "default". It is expected to explain how the namespace is
+switched, how the resources of that namespace are verified, how the temporary
+Pod is created, which URL is used for the HTTP request and what it means for the
+DNS, and how the response is analysed — in particular that the short name
+"team-info" only resolves from within %q, while "team-info.classroom" or the
+fully-qualified name "team-info.classroom.svc.cluster.local" is required from
+"default". This rule applies the manifest, waits for the Pod, and queries the
+Service: it checks that the manifest is committed (0.2), the Service is
+reachable (0.3), TEAM_ID matches the team name (0.3), and the team members are
+listed (0.2). The cross-namespace DNS write-up is reviewed manually.`,
 			teamInfoNamespace, teamInfoServiceName, teamInfoServiceName,
-			teamInfoServicePort, teamInfoContainerPort, teamInfoManifestPath),
+			teamInfoServicePort, teamInfoContainerPort, teamInfoManifestPath,
+			teamInfoNamespace, teamInfoNamespace),
 	}
 }
 
