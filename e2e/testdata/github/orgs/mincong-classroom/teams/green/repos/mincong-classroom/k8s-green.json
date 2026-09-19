@@ -1,1 +1,4 @@
-{"name": "k8s-green", "role_name": "admin"}
+{
+    "name": "k8s-green",
+    "role_name": "admin"
+}

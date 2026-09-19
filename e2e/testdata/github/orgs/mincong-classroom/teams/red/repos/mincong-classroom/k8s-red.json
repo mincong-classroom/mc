@@ -1,1 +1,4 @@
-{"name": "k8s-red", "role_name": "write"}
+{
+    "name": "k8s-red",
+    "role_name": "write"
+}

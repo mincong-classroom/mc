@@ -1,1 +1,4 @@
-{"login": "jsmith", "name": "John Smith"}
+{
+    "login": "jsmith",
+    "name": "John Smith"
+}

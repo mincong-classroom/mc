@@ -1,1 +1,4 @@
-{"name": "k8s-green", "private": true}
+{
+    "name": "k8s-green",
+    "private": true
+}
