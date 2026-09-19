@@ -128,7 +128,7 @@ its comments. With `--dry-run`, it is not saved.
 
 ```
 Team to provision: purple
-purple is not in the registry. Register it? [y]es, [n]o, [q]uit: y
+purple is not in the registry. Register it? (y/N): y
 Students not in a team yet:
    1. DOE, Jane
    2. MARTIN, Alex

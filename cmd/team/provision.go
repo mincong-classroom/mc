@@ -176,11 +176,12 @@ func (p *provisioner) registerTeam(name string, registry *common.TeamRegistry) (
 		}
 		return common.Team{}, errSkipped
 	}
-	switch p.prompt(fmt.Sprintf("%s is not in the registry. Register it? [y]es, [n]o, [q]uit: ", name), false) {
-	case answerNo:
-		return common.Team{}, errSkipped
-	case answerQuit:
+	yes, ok := p.confirm(fmt.Sprintf("%s is not in the registry. Register it? (y/N): ", name))
+	if !ok {
 		return common.Team{}, errQuit
+	}
+	if !yes {
+		return common.Team{}, errSkipped
 	}
 
 	team := common.Team{Name: name}
@@ -400,6 +401,23 @@ func (p *provisioner) prompt(question string, withAll bool) answer {
 			return answerNo
 		case "q", "quit":
 			return answerQuit
+		}
+	}
+}
+
+// confirm asks a yes or no question, "no" by default. It returns false once the input is over.
+func (p *provisioner) confirm(question string) (yes bool, ok bool) {
+	for {
+		fmt.Fprint(p.out, question)
+		line, ok := p.readLine()
+		if !ok {
+			return false, false
+		}
+		switch strings.ToLower(line) {
+		case "y", "yes":
+			return true, true
+		case "", "n", "no":
+			return false, true
 		}
 	}
 }

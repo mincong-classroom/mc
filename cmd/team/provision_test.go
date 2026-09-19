@@ -286,6 +286,17 @@ func TestRegisterTeam(t *testing.T) {
 			wantErr: errSkipped,
 		},
 		{
+			name:    "declined by default",
+			input:   "\n",
+			wantErr: errSkipped,
+		},
+		{
+			name:       "an unexpected answer is asked again",
+			input:      "red\ny\n\n",
+			wantTeam:   newTeam("purple"),
+			wantOutput: []string{"Register it? (y/N): purple is not in the registry. Register it? (y/N): "},
+		},
+		{
 			name:    "end of input",
 			input:   "y\n1\n",
 			wantErr: errQuit,
