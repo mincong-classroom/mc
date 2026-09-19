@@ -37,11 +37,6 @@ type lsJSON struct {
 	StudentsNotInTeam []string   `json:"studentsNotInTeam"` // null without a school list
 }
 
-type validateJSON struct {
-	teamJSON
-	StudentsNotInTeam []string `json:"studentsNotInTeam"` // null without a school list
-}
-
 // newTeamJSON describes the team, with its validation and its status when they are not nil.
 func newTeamJSON(team common.Team, v *Validation, s *Status) teamJSON {
 	t := teamJSON{Name: team.Name, Repo: team.GetRepoName(), Members: []memberJSON{}}

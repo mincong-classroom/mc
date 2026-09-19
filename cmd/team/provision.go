@@ -79,29 +79,24 @@ type step struct {
 	command     github.Command
 }
 
-// loadRegistry reads the team registry and the school list, which is nil when it does not exist.
-func loadRegistry(out io.Writer) ([]common.Team, []common.Student, error) {
+// loadRegistry reads the team registry.
+func loadRegistry() ([]common.Team, error) {
 	teams, err := common.ListTeams()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list teams: %v", err)
+		return nil, fmt.Errorf("failed to list teams: %v", err)
 	}
-	students, err := loadStudents(out)
-	return teams, students, err
+	return teams, nil
 }
 
 // run asks for a team and provisions it, until the teacher quits. The registry is loaded again
 // before each team.
-func (p *provisioner) run(load func(out io.Writer) ([]common.Team, []common.Student, error)) error {
+func (p *provisioner) run(load func() ([]common.Team, error)) error {
 	if p.dryRun {
 		fmt.Fprintln(p.out, "Dry run: the steps are confirmed, but nothing changes on GitHub.")
 	}
 	failed := 0
-	for round := 0; ; round++ {
-		notes := p.out
-		if round > 0 {
-			notes = io.Discard // The notes about the registry were printed the first time
-		}
-		teams, students, err := load(notes)
+	for {
+		teams, err := load()
 		if err != nil {
 			return err
 		}
@@ -111,7 +106,7 @@ func (p *provisioner) run(load func(out io.Writer) ([]common.Team, []common.Stud
 		}
 
 		fmt.Fprintf(p.out, "\n== Team %s\n", team.Name)
-		v := validateTeam(team, teams, students, p.client)
+		v := validateTeam(team, teams, p.client)
 		if len(v.Problems) > 0 {
 			for _, problem := range v.Problems {
 				fmt.Fprintf(p.out, "✗ %s\n", problem)

@@ -2,5 +2,5 @@
 teams:
   - name: yellow
     members:
-      - name: "DURAND, Camille"
-        github: cdurand
+      - name: "NEWCOMER, Sam" # not on the school list
+        github: snewcomer

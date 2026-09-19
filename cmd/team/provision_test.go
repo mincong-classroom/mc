@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -138,8 +137,8 @@ func TestProvisionReplacesTheAdminAccess(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	registry := []common.Team{redTeam, newTeam("orange"), newTeam("Bad")}
-	load := func(out io.Writer) ([]common.Team, []common.Student, error) {
-		return registry, nil, nil
+	load := func() ([]common.Team, error) {
+		return registry, nil
 	}
 	orangeCommands := []github.Command{
 		github.CreateRepoCommand("k8s-orange"),

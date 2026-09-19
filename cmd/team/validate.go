@@ -18,13 +18,12 @@ func newValidateCmd(name string) *cobra.Command {
 		Use:   "validate",
 		Short: "Validate the team in the registry",
 		Long: `Validate the team in the registry: the name format and its uniqueness, at most 2 members,
-each member on the school list and in one team only, and each GitHub username existing. The
-display name of each GitHub account is printed, for the students to confirm it. The students of
-the school list who are not in a team yet are listed at the end.`,
+each member in one team only, and each GitHub username existing. The display name of each GitHub
+account is printed, for the students to confirm it.`,
 		Example: "  mc team " + name + " validate\n  mc team " + name + " validate --json",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runValidate(cmd.OutOrStdout(), cmd.ErrOrStderr(), name, asJSON)
+			return runValidate(cmd.OutOrStdout(), name, asJSON)
 		},
 		SilenceUsage: true,
 	}
@@ -32,13 +31,9 @@ the school list who are not in a team yet are listed at the end.`,
 	return cmd
 }
 
-const (
-	// maxMembers is the maximum number of members of a team. A team without members is valid:
-	// it is created before the course, and its members are added on the first day.
-	maxMembers = 2
-	// teacherTeam is the team of the teacher, whose members are not on the school list.
-	teacherTeam = "teacher"
-)
+// maxMembers is the maximum number of members of a team. A team without members is valid: it is
+// created before the course, and its members are added on the first day.
+const maxMembers = 2
 
 var teamNamePattern = regexp.MustCompile(`^[a-z]+$`)
 
@@ -53,26 +48,19 @@ func (v *Validation) addf(format string, args ...any) {
 	v.Problems = append(v.Problems, fmt.Sprintf(format, args...))
 }
 
-func runValidate(out, notes io.Writer, name string, asJSON bool) error {
+func runValidate(out io.Writer, name string, asJSON bool) error {
 	teams, team, err := loadTeam(name)
 	if err != nil {
 		return err
 	}
-	students, err := loadStudents(notes)
-	if err != nil {
-		return err
-	}
 
-	v := validateTeam(team, teams, students, github.CLI{})
+	v := validateTeam(team, teams, github.CLI{})
 	if asJSON {
-		result := validateJSON{newTeamJSON(team, &v, nil), studentsNotInTeam(students, teams)}
-		if err := writeJSON(out, result); err != nil {
+		if err := writeJSON(out, newTeamJSON(team, &v, nil)); err != nil {
 			return err
 		}
 	} else {
 		printValidation(out, v)
-		fmt.Fprintln(out)
-		printUnassignedStudents(out, students, teams)
 	}
 	if len(v.Problems) > 0 {
 		return fmt.Errorf("the team %s is not valid", name)
@@ -80,9 +68,9 @@ func runValidate(out, notes io.Writer, name string, asJSON bool) error {
 	return nil
 }
 
-// validateTeam validates the team among all the teams of the registry. The school list is not
-// checked when students is nil.
-func validateTeam(team common.Team, teams []common.Team, students []common.Student, client github.Client) Validation {
+// validateTeam validates the team among all the teams of the registry. It only relies on the
+// registry and on GitHub: a valid team can be provisioned.
+func validateTeam(team common.Team, teams []common.Team, client github.Client) Validation {
 	v := Validation{Team: team, Users: map[string]*github.User{}}
 
 	if !teamNamePattern.MatchString(team.Name) {
@@ -101,8 +89,6 @@ func validateTeam(team common.Team, teams []common.Team, students []common.Stude
 	for _, member := range team.Members {
 		if member.Name == "" {
 			v.addf("@%s has no name", member.Github)
-		} else if students != nil && team.Name != teacherTeam && findStudent(students, member.Name) == nil {
-			v.addf("%s is not on the school list", member.Name)
 		}
 		if teamNames := findTeamsOf(teams, member); len(teamNames) > 1 {
 			v.addf("%s is in several teams: %s", describeMember(member), strings.Join(teamNames, ", "))
@@ -135,15 +121,6 @@ func countTeams(teams []common.Team, name string) int {
 	return count
 }
 
-func findStudent(students []common.Student, name string) *common.Student {
-	for i := range students {
-		if common.SameName(students[i].Name, name) {
-			return &students[i]
-		}
-	}
-	return nil
-}
-
 // findTeamsOf returns the names of the teams having this member, identified by their name or
 // their GitHub username.
 func findTeamsOf(teams []common.Team, member common.TeamMember) []string {
@@ -158,25 +135,6 @@ func findTeamsOf(teams []common.Team, member common.TeamMember) []string {
 		}
 	}
 	return names
-}
-
-// unassignedStudents returns the students of the school list who are not in any team.
-func unassignedStudents(students []common.Student, teams []common.Team) []common.Student {
-	var result []common.Student
-	for _, student := range students {
-		assigned := false
-		for _, team := range teams {
-			for _, member := range team.Members {
-				if common.SameName(member.Name, student.Name) {
-					assigned = true
-				}
-			}
-		}
-		if !assigned {
-			result = append(result, student)
-		}
-	}
-	return result
 }
 
 func describeMember(member common.TeamMember) string {
@@ -219,20 +177,5 @@ func describeMemberCount(team common.Team) string {
 		return "1 member"
 	default:
 		return fmt.Sprintf("%d members", len(team.Members))
-	}
-}
-
-func printUnassignedStudents(out io.Writer, students []common.Student, teams []common.Team) {
-	if students == nil {
-		return
-	}
-	unassigned := unassignedStudents(students, teams)
-	if len(unassigned) == 0 {
-		fmt.Fprintf(out, "All the %d students of the school list are in a team.\n", len(students))
-		return
-	}
-	fmt.Fprintf(out, "%d of %d students not in a team yet:\n", len(unassigned), len(students))
-	for _, student := range unassigned {
-		fmt.Fprintf(out, "  - %s\n", student.Name)
 	}
 }

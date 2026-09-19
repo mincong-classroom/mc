@@ -16,25 +16,25 @@ func newLsCmd() *cobra.Command {
 		Short: "List the teams, their status and the students not in a team",
 		Long: `List the teams of the registry with their members, their status on GitHub (see
 "mc team <team> status") and a warning for each validation problem (see
-"mc team <team> validate"). The students of the school list who are not in a team yet are
-listed at the end.`,
+"mc team <team> validate"). When the school list ~/.mc/students-{year}.yaml exists, the students
+who are not in a team yet are listed at the end.`,
 		Example:      "  mc team ls\n  mc team ls --json",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLs(cmd.OutOrStdout(), cmd.ErrOrStderr(), asJSON)
+			return runLs(cmd.OutOrStdout(), asJSON)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "Print the teams as JSON")
 	return cmd
 }
 
-func runLs(out, notes io.Writer, asJSON bool) error {
+func runLs(out io.Writer, asJSON bool) error {
 	teams, err := common.ListTeams()
 	if err != nil {
 		return fmt.Errorf("failed to list teams: %v", err)
 	}
-	students, err := loadStudents(notes)
+	students, err := loadStudents()
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func runLs(out, notes io.Writer, asJSON bool) error {
 	validations := make([]Validation, len(teams))
 	statuses := make([]Status, len(teams))
 	forEach(len(teams), func(i int) {
-		validations[i] = validateTeam(teams[i], teams, students, github.CLI{})
+		validations[i] = validateTeam(teams[i], teams, github.CLI{})
 		statuses[i] = teamStatus(teams[i], github.CLI{})
 	})
 
@@ -69,4 +69,38 @@ func runLs(out, notes io.Writer, asJSON bool) error {
 	fmt.Fprintln(out)
 	printUnassignedStudents(out, students, teams)
 	return nil
+}
+
+// unassignedStudents returns the students of the school list who are not in any team.
+func unassignedStudents(students []common.Student, teams []common.Team) []common.Student {
+	var result []common.Student
+	for _, student := range students {
+		assigned := false
+		for _, team := range teams {
+			for _, member := range team.Members {
+				if common.SameName(member.Name, student.Name) {
+					assigned = true
+				}
+			}
+		}
+		if !assigned {
+			result = append(result, student)
+		}
+	}
+	return result
+}
+
+func printUnassignedStudents(out io.Writer, students []common.Student, teams []common.Team) {
+	if students == nil {
+		return
+	}
+	unassigned := unassignedStudents(students, teams)
+	if len(unassigned) == 0 {
+		fmt.Fprintf(out, "All the %d students of the school list are in a team.\n", len(students))
+		return
+	}
+	fmt.Fprintf(out, "%d of %d students not in a team yet:\n", len(unassigned), len(students))
+	for _, student := range unassigned {
+		fmt.Fprintf(out, "  - %s\n", student.Name)
+	}
 }

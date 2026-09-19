@@ -1,12 +1,11 @@
-// Package team manages the teams of the classroom: the team registry (~/.mc/teams-{year}.yaml),
-// the school list (~/.mc/students-{year}.tsv), and, on GitHub, the repository and the GitHub
-// team of each team.
+// Package team manages the teams of the classroom: the team registry (~/.mc/teams-{year}.yaml)
+// and, on GitHub, the repository and the GitHub team of each team. The school list
+// (~/.mc/students-{year}.yaml) is informational: "mc team ls" lists the students not in a team.
 package team
 
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"slices"
 	"strings"
@@ -125,12 +124,10 @@ func loadTeam(name string) ([]common.Team, common.Team, error) {
 	return teams, selected[0], nil
 }
 
-// loadStudents reads the school list. When it does not exist, it prints a note and returns nil:
-// the checks against the school list are skipped.
-func loadStudents(out io.Writer) ([]common.Student, error) {
+// loadStudents reads the school list, or returns nil when it does not exist.
+func loadStudents() ([]common.Student, error) {
 	students, err := common.ListStudents()
 	if errors.Is(err, fs.ErrNotExist) {
-		fmt.Fprintf(out, "No school list at %s: the members are not checked against it.\n\n", common.StudentListPath())
 		return nil, nil
 	}
 	if err != nil {
