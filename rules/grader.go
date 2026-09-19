@@ -237,18 +237,10 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 		k8sJavaDeploymentSetResults := g.k8sJavaDeploymentSetRule.Run(team, "")
 		results = append(results, k8sJavaDeploymentSetResults)
 
-		if team.Role == "frontend" {
-			dockerFrontendImageResults := g.dockerFrontendImageRule.Run(team, "")
-			results = append(results, dockerFrontendImageResults)
-		}
-		if team.Role == "customer" {
-			dockerCustomerImageResults := g.dockerCustomerImageRule.Run(team, "")
-			results = append(results, dockerCustomerImageResults)
-		}
-		if team.Role == "veterinarian" {
-			dockerVeterinarianImageResults := g.dockerVeterinarianImageRule.Run(team, "")
-			results = append(results, dockerVeterinarianImageResults)
-		}
+		// The teams are no longer specialized: every team builds the frontend image, the only one
+		// showing the team name. The customer and veterinarian image rules are not graded anymore.
+		dockerFrontendImageResults := g.dockerFrontendImageRule.Run(team, "")
+		results = append(results, dockerFrontendImageResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}

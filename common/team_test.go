@@ -196,7 +196,11 @@ teams:
 
 func TestLoadRegistryRejectsAnUnknownKey(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "teams.yaml")
-	if err := os.WriteFile(file, []byte("student:\n  - name: \"SMITH John\"\nteams: []\n"), 0o644); err != nil {
+	registry := `student:
+  - name: "SMITH John"
+teams: []
+`
+	if err := os.WriteFile(file, []byte(registry), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	TeamRegistryFile = file
@@ -206,5 +210,25 @@ func TestLoadRegistryRejectsAnUnknownKey(t *testing.T) {
 
 	if err == nil || !strings.Contains(err.Error(), `unknown key "student"`) {
 		t.Errorf("LoadRegistry with a typo: error = %v", err)
+	}
+}
+
+func TestLoadRegistryIgnoresTheFormerRole(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "teams.yaml")
+	data := `teams:
+  - name: red
+    members: []
+    role: veterinarian
+`
+	if err := os.WriteFile(file, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	TeamRegistryFile = file
+	defer func() { TeamRegistryFile = "" }()
+
+	registry, err := LoadRegistry()
+
+	if err != nil || len(registry.Teams) != 1 || registry.Teams[0].Name != "red" {
+		t.Errorf("LoadRegistry with a former role = %+v, %v", registry, err)
 	}
 }

@@ -220,7 +220,12 @@ func TestTeamLsJSON(t *testing.T) {
 	if r.exitCode != 0 {
 		t.Fatalf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
-	if prefix := "{\n    \"year\": 2026,\n    \"teams\": [\n        {\n"; !strings.HasPrefix(r.stdout, prefix) {
+	prefix := `{
+    "year": 2026,
+    "teams": [
+        {
+`
+	if !strings.HasPrefix(r.stdout, prefix) {
 		t.Errorf("mc team ls --json is not indented with 4 spaces:\n%s", r.stdout)
 	}
 	got := decode[lsJSON](t, r)
@@ -257,7 +262,11 @@ func TestTeamLs(t *testing.T) {
 func TestTeamLsWithoutStudents(t *testing.T) {
 	e := newEnv(t)
 	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
-	if err := os.WriteFile(teamFile, []byte("teams:\n  - name: green\n    members: []\n"), 0o644); err != nil {
+	registry := `teams:
+  - name: green
+    members: []
+`
+	if err := os.WriteFile(teamFile, []byte(registry), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -400,7 +409,11 @@ func TestTeamProvision(t *testing.T) {
 			wantChanges: []string{createBlueRepo, createBlueTeam, grantBlue, inviteAmartin},
 			wantOutput: []string{
 				"Teams: red, blue, green, Pink-2", "== Team blue", "✓ done",
-				"\nTeam \"blue\" provisioned.\n- repo: https://github.com/mincong-classroom/k8s-blue\n- team: https://github.com/orgs/mincong-classroom/teams/blue\n",
+				`
+Team "blue" provisioned.
+- repo: https://github.com/mincong-classroom/k8s-blue
+- team: https://github.com/orgs/mincong-classroom/teams/blue
+`,
 			},
 		},
 		{
@@ -532,7 +545,9 @@ func TestTeamProvisionRegistersANewTeam(t *testing.T) {
 		t.Fatalf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
 	for _, want := range []string{
-		"Students not in a team yet:\n   1. DURAND Camille\n",
+		`Students not in a team yet:
+   1. DURAND Camille
+`,
 		`@cdurand: "Camille Durand" on GitHub`,
 		"✓ the team purple saved to " + registryFile,
 		"\nTeam \"purple\" provisioned.\n",
@@ -555,7 +570,11 @@ func TestTeamProvisionRegistersANewTeam(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantEnd := "  - name: purple\n    members:\n      - name: \"DURAND Camille\"\n        github: cdurand\n"
+	wantEnd := `  - name: purple
+    members:
+      - name: "DURAND Camille"
+        github: cdurand
+`
 	if !strings.HasSuffix(string(data), wantEnd) || !strings.Contains(string(data), "# Created before the course, no members yet.") {
 		t.Errorf("registry does not end with the new team, or lost its comments:\n%s", data)
 	}
@@ -612,7 +631,12 @@ func TestTeamProvisionAddsTheMembersOfARegisteredTeam(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "  # Created before the course, no members yet.\n  - name: green\n    members:\n      - name: \"DURAND Camille\"\n        github: cdurand\n"
+	want := `  # Created before the course, no members yet.
+  - name: green
+    members:
+      - name: "DURAND Camille"
+        github: cdurand
+`
 	if !strings.Contains(string(data), want) {
 		t.Errorf("registry does not have the members of green:\n%s", data)
 	}
@@ -621,7 +645,11 @@ func TestTeamProvisionAddsTheMembersOfARegisteredTeam(t *testing.T) {
 func TestTeamRegistryWithAnUnknownKey(t *testing.T) {
 	e := newEnv(t)
 	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
-	if err := os.WriteFile(teamFile, []byte("student:\n  - name: \"DURAND Camille\"\nteams: []\n"), 0o644); err != nil {
+	registry := `student:
+  - name: "DURAND Camille"
+teams: []
+`
+	if err := os.WriteFile(teamFile, []byte(registry), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

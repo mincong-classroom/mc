@@ -34,6 +34,21 @@ possible. The e2e package blank-imports `mc/cmd` and reads every fixture so that
 cache is invalidated by a source or fixture change; add a fixture under `testdata/` and it is
 covered automatically.
 
+**Multi-line test data**: write the content of a file (YAML, JSON) or a multi-line expected output
+as a Go *raw string literal* (between backquotes), laid out exactly like the real file, not as a
+one-line string with `\n` and `\"` escapes:
+
+```go
+registry := `teams:
+  - name: red
+    members: []
+`
+```
+
+Start the content right after the opening backquote, and put the closing one at the start of the
+line after the last line, so that the string holds exactly the file, final newline included. Keep
+the escapes for one-line strings, and for the answers typed on stdin in the tests (`"y\nn\n"`).
+
 Key commands (all read the team registry, see "External data" below):
 
 ```sh
@@ -107,9 +122,10 @@ The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <
 `cmd.Execute()` before Cobra resolves the args, so the registry is read at startup. `ls` and
 `provision` are reserved team names (`reservedNames`).
 
-**Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, a `Role`
-(`"frontend"` | `"customer"` | `"veterinarian"`, which selects the L3 Docker image rule), and an
-optional `CustomRepoName`. All team-derived paths/URLs come from methods on `Team`
+**Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, and an optional
+`CustomRepoName`. There is no role anymore: every team is graded as the former "frontend" role in
+L3 (`L3_DIF`); `L3_DIC` and `L3_DIV` are still listed by `mc rule` but no longer graded, and an old
+`role:` key in a registry is ignored. All team-derived paths/URLs come from methods on `Team`
 (`GetRepoPath`, `GetKubeNamespace` → `team-<name>`, `GetContainerRepoForWeekendServer`, `GetRepoURL`).
 Prefer these helpers over rebuilding paths inline. Note an existing inconsistency: `GetRepoPath()`
 uses `$HOME/github/mincong-classroom/k8s-<name>`, while `cmd/git/clone.go` and `show.go` hardcode

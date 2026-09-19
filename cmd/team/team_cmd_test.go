@@ -50,7 +50,10 @@ func TestUnknownTeamOrAction(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home, ".mc"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(home, ".mc", "teams-2026.yaml"), []byte("teams:\n  - name: red\n"), 0o644); err != nil {
+	registry := `teams:
+  - name: red
+`
+	if err := os.WriteFile(filepath.Join(home, ".mc", "teams-2026.yaml"), []byte(registry), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

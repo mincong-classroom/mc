@@ -19,10 +19,10 @@ type Student struct {
 	Name string // Full name in the format "LAST First" (see ParseName), as for the team members
 }
 
+// Team is a team of the registry. The teams are not specialized: a former "role" key is ignored.
 type Team struct {
 	Name    string
 	Members []TeamMember
-	Role    string // "frontend", "customer", "veterinarian"
 	// CustomRepoName is optional. It overrides the default repository name. This is useful for
 	// teams that encountered name conflicts during the team registration on GitHub Classroom. For
 	// example, one team took the name "alpha", but decided to use another name. A second team
