@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -26,9 +27,21 @@ func ConfigDir() string {
 	return filepath.Join(os.Getenv("HOME"), ".mc")
 }
 
-// TeamRegistryPath returns the path of the team registry of the current year.
+// TeamRegistryFile replaces the team registry of the current year when it is not empty, e.g. to
+// try the commands on a test registry. It is set by the global flag --team-file.
+var TeamRegistryFile string
+
+// TeamRegistryPath returns the path of the team registry: TeamRegistryFile if set, otherwise the
+// registry of the current year.
 func TeamRegistryPath() string {
-	return filepath.Join(ConfigDir(), fmt.Sprintf("teams-%d.yaml", Year()))
+	if TeamRegistryFile == "" {
+		return filepath.Join(ConfigDir(), fmt.Sprintf("teams-%d.yaml", Year()))
+	}
+	// The shell does not expand the "~" of --team-file=~/...
+	if rest, ok := strings.CutPrefix(TeamRegistryFile, "~/"); ok {
+		return filepath.Join(os.Getenv("HOME"), rest)
+	}
+	return TeamRegistryFile
 }
 
 // ListTeams returns a list of team names by reading the classroom directory

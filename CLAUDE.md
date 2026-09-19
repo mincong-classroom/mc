@@ -55,6 +55,9 @@ assume exists at runtime. Nothing here works without it:
 - `~/.mc/teams-{year}.yaml` — the team registry (`TeamRegistry`). The year is `common.Year()`:
   the `defaultYear` const in `common/team.go` (bump it for a new cohort), overridden by the
   environment variable `MC_YEAR`. Unknown keys (e.g. an old `role`) are ignored when read.
+  The global flag `--team-file` replaces it for any command (`common.TeamRegistryFile`, a leading
+  `~/` is expanded). Since the `mc team <team>` subcommands are built before Cobra parses the
+  flags, `cmd.Execute()` reads `--team-file` ahead from `os.Args` (`teamFileFromArgs`).
 - `~/.mc/students-{year}.yaml` — the school list (`common.StudentList`), optional: `students:` with
   one `name: "LAST, First"` each, as in the registry; other keys are ignored. `mc team` checks the
   members against it and lists the students not in a team; the checks are skipped (with a note

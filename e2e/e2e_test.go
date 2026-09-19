@@ -456,3 +456,52 @@ func TestTeamProvision(t *testing.T) {
 		})
 	}
 }
+
+func TestTeamFile(t *testing.T) {
+	e := newEnv(t)
+	teamFile, err := filepath.Abs("testdata/test-teams-2026.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := e.run(t, "", "team", "ls", "--json", "--team-file", teamFile)
+	want := lsJSON{
+		Year: 2026,
+		Teams: []teamJSON{{
+			Name:    "yellow",
+			Repo:    "k8s-yellow",
+			Members: []memberJSON{{Name: "DURAND, Camille", Github: "cdurand", GithubName: "Camille Durand"}},
+			Status:  &statusJSON{},
+		}},
+		StudentsNotInTeam: []string{"SMITH, John", "DOE, Jane", "MARTIN, Alex"},
+	}
+	if got := decode[lsJSON](t, r); !reflect.DeepEqual(got, want) {
+		t.Errorf("mc team ls --json --team-file =\n%+v\nwant\n%+v", got, want)
+	}
+
+	// The team subcommands come from the test registry, wherever the flag is.
+	r = e.run(t, "", "--team-file="+teamFile, "team", "yellow", "status")
+	if want := "✗ repo k8s-yellow · ✗ team yellow · ✗ no access · @cdurand not invited\n"; r.stdout != want {
+		t.Errorf("mc team yellow status = %q, want %q", r.stdout, want)
+	}
+	r = e.run(t, "", "team", "red", "status", "--team-file", teamFile)
+	if r.exitCode != 1 || !strings.Contains(r.stderr, `unknown team or action "red"`) {
+		t.Errorf("mc team red status with the test registry: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
+	}
+
+	r = e.run(t, "yellow\na\n\n", "team", "provision", "--team-file", teamFile)
+	wantChanges := []string{
+		"gh repo create mincong-classroom/k8s-yellow --private --template mincong-classroom/containers",
+		"gh api -X POST orgs/mincong-classroom/teams -f name=yellow -f privacy=secret",
+		"gh api -X PUT orgs/mincong-classroom/teams/yellow/repos/mincong-classroom/k8s-yellow -f permission=push",
+		"gh api -X PUT orgs/mincong-classroom/teams/yellow/memberships/cdurand -f role=member",
+	}
+	if got := e.ghChanges(t); !reflect.DeepEqual(got, wantChanges) {
+		t.Errorf("changes =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(wantChanges, "\n"))
+	}
+
+	r = e.run(t, "", "team", "ls", "--team-file", "/nonexistent/teams.yaml")
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "failed to list teams") {
+		t.Errorf("mc team ls with a missing team file: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
+	}
+}

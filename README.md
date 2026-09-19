@@ -52,7 +52,8 @@ Available Commands:
   team        Manage the teams
 
 Flags:
-  -h, --help   help for mc
+  -h, --help               help for mc
+      --team-file string   Team registry to use instead of ~/.mc/teams-{year}.yaml, e.g. a test registry to try the commands
 
 Use "mc [command] --help" for more information about a command.
 ```
@@ -85,6 +86,14 @@ students:
 
 The year is the current cohort, 2026. Set the environment variable `MC_YEAR` to use another one,
 e.g. `MC_YEAR=2025 mc grade`.
+
+The global flag `--team-file` replaces the team registry for any command, e.g. to rehearse with a
+test registry before the course. `provision` still acts on the real organization: add `--dry-run`.
+
+```sh
+mc team ls --team-file ~/.mc/test-teams-2026.yaml
+mc team provision --dry-run --team-file ~/.mc/test-teams-2026.yaml
+```
 
 Each team gets a private repository `k8s-{team}` in the GitHub organization, generated from the
 template repository `mincong-classroom/containers`, and a secret GitHub team `{team}` with push

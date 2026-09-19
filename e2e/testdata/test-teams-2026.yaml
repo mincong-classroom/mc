@@ -1,0 +1,6 @@
+# A test registry of the end-to-end tests, passed with --team-file. The names are made up.
+teams:
+  - name: yellow
+    members:
+      - name: "DURAND, Camille"
+        github: cdurand

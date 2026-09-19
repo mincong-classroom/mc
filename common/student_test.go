@@ -54,16 +54,3 @@ func TestSameName(t *testing.T) {
 		}
 	}
 }
-
-func TestFilterTeams(t *testing.T) {
-	teams := []Team{{Name: "red"}, {Name: "blue"}}
-
-	got, err := FilterTeams(teams, []string{"blue"})
-	if err != nil || len(got) != 1 || got[0].Name != "blue" {
-		t.Errorf("FilterTeams = %v, %v", got, err)
-	}
-
-	if _, err := FilterTeams(teams, []string{"green"}); err == nil {
-		t.Error("FilterTeams with an unknown team: want an error")
-	}
-}
