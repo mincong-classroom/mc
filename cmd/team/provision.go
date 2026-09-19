@@ -56,25 +56,15 @@ steps are described and confirmed, but nothing runs.`,
 
 var (
 	errSkipped = errors.New("skipped")
-	errQuit    = errors.New("quit")
+	errQuit    = errors.New("quit") // The input is over; the teacher stops the command with ctrl+c
 )
 
-type answer int
-
-const (
-	answerYes answer = iota
-	answerNo
-	answerAll
-	answerQuit
-)
-
-// provisioner provisions the teams interactively: it asks the teacher to confirm each step.
+// provisioner provisions the teams interactively, one at a time: the teacher confirms each step.
 type provisioner struct {
-	client   github.Client
-	in       *bufio.Reader
-	out      io.Writer
-	dryRun   bool
-	yesToAll bool // Set when the teacher answers "all", until the end of the team
+	client github.Client
+	in     *bufio.Reader
+	out    io.Writer
+	dryRun bool
 }
 
 // step is one change to make on GitHub to provision a team.
@@ -110,11 +100,11 @@ func (p *provisioner) run(load func() (*common.TeamRegistry, error)) error {
 			continue
 		}
 		if len(v.Warnings) > 0 {
-			answer := p.prompt("Provision it anyway? [y]es, [n]o (skip the team), [q]uit: ", false)
-			if answer == answerQuit {
+			yes, ok := p.confirm("Provision it anyway? (y/N): ")
+			if !ok {
 				break
 			}
-			if answer == answerNo {
+			if !yes {
 				continue
 			}
 		}
@@ -282,10 +272,9 @@ func (p *provisioner) askGithubUsername(name string) (string, error) {
 	}
 }
 
-// provision runs the steps of one team. It returns errSkipped or errQuit when the teacher
-// declines a step, or the error of the step that failed.
+// provision runs the steps of one team, each once confirmed. It returns errSkipped when the
+// teacher declines a step, errQuit when the input is over, or the error of the step that failed.
 func (p *provisioner) provision(team common.Team, users map[string]*github.User) error {
-	p.yesToAll = false // "all" applies to the steps of one team only
 	steps, err := p.steps(team, users)
 	if err != nil {
 		fmt.Fprintf(p.out, "✗ cannot get the status of the team: %v\n", err)
@@ -300,12 +289,13 @@ func (p *provisioner) provision(team common.Team, users map[string]*github.User)
 		}
 		fmt.Fprintf(p.out, "      $ %s\n", s.command)
 
-		switch p.ask() {
-		case answerNo:
+		yes, ok := p.confirm("      Run it? (y/N): ")
+		if !ok {
+			return errQuit
+		}
+		if !yes {
 			fmt.Fprintln(p.out, "      Skipped, with the remaining steps of the team")
 			return errSkipped
-		case answerQuit:
-			return errQuit
 		}
 		if p.dryRun {
 			fmt.Fprintln(p.out, "      (dry run) not run")
@@ -367,42 +357,6 @@ func doneIf(done bool, reason string) string {
 		return reason
 	}
 	return ""
-}
-
-// ask asks the teacher whether to run the current step.
-func (p *provisioner) ask() answer {
-	if p.yesToAll {
-		return answerYes
-	}
-	answer := p.prompt("      Run it? [y]es, [n]o (skip the team), [a]ll (yes to the next steps of the team), [q]uit: ", true)
-	if answer == answerAll {
-		p.yesToAll = true
-		return answerYes
-	}
-	return answer
-}
-
-// prompt asks the question until the answer is valid; "all" is valid only when withAll is set.
-func (p *provisioner) prompt(question string, withAll bool) answer {
-	for {
-		fmt.Fprint(p.out, question)
-		line, ok := p.readLine()
-		if !ok {
-			return answerQuit
-		}
-		switch strings.ToLower(line) {
-		case "y", "yes":
-			return answerYes
-		case "a", "all":
-			if withAll {
-				return answerAll
-			}
-		case "n", "no":
-			return answerNo
-		case "q", "quit":
-			return answerQuit
-		}
-	}
 }
 
 // confirm asks a yes or no question, "no" by default. It returns false once the input is over.

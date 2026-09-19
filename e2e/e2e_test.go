@@ -396,14 +396,14 @@ func TestTeamProvision(t *testing.T) {
 	}{
 		{
 			name:        "all the steps of a new team",
-			stdin:       "blue\na\n\n",
+			stdin:       "blue\ny\ny\ny\ny\n",
 			wantChanges: []string{createBlueRepo, createBlueTeam, grantBlue, inviteAmartin},
 			wantOutput:  []string{"Teams: red, blue, green, Pink-2", "== Team blue", "✓ done"},
 		},
 		{
 			name:       "dry run",
 			args:       []string{"--dry-run"},
-			stdin:      "blue\na\n\n",
+			stdin:      "blue\ny\ny\ny\ny\n",
 			wantOutput: []string{"(dry run) not run"},
 		},
 		{
@@ -417,8 +417,8 @@ func TestTeamProvision(t *testing.T) {
 			wantChanges: []string{grantGreen},
 		},
 		{
-			name:        "several teams, all applies to one team only",
-			stdin:       "blue\na\ngreen\ny\n\n",
+			name:        "several teams, one at a time",
+			stdin:       "blue\ny\ny\ny\ny\ngreen\ny\n",
 			wantChanges: []string{createBlueRepo, createBlueTeam, grantBlue, inviteAmartin, grantGreen},
 		},
 		{
@@ -506,7 +506,7 @@ func TestTeamFile(t *testing.T) {
 	if !strings.Contains(r.stdout, "⚠ NEWCOMER, Sam is not among the students of the registry\nProvision it anyway?") {
 		t.Errorf("mc team provision does not ask to confirm the warning:\n%s", r.stdout)
 	}
-	r = e.run(t, "yellow\ny\na\n\n", "team", "provision", "--team-file", teamFile)
+	r = e.run(t, "yellow\ny\ny\ny\ny\ny\n", "team", "provision", "--team-file", teamFile)
 	wantChanges := []string{
 		"gh repo create mincong-classroom/k8s-yellow --private --template mincong-classroom/containers",
 		"gh api -X POST orgs/mincong-classroom/teams -f name=yellow -f privacy=secret",
@@ -528,7 +528,7 @@ func TestTeamProvisionRegistersANewTeam(t *testing.T) {
 	registryFile := filepath.Join(e.home, ".mc", "teams-2026.yaml")
 
 	// DURAND is the only student not in a team yet: number 1.
-	r := e.run(t, "purple\ny\n1\ncdurand\na\n\n", "team", "provision")
+	r := e.run(t, "purple\ny\n1\ncdurand\ny\ny\ny\ny\n", "team", "provision")
 
 	if r.exitCode != 0 {
 		t.Fatalf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
@@ -579,7 +579,7 @@ func TestTeamProvisionDryRunDoesNotRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := e.run(t, "purple\ny\n1\ncdurand\na\n\n", "team", "provision", "--dry-run")
+	r := e.run(t, "purple\ny\n1\ncdurand\ny\ny\ny\ny\n", "team", "provision", "--dry-run")
 
 	if !strings.Contains(r.stdout, "(dry run) the team purple is not saved to the registry") {
 		t.Errorf("output:\n%s", r.stdout)

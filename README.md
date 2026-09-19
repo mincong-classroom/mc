@@ -115,8 +115,9 @@ reserved.
 | `mc team red validate [--json]` | Errors, which prevent the provisioning: an invalid or reserved name, a name used by another team, a member without a GitHub username or whose GitHub user does not exist. Warnings, confirmed when provisioning: more than 2 members, a member in several teams or not among the students. Prints the display name of each GitHub account, for the students to confirm it |
 | `mc team red status [--json]` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
 
-`provision` is interactive: it describes each step with the `gh` command it runs, and runs it
-only once confirmed. The steps already done are skipped, so a team can be provisioned again,
+`provision` is interactive, one team and one step at a time: it describes each step with the
+`gh` command it runs, and runs it only once confirmed with `y` — "no" is the default, and skips the
+rest of the team. The steps already done are skipped, so a team can be provisioned again,
 e.g. once its members are known. A team with errors is not provisioned; with warnings, `provision`
 asks to confirm them first. The registry is read again before each team, so it can be edited in
 between; ctrl+c stops the command. With `--dry-run`, the steps are described and confirmed, but nothing runs.
@@ -153,7 +154,7 @@ Team to provision: red
       ✓ the GitHub team has push access
 [4/5] Add SMITH, John (@jsmith), "John Smith" on GitHub, to the GitHub team red: GitHub invites them to the organization by email
       $ gh api -X PUT orgs/mincong-classroom/teams/red/memberships/jsmith -f role=member
-      Run it? [y]es, [n]o (skip the team), [a]ll (yes to the next steps of the team), [q]uit:
+      Run it? (y/N):
 ```
 
 ## Rule

@@ -47,14 +47,15 @@ func TestProvision(t *testing.T) {
 			wantRan: allRedCommands,
 		},
 		{
-			name:    "invalid answers are asked again",
-			input:   "\nmaybe\ny\ny\ny\ny\ny\n",
+			name:    "unexpected answers are asked again",
+			input:   "maybe\nall\ny\ny\ny\ny\ny\n",
 			wantRan: allRedCommands,
 		},
 		{
-			name:    "all",
-			input:   "y\na\n",
-			wantRan: allRedCommands,
+			name:    "no by default",
+			input:   "y\n\n",
+			wantErr: errSkipped,
+			wantRan: allRedCommands[:1],
 		},
 		{
 			name:    "no skips the remaining steps",
@@ -63,9 +64,9 @@ func TestProvision(t *testing.T) {
 			wantRan: allRedCommands[:1],
 		},
 		{
-			name:    "quit",
+			name:    "no quit answer",
 			input:   "q\n",
-			wantErr: errQuit,
+			wantErr: errQuit, // "q" is asked again, then the input is over
 		},
 		{
 			name:    "end of input quits",
@@ -75,7 +76,7 @@ func TestProvision(t *testing.T) {
 		},
 		{
 			name:   "dry run runs nothing",
-			input:  "a\n",
+			input:  "y\ny\ny\ny\ny\n",
 			dryRun: true,
 		},
 	}
@@ -156,8 +157,8 @@ func TestRun(t *testing.T) {
 		wantOutput string
 	}{
 		{
-			name:    "one team, then an empty line quits",
-			input:   "orange\na\n\n",
+			name:    "one team, then the end of input quits",
+			input:   "orange\ny\ny\ny\n",
 			wantRan: orangeCommands,
 		},
 		{
@@ -166,13 +167,13 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name:       "an empty answer asks again",
-			input:      "\n\norange\na\n",
+			input:      "\n\norange\ny\ny\ny\n",
 			wantRan:    orangeCommands,
 			wantOutput: "Team to provision: Team to provision: Team to provision: ",
 		},
 		{
 			name:       "a new team not registered, then a registered team",
-			input:      "blue\nn\norange\nq\n",
+			input:      "blue\nn\norange\nn\n",
 			wantOutput: "blue is not in the registry. Register it?",
 		},
 		{
@@ -181,13 +182,13 @@ func TestRun(t *testing.T) {
 			wantOutput: `✗ invalid name "Blue-2"`,
 		},
 		{
-			name:    "all applies to the steps of one team only",
-			input:   "red\ny\na\norange\ny\nn\n\n",
+			name:    "several teams, one at a time",
+			input:   "red\ny\ny\ny\ny\ny\ny\norange\ny\nn\n",
 			wantRan: append(append([]github.Command{}, allRedCommands...), orangeCommands[0]),
 		},
 		{
 			name:       "a warning is confirmed before the steps",
-			input:      "red\ny\na\n\n",
+			input:      "red\ny\ny\ny\ny\ny\ny\n",
 			wantRan:    allRedCommands,
 			wantOutput: "⚠ DOE, Jane is not among the students of the registry\nProvision it anyway?",
 		},
@@ -196,8 +197,9 @@ func TestRun(t *testing.T) {
 			input: "red\nn\n\n",
 		},
 		{
-			name:  "all is not an answer to a warning",
-			input: "red\na\nq\n",
+			name:       "a warning is not confirmed by default",
+			input:      "red\n\n",
+			wantOutput: "Provision it anyway? (y/N): \nTeams:",
 		},
 		{
 			name:       "invalid team is not provisioned",

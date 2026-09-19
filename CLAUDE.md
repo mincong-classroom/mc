@@ -84,8 +84,9 @@ repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` 
 the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision` can show the exact
 `gh` command before running it, and the tests can record them. `provision` computes the steps
 from `teamStatus()`, skips those already done (idempotent), refuses a team with
-`validateTeam()` errors, asks to confirm its warnings, and asks for each step (`y`/`n` skips the team/`a` yes to the remaining steps of
-the team/`q`); `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` asks for the team
+`validateTeam()` errors, asks to confirm its warnings, and asks for each step, one at a time: every prompt is a
+`(y/N)` question (`confirm()`), "no" by default, with no "all" nor "quit" answer — a "no" skips
+the rest of the team, ctrl+c stops the command. `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` asks for the team
 by name, reloads the registry before each one, and loops until ctrl+c (or the end of the input,
 which the tests use). An unknown name
 goes to `registerTeam()`: name checked (`teamNameErrors`), members picked by number among the
