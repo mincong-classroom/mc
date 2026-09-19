@@ -86,8 +86,13 @@ the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision
 from `teamStatus()`, skips those already done (idempotent), refuses a team with
 `validateTeam()` errors, asks to confirm its warnings, and asks for each step (`y`/`n` skips the team/`a` yes to the remaining steps of
 the team/`q`); `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` asks for the team
-by name, reloads the registry before each one, and loops until an empty answer. `ls` fetches per
-team concurrently (`forEach`).
+by name, reloads the registry before each one, and loops until an empty answer. An unknown name
+goes to `registerTeam()`: name checked (`teamNameErrors`), members picked by number among the
+registry's students not in a team (`pickStudents`, `parsePicks`), GitHub usernames checked on
+entry, then `common.AddTeam()` appends it to the registry file through the `yaml.Node` API (the
+comments survive; written to a temp file, then renamed). Not saved with `--dry-run`. The
+`cmd/team` unit tests run with a temporary `HOME` (`TestMain`), so they can never write the
+teacher's `~/.mc`. `ls` fetches per team concurrently (`forEach`).
 The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <action>`
 (`validate`, `status`): `AddTeamCommands()` adds one subcommand per registered team, called from
 `cmd.Execute()` before Cobra resolves the args, so the registry is read at startup. `ls` and

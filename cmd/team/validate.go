@@ -80,16 +80,7 @@ func runValidate(out io.Writer, name string, asJSON bool) error {
 // when the registry has no students.
 func validateTeam(team common.Team, registry *common.TeamRegistry, client github.Client) Validation {
 	v := Validation{Team: team, Users: map[string]*github.User{}}
-
-	if !teamNamePattern.MatchString(team.Name) {
-		v.errorf("invalid name %q: use lowercase letters only, such as a color", team.Name)
-	}
-	if slices.Contains(reservedNames, team.Name) {
-		v.errorf("invalid name %q: reserved by the command \"mc team %s\"", team.Name, team.Name)
-	}
-	if n := countTeams(registry.Teams, team.Name); n > 1 {
-		v.errorf("the name %q is used by %d teams", team.Name, n)
-	}
+	v.Errors = append(v.Errors, teamNameErrors(team.Name, registry.Teams)...)
 	if len(team.Members) > maxMembers {
 		v.warnf("%d members, at most %d are expected", len(team.Members), maxMembers)
 	}
@@ -119,6 +110,21 @@ func validateTeam(team common.Team, registry *common.TeamRegistry, client github
 		}
 	}
 	return v
+}
+
+// teamNameErrors returns the errors of a team name among the teams of the registry.
+func teamNameErrors(name string, teams []common.Team) []string {
+	var problems []string
+	if !teamNamePattern.MatchString(name) {
+		problems = append(problems, fmt.Sprintf("invalid name %q: use lowercase letters only, such as a color", name))
+	}
+	if slices.Contains(reservedNames, name) {
+		problems = append(problems, fmt.Sprintf("invalid name %q: reserved by the command \"mc team %s\"", name, name))
+	}
+	if n := countTeams(teams, name); n > 1 {
+		problems = append(problems, fmt.Sprintf("the name %q is used by %d teams", name, n))
+	}
+	return problems
 }
 
 func countTeams(teams []common.Team, name string) int {

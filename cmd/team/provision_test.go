@@ -165,9 +165,14 @@ func TestRun(t *testing.T) {
 			input: "",
 		},
 		{
-			name:       "unknown team is asked again",
-			input:      "blue\norange\nq\n",
-			wantOutput: `Unknown team "blue".`,
+			name:       "a new team not registered, then a registered team",
+			input:      "blue\nn\norange\nq\n",
+			wantOutput: "blue is not in the registry. Register it?",
+		},
+		{
+			name:       "an invalid new team name",
+			input:      "Blue-2\n\n",
+			wantOutput: `✗ invalid name "Blue-2"`,
 		},
 		{
 			name:    "all applies to the steps of one team only",
@@ -222,5 +227,127 @@ func TestCommandString(t *testing.T) {
 	want := "gh repo create mincong-classroom/k8s-red --private --template mincong-classroom/containers"
 	if got != want {
 		t.Errorf("String() = %q, want %q", got, want)
+	}
+}
+
+func TestRegisterTeam(t *testing.T) {
+	newRegistry := func() *common.TeamRegistry {
+		return &common.TeamRegistry{
+			Students: []common.Student{{Name: "SMITH, John"}, {Name: "DOE, Jane"}, {Name: "MARTIN, Alex"}},
+			Teams:    []common.Team{newTeam("red", member("SMITH, John", "jsmith"))},
+		}
+	}
+	tests := []struct {
+		name       string
+		input      string
+		registry   *common.TeamRegistry
+		wantErr    error
+		wantTeam   common.Team
+		wantOutput []string
+	}{
+		{
+			name:     "two students",
+			input:    "y\n2 1\n@amartin\njdoe\n",
+			wantTeam: newTeam("purple", member("MARTIN, Alex", "amartin"), member("DOE, Jane", "jdoe")),
+			wantOutput: []string{
+				"Students not in a team yet:\n   1. DOE, Jane\n   2. MARTIN, Alex\n",
+				`@jdoe: no display name on GitHub`,
+				`@amartin: "Alex Martin" on GitHub`,
+				"(dry run) the team purple is not saved to the registry",
+			},
+		},
+		{
+			name:     "no members yet",
+			input:    "y\n\n",
+			wantTeam: newTeam("purple"),
+		},
+		{
+			name:       "a wrong pick, then a GitHub user not found",
+			input:      "y\n3\n1,1\n1\nnobody\njdoe\n",
+			wantTeam:   newTeam("purple", member("DOE, Jane", "jdoe")),
+			wantOutput: []string{`✗ "3" is not a number between 1 and 2`, "✗ 1 is picked twice", "✗ the GitHub user @nobody does not exist"},
+		},
+		{
+			name:       "no students to pick",
+			input:      "y\n",
+			registry:   &common.TeamRegistry{},
+			wantTeam:   newTeam("purple"),
+			wantOutput: []string{"No student to pick in the registry"},
+		},
+		{
+			name:    "declined",
+			input:   "n\n",
+			wantErr: errSkipped,
+		},
+		{
+			name:    "end of input",
+			input:   "y\n1\n",
+			wantErr: errQuit,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newFakeClient()
+			client.addUser("jdoe", "")
+			client.addUser("amartin", "Alex Martin")
+			p, out := newTestProvisioner(client, tt.input, true)
+			registry := tt.registry
+			if registry == nil {
+				registry = newRegistry()
+			}
+
+			team, err := p.registerTeam("purple", registry)
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("error = %v, want %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if !reflect.DeepEqual(team, tt.wantTeam) {
+				t.Errorf("team = %+v, want %+v", team, tt.wantTeam)
+			}
+			if last := registry.Teams[len(registry.Teams)-1]; last.Name != "purple" {
+				t.Errorf("the team is not added to the registry in memory: %+v", registry.Teams)
+			}
+			for _, want := range tt.wantOutput {
+				if !strings.Contains(out.String(), want) {
+					t.Errorf("output does not contain %q:\n%s", want, out)
+				}
+			}
+		})
+	}
+}
+
+func TestRegisterTeamRefusesAnInvalidName(t *testing.T) {
+	for _, name := range []string{"Purple", "ls", "red"} {
+		registry := &common.TeamRegistry{Teams: []common.Team{newTeam("red"), newTeam("red")}}
+		p, out := newTestProvisioner(newFakeClient(), "y\n", true)
+
+		if _, err := p.registerTeam(name, registry); !errors.Is(err, errSkipped) || !strings.Contains(out.String(), "✗ ") {
+			t.Errorf("registerTeam(%q): error = %v, output:\n%s", name, err, out)
+		}
+	}
+}
+
+func TestParsePicks(t *testing.T) {
+	tests := []struct {
+		line    string
+		want    []int
+		wantErr bool
+	}{
+		{"", nil, false},
+		{"1 3", []int{1, 3}, false},
+		{" 3, 1 ", []int{3, 1}, false},
+		{"0", nil, true},
+		{"4", nil, true},
+		{"x", nil, true},
+		{"2 2", nil, true},
+	}
+	for _, tt := range tests {
+		got, err := parsePicks(tt.line, 3)
+		if (err != nil) != tt.wantErr || !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("parsePicks(%q) = %v, %v; want %v, error: %v", tt.line, got, err, tt.want, tt.wantErr)
+		}
 	}
 }

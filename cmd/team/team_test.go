@@ -1,9 +1,27 @@
 package team
 
 import (
+	"os"
+	"testing"
+
 	"github.com/mincong-classroom/mc/common"
 	"github.com/mincong-classroom/mc/github"
 )
+
+// TestMain runs the tests with a temporary HOME, so that they never read or write the registry of
+// the teacher in ~/.mc.
+func TestMain(m *testing.M) {
+	home, err := os.MkdirTemp("", "mc-team-test-")
+	if err != nil {
+		panic(err)
+	}
+	if err := os.Setenv("HOME", home); err != nil {
+		panic(err)
+	}
+	code := m.Run()
+	_ = os.RemoveAll(home)
+	os.Exit(code)
+}
 
 // fakeClient is an in-memory GitHub organization. Run only records the commands.
 type fakeClient struct {

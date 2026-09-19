@@ -428,9 +428,14 @@ func TestTeamProvision(t *testing.T) {
 			wantOutput:  []string{"Skipped, with the remaining steps of the team"},
 		},
 		{
-			name:       "an unknown team is asked again",
-			stdin:      "purple\n\n",
-			wantOutput: []string{`Unknown team "purple".`},
+			name:       "a new team is not registered",
+			stdin:      "purple\nn\n\n",
+			wantOutput: []string{"purple is not in the registry. Register it?"},
+		},
+		{
+			name:       "an invalid new team name",
+			stdin:      "Purple\n\n",
+			wantOutput: []string{`✗ invalid name "Purple"`},
 		},
 		{
 			name:         "an invalid team is not provisioned",
@@ -515,5 +520,74 @@ func TestTeamFile(t *testing.T) {
 	r = e.run(t, "", "team", "ls", "--team-file", "/nonexistent/teams.yaml")
 	if r.exitCode != 1 || !strings.Contains(r.stderr, "failed to list teams") {
 		t.Errorf("mc team ls with a missing team file: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
+	}
+}
+
+func TestTeamProvisionRegistersANewTeam(t *testing.T) {
+	e := newEnv(t)
+	registryFile := filepath.Join(e.home, ".mc", "teams-2026.yaml")
+
+	// DURAND is the only student not in a team yet: number 1.
+	r := e.run(t, "purple\ny\n1\ncdurand\na\n\n", "team", "provision")
+
+	if r.exitCode != 0 {
+		t.Fatalf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
+	}
+	for _, want := range []string{
+		"Students not in a team yet:\n   1. DURAND, Camille\n",
+		`@cdurand: "Camille Durand" on GitHub`,
+		"✓ the team purple is saved to " + registryFile,
+	} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("output does not contain %q:\n%s", want, r.stdout)
+		}
+	}
+	wantChanges := []string{
+		"gh repo create mincong-classroom/k8s-purple --private --template mincong-classroom/containers",
+		"gh api -X POST orgs/mincong-classroom/teams -f name=purple -f privacy=secret",
+		"gh api -X PUT orgs/mincong-classroom/teams/purple/repos/mincong-classroom/k8s-purple -f permission=push",
+		"gh api -X PUT orgs/mincong-classroom/teams/purple/memberships/cdurand -f role=member",
+	}
+	if got := e.ghChanges(t); !reflect.DeepEqual(got, wantChanges) {
+		t.Errorf("changes =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(wantChanges, "\n"))
+	}
+
+	data, err := os.ReadFile(registryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantEnd := "  - name: purple\n    members:\n      - name: \"DURAND, Camille\"\n        github: cdurand\n"
+	if !strings.HasSuffix(string(data), wantEnd) || !strings.Contains(string(data), "# Created before the course, no members yet.") {
+		t.Errorf("registry does not end with the new team, or lost its comments:\n%s", data)
+	}
+
+	// The new team is a team like the others.
+	ls := decode[lsJSON](t, e.run(t, "", "team", "ls", "--json"))
+	if names := len(ls.Teams); names != 5 || ls.Teams[4].Name != "purple" || len(ls.StudentsNotInTeam) != 0 {
+		t.Errorf("mc team ls --json after the registration = %+v", ls)
+	}
+	if r := e.run(t, "", "team", "purple", "status"); r.exitCode != 0 {
+		t.Errorf("mc team purple status: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
+	}
+}
+
+func TestTeamProvisionDryRunDoesNotRegister(t *testing.T) {
+	e := newEnv(t)
+	registryFile := filepath.Join(e.home, ".mc", "teams-2026.yaml")
+	before, err := os.ReadFile(registryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := e.run(t, "purple\ny\n1\ncdurand\na\n\n", "team", "provision", "--dry-run")
+
+	if !strings.Contains(r.stdout, "(dry run) the team purple is not saved to the registry") {
+		t.Errorf("output:\n%s", r.stdout)
+	}
+	if after, _ := os.ReadFile(registryFile); !bytes.Equal(after, before) {
+		t.Errorf("the registry changed in a dry run:\n%s", after)
+	}
+	if got := e.ghChanges(t); got != nil {
+		t.Errorf("changes in a dry run = %q", got)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/mincong-classroom/mc/common"
@@ -20,7 +21,9 @@ func newProvisionCmd() *cobra.Command {
 		Use:   "provision",
 		Short: "Provision a team on GitHub: its repository, its GitHub team and its members",
 		Long: `Provision a team on GitHub. The command asks for the team, then goes through the steps
-one at a time:
+one at a time. A team that is not in the registry yet can be registered on the way: its members
+are picked among the students of the registry who are not in a team yet, with their GitHub
+username, and the team is saved to the registry (not with --dry-run). The steps:
 
   1. create the private repository k8s-{team} from the template repository,
   2. create the secret GitHub team {team},
@@ -93,7 +96,7 @@ func (p *provisioner) run(load func() (*common.TeamRegistry, error)) error {
 		if err != nil {
 			return err
 		}
-		team, ok := p.askTeam(registry.Teams)
+		team, ok := p.askTeam(registry)
 		if !ok {
 			break
 		}
@@ -129,27 +132,149 @@ func (p *provisioner) run(load func() (*common.TeamRegistry, error)) error {
 	return nil
 }
 
-// askTeam asks the teacher which team to provision. It returns false when the teacher quits.
-func (p *provisioner) askTeam(teams []common.Team) (common.Team, bool) {
-	names := make([]string, len(teams))
-	for i, team := range teams {
+// askTeam asks the teacher which team to provision, and registers it when it is new. It returns
+// false when the teacher quits.
+func (p *provisioner) askTeam(registry *common.TeamRegistry) (common.Team, bool) {
+	names := make([]string, len(registry.Teams))
+	for i, team := range registry.Teams {
 		names[i] = team.Name
 	}
-	fmt.Fprintf(p.out, "\nTeams: %s\n", strings.Join(names, ", "))
+	if len(names) == 0 {
+		fmt.Fprintln(p.out, "\nNo team registered yet.")
+	} else {
+		fmt.Fprintf(p.out, "\nTeams: %s\n", strings.Join(names, ", "))
+	}
 	for {
-		fmt.Fprint(p.out, "Team to provision (empty to quit): ")
-		line, err := p.in.ReadString('\n')
-		name := strings.TrimSpace(line)
-		if i := slices.Index(names, name); name != "" && i >= 0 {
-			return teams[i], true
-		}
-		if name == "" || err != nil {
-			if err != nil { // No more input, e.g. end of a pipe
-				fmt.Fprintln(p.out)
-			}
+		fmt.Fprint(p.out, "Team to provision, registered or new (empty to quit): ")
+		name, ok := p.readLine()
+		if !ok || name == "" {
 			return common.Team{}, false
 		}
-		fmt.Fprintf(p.out, "Unknown team %q.\n", name)
+		if i := slices.Index(names, name); i >= 0 {
+			return registry.Teams[i], true
+		}
+		team, err := p.registerTeam(name, registry)
+		if err == nil {
+			return team, true
+		}
+		if errors.Is(err, errQuit) {
+			return common.Team{}, false
+		}
+	}
+}
+
+// registerTeam registers a new team, once the teacher confirms: its members are picked among the
+// students not in a team yet, with their GitHub username, and it is saved to the registry. It
+// returns errSkipped when the team is not registered, and errQuit when the teacher quits.
+func (p *provisioner) registerTeam(name string, registry *common.TeamRegistry) (common.Team, error) {
+	if errs := teamNameErrors(name, registry.Teams); len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Fprintf(p.out, "✗ %s\n", e)
+		}
+		return common.Team{}, errSkipped
+	}
+	switch p.prompt(fmt.Sprintf("%s is not in the registry. Register it? [y]es, [n]o, [q]uit: ", name), false) {
+	case answerNo:
+		return common.Team{}, errSkipped
+	case answerQuit:
+		return common.Team{}, errQuit
+	}
+
+	team := common.Team{Name: name}
+	students, err := p.pickStudents(registry)
+	if err != nil {
+		return common.Team{}, err
+	}
+	for _, student := range students {
+		login, err := p.askGithubUsername(student.Name)
+		if err != nil {
+			return common.Team{}, err
+		}
+		team.Members = append(team.Members, common.TeamMember{Name: student.Name, Github: login})
+	}
+
+	if p.dryRun {
+		fmt.Fprintf(p.out, "(dry run) the team %s is not saved to the registry\n", name)
+	} else if err := common.AddTeam(team); err != nil {
+		fmt.Fprintf(p.out, "✗ cannot save the team %s: %v\n", name, err)
+		return common.Team{}, errSkipped
+	} else {
+		fmt.Fprintf(p.out, "✓ the team %s is saved to %s\n", name, common.TeamRegistryPath())
+	}
+	registry.Teams = append(registry.Teams, team)
+	return team, nil
+}
+
+// pickStudents asks the teacher to pick the members, by number, among the students of the
+// registry who are not in a team yet.
+func (p *provisioner) pickStudents(registry *common.TeamRegistry) ([]common.Student, error) {
+	students := unassignedStudents(registry.Students, registry.Teams)
+	if len(students) == 0 {
+		fmt.Fprintln(p.out, "No student to pick in the registry: the team is registered without members.")
+		return nil, nil
+	}
+	fmt.Fprintln(p.out, "Students not in a team yet:")
+	for i, student := range students {
+		fmt.Fprintf(p.out, "  %2d. %s\n", i+1, student.Name)
+	}
+	for {
+		fmt.Fprint(p.out, "Members, by number, e.g. \"1 2\" (empty for none yet): ")
+		line, ok := p.readLine()
+		if !ok {
+			return nil, errQuit
+		}
+		picks, err := parsePicks(line, len(students))
+		if err != nil {
+			fmt.Fprintf(p.out, "✗ %v\n", err)
+			continue
+		}
+		var picked []common.Student
+		for _, i := range picks {
+			picked = append(picked, students[i-1])
+		}
+		return picked, nil
+	}
+}
+
+// parsePicks parses numbers between 1 and n, separated by spaces or commas.
+func parsePicks(line string, n int) ([]int, error) {
+	var picks []int
+	for _, field := range strings.FieldsFunc(line, func(r rune) bool { return r == ' ' || r == ',' }) {
+		i, err := strconv.Atoi(field)
+		if err != nil || i < 1 || i > n {
+			return nil, fmt.Errorf("%q is not a number between 1 and %d", field, n)
+		}
+		if slices.Contains(picks, i) {
+			return nil, fmt.Errorf("%d is picked twice", i)
+		}
+		picks = append(picks, i)
+	}
+	return picks, nil
+}
+
+// askGithubUsername asks the GitHub username of the student until it exists, and prints its
+// display name, for the student to confirm it.
+func (p *provisioner) askGithubUsername(name string) (string, error) {
+	for {
+		fmt.Fprintf(p.out, "GitHub username of %s: ", name)
+		line, ok := p.readLine()
+		if !ok {
+			return "", errQuit
+		}
+		login := strings.TrimPrefix(line, "@")
+		if login == "" {
+			continue
+		}
+		user, err := p.client.GetUser(login)
+		switch {
+		case err != nil:
+			fmt.Fprintf(p.out, "✗ cannot check the GitHub user @%s: %v\n", login, err)
+		case user == nil:
+			fmt.Fprintf(p.out, "✗ the GitHub user @%s does not exist\n", login)
+		default:
+			fmt.Fprintf(p.out, "  @%s: %s\n", login, describeGithubUser(user))
+			return login, nil
+		}
 	}
 }
 
@@ -257,8 +382,11 @@ func (p *provisioner) ask() answer {
 func (p *provisioner) prompt(question string, withAll bool) answer {
 	for {
 		fmt.Fprint(p.out, question)
-		line, err := p.in.ReadString('\n')
-		switch strings.ToLower(strings.TrimSpace(line)) {
+		line, ok := p.readLine()
+		if !ok {
+			return answerQuit
+		}
+		switch strings.ToLower(line) {
 		case "y", "yes":
 			return answerYes
 		case "a", "all":
@@ -270,9 +398,17 @@ func (p *provisioner) prompt(question string, withAll bool) answer {
 		case "q", "quit":
 			return answerQuit
 		}
-		if err != nil { // No more input, e.g. end of a pipe
-			fmt.Fprintln(p.out)
-			return answerQuit
-		}
 	}
+}
+
+// readLine reads a line of the teacher's input, trimmed. It returns false once the input is over,
+// e.g. at the end of a pipe.
+func (p *provisioner) readLine() (string, bool) {
+	line, err := p.in.ReadString('\n')
+	line = strings.TrimSpace(line)
+	if err != nil && line == "" {
+		fmt.Fprintln(p.out)
+		return "", false
+	}
+	return line, true
 }

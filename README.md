@@ -111,7 +111,7 @@ reserved.
 | Command | What it does |
 |---|---|
 | `mc team ls [--json]` | Lists the teams with their members, their status on GitHub and their validation problems, then the students not in a team yet |
-| `mc team provision [--dry-run]` | Asks for a team, then creates its repository and its GitHub team, grants the team push access, and adds the members, which invites them to the organization; then asks for the next team |
+| `mc team provision [--dry-run]` | Asks for a team, registered or new, then creates its repository and its GitHub team, grants the team push access, and adds the members, which invites them to the organization; then asks for the next team |
 | `mc team red validate [--json]` | Errors, which prevent the provisioning: an invalid or reserved name, a name used by another team, a member without a GitHub username or whose GitHub user does not exist. Warnings, confirmed when provisioning: more than 2 members, a member in several teams or not among the students. Prints the display name of each GitHub account, for the students to confirm it |
 | `mc team red status [--json]` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
 
@@ -119,8 +119,26 @@ reserved.
 only once confirmed. The steps already done are skipped, so a team can be provisioned again,
 e.g. once its members are known. A team with errors is not provisioned; with warnings, `provision`
 asks to confirm them first. The registry is read again before each team, so it can be edited in
-between. With `--dry-run`, the steps are
-described and confirmed, but nothing runs.
+between. With `--dry-run`, the steps are described and confirmed, but nothing runs.
+
+A team that is not in the registry yet is registered on the way, once confirmed: its members are
+picked by number among the students not in a team yet, with their GitHub username (checked right
+away, and its display name shown to confirm), and the team is appended to the registry, keeping
+its comments. With `--dry-run`, it is not saved.
+
+```
+Team to provision, registered or new (empty to quit): purple
+purple is not in the registry. Register it? [y]es, [n]o, [q]uit: y
+Students not in a team yet:
+   1. DOE, Jane
+   2. MARTIN, Alex
+Members, by number, e.g. "1 2" (empty for none yet): 1 2
+GitHub username of DOE, Jane: jdoe
+  @jdoe: "Jane Doe" on GitHub
+GitHub username of MARTIN, Alex: amartin
+  @amartin: "Alex Martin" on GitHub
+✓ the team purple is saved to ~/.mc/teams-2026.yaml
+```
 
 ```
 Teams: red, orange, yellow

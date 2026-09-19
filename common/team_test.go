@@ -71,3 +71,83 @@ teams:
 		t.Errorf("teams = %+v", registry.Teams)
 	}
 }
+
+func TestAddTeam(t *testing.T) {
+	tests := []struct {
+		name     string
+		registry string
+		want     string
+	}{
+		{
+			name: "after the other teams, keeping the comments",
+			registry: `# The registry.
+students:
+  - name: "SMITH, John"
+teams:
+  # Created before the course.
+  - name: green
+    members: [] # not taken yet
+`,
+			want: `# The registry.
+students:
+  - name: "SMITH, John"
+teams:
+  # Created before the course.
+  - name: green
+    members: [] # not taken yet
+  - name: red
+    members:
+      - name: "SMITH, John"
+        github: jsmith
+`,
+		},
+		{
+			name: "into an empty list",
+			registry: `students: []
+teams: []
+`,
+			want: `students: []
+teams:
+  - name: red
+    members:
+      - name: "SMITH, John"
+        github: jsmith
+`,
+		},
+		{
+			name: "without teams yet",
+			registry: `students: []
+`,
+			want: `students: []
+teams:
+  - name: red
+    members:
+      - name: "SMITH, John"
+        github: jsmith
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "teams.yaml")
+			if err := os.WriteFile(file, []byte(tt.registry), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			TeamRegistryFile = file
+			defer func() { TeamRegistryFile = "" }()
+
+			err := AddTeam(Team{Name: "red", Members: []TeamMember{{Name: "SMITH, John", Github: "jsmith"}}})
+
+			if err != nil {
+				t.Fatalf("AddTeam: %v", err)
+			}
+			got, _ := os.ReadFile(file)
+			if string(got) != tt.want {
+				t.Errorf("registry =\n%s\nwant\n%s", got, tt.want)
+			}
+			if info, _ := os.Stat(file); info.Mode().Perm() != 0o600 {
+				t.Errorf("permissions = %v, want the original ones", info.Mode().Perm())
+			}
+		})
+	}
+}
