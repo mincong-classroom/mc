@@ -165,6 +165,12 @@ func TestRun(t *testing.T) {
 			input: "",
 		},
 		{
+			name:       "an empty answer asks again",
+			input:      "\n\norange\na\n",
+			wantRan:    orangeCommands,
+			wantOutput: "Team to provision: Team to provision: Team to provision: ",
+		},
+		{
 			name:       "a new team not registered, then a registered team",
 			input:      "blue\nn\norange\nq\n",
 			wantOutput: "blue is not in the registry. Register it?",

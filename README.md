@@ -119,7 +119,7 @@ reserved.
 only once confirmed. The steps already done are skipped, so a team can be provisioned again,
 e.g. once its members are known. A team with errors is not provisioned; with warnings, `provision`
 asks to confirm them first. The registry is read again before each team, so it can be edited in
-between. With `--dry-run`, the steps are described and confirmed, but nothing runs.
+between; ctrl+c stops the command. With `--dry-run`, the steps are described and confirmed, but nothing runs.
 
 A team that is not in the registry yet is registered on the way, once confirmed: its members are
 picked by number among the students not in a team yet, with their GitHub username (checked right
@@ -127,7 +127,7 @@ away, and its display name shown to confirm), and the team is appended to the re
 its comments. With `--dry-run`, it is not saved.
 
 ```
-Team to provision, registered or new (empty to quit): purple
+Team to provision: purple
 purple is not in the registry. Register it? [y]es, [n]o, [q]uit: y
 Students not in a team yet:
    1. DOE, Jane
@@ -142,7 +142,7 @@ GitHub username of MARTIN, Alex: amartin
 
 ```
 Teams: red, orange, yellow
-Team to provision (empty to quit): red
+Team to provision: red
 
 == Team red
 [1/5] Create the private repository mincong-classroom/k8s-red from the template mincong-classroom/containers

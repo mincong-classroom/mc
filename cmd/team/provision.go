@@ -34,9 +34,9 @@ Each step is described, with the gh command it runs, and runs only once confirme
 already done are skipped, so a team can be provisioned again, e.g. once the members of a team
 created before the course are known. A team with validation errors (see "mc team <team> validate")
 is not provisioned; with warnings, such as a member not among the students of the registry, the
-teacher confirms before the steps. Once a team is done, the command asks for the next one, and reads the
-registry again, so it can be edited in between. With --dry-run, the steps are described and
-confirmed, but nothing runs.`,
+teacher confirms before the steps. Once a team is done, the command asks for the next one, and
+reads the registry again, so it can be edited in between; ctrl+c stops it. With --dry-run, the
+steps are described and confirmed, but nothing runs.`,
 		Example: "  mc team provision\n  mc team provision --dry-run",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -132,8 +132,8 @@ func (p *provisioner) run(load func() (*common.TeamRegistry, error)) error {
 	return nil
 }
 
-// askTeam asks the teacher which team to provision, and registers it when it is new. It returns
-// false when the teacher quits.
+// askTeam asks the teacher which team to provision, and registers it when it is new. The teacher
+// stops the command with ctrl+c; it returns false only at the end of the input, e.g. of a pipe.
 func (p *provisioner) askTeam(registry *common.TeamRegistry) (common.Team, bool) {
 	names := make([]string, len(registry.Teams))
 	for i, team := range registry.Teams {
@@ -145,10 +145,13 @@ func (p *provisioner) askTeam(registry *common.TeamRegistry) (common.Team, bool)
 		fmt.Fprintf(p.out, "\nTeams: %s\n", strings.Join(names, ", "))
 	}
 	for {
-		fmt.Fprint(p.out, "Team to provision, registered or new (empty to quit): ")
+		fmt.Fprint(p.out, "Team to provision: ")
 		name, ok := p.readLine()
-		if !ok || name == "" {
+		if !ok {
 			return common.Team{}, false
+		}
+		if name == "" {
+			continue
 		}
 		if i := slices.Index(names, name); i >= 0 {
 			return registry.Teams[i], true

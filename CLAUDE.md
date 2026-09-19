@@ -86,7 +86,8 @@ the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision
 from `teamStatus()`, skips those already done (idempotent), refuses a team with
 `validateTeam()` errors, asks to confirm its warnings, and asks for each step (`y`/`n` skips the team/`a` yes to the remaining steps of
 the team/`q`); `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` asks for the team
-by name, reloads the registry before each one, and loops until an empty answer. An unknown name
+by name, reloads the registry before each one, and loops until ctrl+c (or the end of the input,
+which the tests use). An unknown name
 goes to `registerTeam()`: name checked (`teamNameErrors`), members picked by number among the
 registry's students not in a team (`pickStudents`, `parsePicks`), GitHub usernames checked on
 entry, then `common.AddTeam()` appends it to the registry file through the `yaml.Node` API (the
