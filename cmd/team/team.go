@@ -1,12 +1,9 @@
 // Package team manages the teams of the classroom: the team registry (~/.mc/teams-{year}.yaml)
-// and, on GitHub, the repository and the GitHub team of each team. The school list
-// (~/.mc/students-{year}.yaml) is informational: "mc team ls" lists the students not in a team.
+// and, on GitHub, the repository and the GitHub team of each team.
 package team
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"slices"
 	"strings"
 	"sync"
@@ -111,29 +108,26 @@ func newTeamCmd(team common.Team) *cobra.Command {
 	return cmd
 }
 
-// loadTeam returns all the registered teams, and the team with the given name.
-func loadTeam(name string) ([]common.Team, common.Team, error) {
-	teams, err := common.ListTeams()
+// loadRegistry reads the team registry.
+func loadRegistry() (*common.TeamRegistry, error) {
+	registry, err := common.LoadRegistry()
 	if err != nil {
-		return nil, common.Team{}, fmt.Errorf("failed to list teams: %v", err)
+		return nil, fmt.Errorf("failed to list teams: %v", err)
 	}
-	selected, err := common.FilterTeams(teams, []string{name})
+	return registry, nil
+}
+
+// loadTeam returns the team registry, and its team with the given name.
+func loadTeam(name string) (*common.TeamRegistry, common.Team, error) {
+	registry, err := loadRegistry()
 	if err != nil {
 		return nil, common.Team{}, err
 	}
-	return teams, selected[0], nil
-}
-
-// loadStudents reads the school list, or returns nil when it does not exist.
-func loadStudents() ([]common.Student, error) {
-	students, err := common.ListStudents()
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
+	selected, err := common.FilterTeams(registry.Teams, []string{name})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the school list: %v", err)
+		return nil, common.Team{}, err
 	}
-	return students, nil
+	return registry, selected[0], nil
 }
 
 // forEach calls fn for each index in [0, n) concurrently, a few at a time, to speed up the

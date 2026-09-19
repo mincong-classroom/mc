@@ -44,8 +44,8 @@ func TeamRegistryPath() string {
 	return TeamRegistryFile
 }
 
-// ListTeams returns a list of team names by reading the classroom directory
-func ListTeams() ([]Team, error) {
+// LoadRegistry reads the team registry.
+func LoadRegistry() (*TeamRegistry, error) {
 	teamData, err := os.ReadFile(TeamRegistryPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %v", err)
@@ -57,7 +57,16 @@ func ListTeams() ([]Team, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
 	}
-	return data.Teams, nil
+	return &data, nil
+}
+
+// ListTeams returns the teams of the team registry.
+func ListTeams() ([]Team, error) {
+	registry, err := LoadRegistry()
+	if err != nil {
+		return nil, err
+	}
+	return registry.Teams, nil
 }
 
 // FilterTeams returns the teams with the given names, or an error if a name is not registered.

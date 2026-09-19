@@ -14,7 +14,8 @@ type teamJSON struct {
 	Repo     string       `json:"repo"`
 	Members  []memberJSON `json:"members"`
 	Status   *statusJSON  `json:"status,omitempty"`
-	Problems []string     `json:"problems,omitempty"`
+	Errors   []string     `json:"errors,omitempty"`   // Prevent the provisioning
+	Warnings []string     `json:"warnings,omitempty"` // To confirm when provisioning
 }
 
 type memberJSON struct {
@@ -34,7 +35,7 @@ type statusJSON struct {
 type lsJSON struct {
 	Year              int        `json:"year"`
 	Teams             []teamJSON `json:"teams"`
-	StudentsNotInTeam []string   `json:"studentsNotInTeam"` // null without a school list
+	StudentsNotInTeam []string   `json:"studentsNotInTeam"` // null when the registry has no students
 }
 
 // newTeamJSON describes the team, with its validation and its status when they are not nil.
@@ -51,7 +52,8 @@ func newTeamJSON(team common.Team, v *Validation, s *Status) teamJSON {
 		t.Members = append(t.Members, m)
 	}
 	if v != nil {
-		t.Problems = v.Problems
+		t.Errors = v.Errors
+		t.Warnings = v.Warnings
 	}
 	if s != nil {
 		t.Status = &statusJSON{RepoExists: s.RepoExists, TeamExists: s.TeamExists, Access: s.RepoRole}
@@ -62,7 +64,8 @@ func newTeamJSON(team common.Team, v *Validation, s *Status) teamJSON {
 	return t
 }
 
-// studentsNotInTeam returns the names of the students not in a team, or nil without a school list.
+// studentsNotInTeam returns the names of the students not in a team, or nil when the registry has
+// no students.
 func studentsNotInTeam(students []common.Student, teams []common.Team) []string {
 	if students == nil {
 		return nil

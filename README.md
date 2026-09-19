@@ -64,24 +64,22 @@ The teams are registered in a private YAML file, the team registry `~/.mc/teams-
 A team has a name, lowercase letters only (such as a color), and at most two members. A team
 can have no members yet: it is created before the course, and its members are added later.
 
-```yaml
-teams:
-  - name: red
-    members:
-      - name: "SMITH, John"   # "LAST, First"
-        github: jsmith        # GitHub username
-  - name: orange
-    members: []               # not taken yet
-```
-
-The school list `~/.mc/students-{year}.yaml` is optional and informational. It lists the students of
-the year, with the same names as in the registry: `mc team ls` lists the ones who are not in a team
-yet. It never blocks a validation or a provisioning, which only rely on the registry and GitHub.
+The optional `students` list holds the students of the year, known before the course. It is
+informational: `mc team ls` lists the students who are not in a team yet, and a member who is not
+among them is a warning, which `provision` asks to confirm. For a member, only the GitHub user
+must be valid.
 
 ```yaml
 students:
-  - name: "SMITH, John"
+  - name: "SMITH, John"       # "LAST, First"
   - name: "DOE, Jane"
+teams:
+  - name: red
+    members:
+      - name: "SMITH, John"   # as in the students
+        github: jsmith        # GitHub username
+  - name: orange
+    members: []               # not taken yet
 ```
 
 The year is the current cohort, 2026. Set the environment variable `MC_YEAR` to use another one,
@@ -114,13 +112,14 @@ reserved.
 |---|---|
 | `mc team ls [--json]` | Lists the teams with their members, their status on GitHub and their validation problems, then the students not in a team yet |
 | `mc team provision [--dry-run]` | Asks for a team, then creates its repository and its GitHub team, grants the team push access, and adds the members, which invites them to the organization; then asks for the next team |
-| `mc team red validate [--json]` | Checks the name format and its uniqueness, at most 2 members, each member in one team only, each GitHub username existing; prints the display name of each GitHub account, for the students to confirm it |
+| `mc team red validate [--json]` | Errors, which prevent the provisioning: an invalid or reserved name, a name used by another team, a member without a GitHub username or whose GitHub user does not exist. Warnings, confirmed when provisioning: more than 2 members, a member in several teams or not among the students. Prints the display name of each GitHub account, for the students to confirm it |
 | `mc team red status [--json]` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
 
 `provision` is interactive: it describes each step with the `gh` command it runs, and runs it
 only once confirmed. The steps already done are skipped, so a team can be provisioned again,
-e.g. once its members are known. A team that is not valid is not provisioned. The registry is
-read again before each team, so it can be edited in between. With `--dry-run`, the steps are
+e.g. once its members are known. A team with errors is not provisioned; with warnings, `provision`
+asks to confirm them first. The registry is read again before each team, so it can be edited in
+between. With `--dry-run`, the steps are
 described and confirmed, but nothing runs.
 
 ```
@@ -389,4 +388,4 @@ The `rules` directory contains all the rules for the auto-grading.
 
 The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
 
-The `.mc` directory is private. It contains the team registry `.mc/teams-{year}.yaml`, the school list `.mc/students-{year}.yaml` and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.
+The `.mc` directory is private. It contains the team registry `.mc/teams-{year}.yaml`, and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.

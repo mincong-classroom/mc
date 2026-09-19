@@ -29,8 +29,9 @@ one at a time:
 
 Each step is described, with the gh command it runs, and runs only once confirmed. The steps
 already done are skipped, so a team can be provisioned again, e.g. once the members of a team
-created before the course are known. A team that is not valid (see "mc team <team> validate")
-is not provisioned. Once a team is done, the command asks for the next one, and reads the
+created before the course are known. A team with validation errors (see "mc team <team> validate")
+is not provisioned; with warnings, such as a member not among the students of the registry, the
+teacher confirms before the steps. Once a team is done, the command asks for the next one, and reads the
 registry again, so it can be edited in between. With --dry-run, the steps are described and
 confirmed, but nothing runs.`,
 		Example: "  mc team provision\n  mc team provision --dry-run",
@@ -60,6 +61,7 @@ type answer int
 const (
 	answerYes answer = iota
 	answerNo
+	answerAll
 	answerQuit
 )
 
@@ -79,41 +81,39 @@ type step struct {
 	command     github.Command
 }
 
-// loadRegistry reads the team registry.
-func loadRegistry() ([]common.Team, error) {
-	teams, err := common.ListTeams()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list teams: %v", err)
-	}
-	return teams, nil
-}
-
 // run asks for a team and provisions it, until the teacher quits. The registry is loaded again
 // before each team.
-func (p *provisioner) run(load func() ([]common.Team, error)) error {
+func (p *provisioner) run(load func() (*common.TeamRegistry, error)) error {
 	if p.dryRun {
 		fmt.Fprintln(p.out, "Dry run: the steps are confirmed, but nothing changes on GitHub.")
 	}
 	failed := 0
 	for {
-		teams, err := load()
+		registry, err := load()
 		if err != nil {
 			return err
 		}
-		team, ok := p.askTeam(teams)
+		team, ok := p.askTeam(registry.Teams)
 		if !ok {
 			break
 		}
 
 		fmt.Fprintf(p.out, "\n== Team %s\n", team.Name)
-		v := validateTeam(team, teams, p.client)
-		if len(v.Problems) > 0 {
-			for _, problem := range v.Problems {
-				fmt.Fprintf(p.out, "✗ %s\n", problem)
-			}
+		v := validateTeam(team, registry, p.client)
+		printProblems(p.out, "", v)
+		if len(v.Errors) > 0 {
 			fmt.Fprintln(p.out, "Not provisioned: fix the registry, then provision the team again.")
 			failed++
 			continue
+		}
+		if len(v.Warnings) > 0 {
+			answer := p.prompt("Provision it anyway? [y]es, [n]o (skip the team), [q]uit: ", false)
+			if answer == answerQuit {
+				break
+			}
+			if answer == answerNo {
+				continue
+			}
 		}
 		err = p.provision(team, v.Users)
 		if errors.Is(err, errQuit) {
@@ -245,15 +245,26 @@ func (p *provisioner) ask() answer {
 	if p.yesToAll {
 		return answerYes
 	}
+	answer := p.prompt("      Run it? [y]es, [n]o (skip the team), [a]ll (yes to the next steps of the team), [q]uit: ", true)
+	if answer == answerAll {
+		p.yesToAll = true
+		return answerYes
+	}
+	return answer
+}
+
+// prompt asks the question until the answer is valid; "all" is valid only when withAll is set.
+func (p *provisioner) prompt(question string, withAll bool) answer {
 	for {
-		fmt.Fprint(p.out, "      Run it? [y]es, [n]o (skip the team), [a]ll (yes to the next steps of the team), [q]uit: ")
+		fmt.Fprint(p.out, question)
 		line, err := p.in.ReadString('\n')
 		switch strings.ToLower(strings.TrimSpace(line)) {
 		case "y", "yes":
 			return answerYes
 		case "a", "all":
-			p.yesToAll = true
-			return answerYes
+			if withAll {
+				return answerAll
+			}
 		case "n", "no":
 			return answerNo
 		case "q", "quit":

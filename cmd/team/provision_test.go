@@ -136,8 +136,11 @@ func TestProvisionReplacesTheAdminAccess(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	registry := []common.Team{redTeam, newTeam("orange"), newTeam("Bad")}
-	load := func() ([]common.Team, error) {
+	registry := &common.TeamRegistry{
+		Students: []common.Student{{Name: "SMITH, John"}}, // DOE, Jane is not among them
+		Teams:    []common.Team{redTeam, newTeam("orange"), newTeam("Bad")},
+	}
+	load := func() (*common.TeamRegistry, error) {
 		return registry, nil
 	}
 	orangeCommands := []github.Command{
@@ -168,8 +171,22 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name:    "all applies to the steps of one team only",
-			input:   "red\na\norange\ny\nn\n\n",
+			input:   "red\ny\na\norange\ny\nn\n\n",
 			wantRan: append(append([]github.Command{}, allRedCommands...), orangeCommands[0]),
+		},
+		{
+			name:       "a warning is confirmed before the steps",
+			input:      "red\ny\na\n\n",
+			wantRan:    allRedCommands,
+			wantOutput: "⚠ DOE, Jane is not among the students of the registry\nProvision it anyway?",
+		},
+		{
+			name:  "a warning declined skips the team",
+			input: "red\nn\n\n",
+		},
+		{
+			name:  "all is not an answer to a warning",
+			input: "red\na\nq\n",
 		},
 		{
 			name:       "invalid team is not provisioned",

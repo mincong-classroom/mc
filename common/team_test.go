@@ -1,6 +1,11 @@
 package common
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+)
 
 func TestFilterTeams(t *testing.T) {
 	teams := []Team{{Name: "red"}, {Name: "blue"}}
@@ -33,4 +38,36 @@ func TestTeamRegistryPath(t *testing.T) {
 		}
 	}
 	TeamRegistryFile = ""
+}
+
+func TestLoadRegistry(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "teams.yaml")
+	data := `
+students:
+  - name: "SMITH, John"
+  - name: "DOE, Jane"
+    email: ignored@example.org
+teams:
+  - name: red
+    members:
+      - name: "SMITH, John"
+        github: jsmith
+`
+	if err := os.WriteFile(file, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	TeamRegistryFile = file
+	defer func() { TeamRegistryFile = "" }()
+
+	registry, err := LoadRegistry()
+
+	if err != nil {
+		t.Fatalf("LoadRegistry: %v", err)
+	}
+	if want := []Student{{Name: "SMITH, John"}, {Name: "DOE, Jane"}}; !reflect.DeepEqual(registry.Students, want) {
+		t.Errorf("students = %v, want %v", registry.Students, want)
+	}
+	if len(registry.Teams) != 1 || registry.Teams[0].Members[0].Github != "jsmith" {
+		t.Errorf("teams = %+v", registry.Teams)
+	}
 }

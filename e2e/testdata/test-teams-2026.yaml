@@ -1,6 +1,8 @@
 # A test registry of the end-to-end tests, passed with --team-file. The names are made up.
+students:
+  - name: "DURAND, Camille"
 teams:
   - name: yellow
     members:
-      - name: "NEWCOMER, Sam" # not on the school list
+      - name: "NEWCOMER, Sam" # not among the students: a warning
         github: snewcomer

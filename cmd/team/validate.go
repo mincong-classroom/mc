@@ -17,9 +17,11 @@ func newValidateCmd(name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate the team in the registry",
-		Long: `Validate the team in the registry: the name format and its uniqueness, at most 2 members,
-each member in one team only, and each GitHub username existing. The display name of each GitHub
-account is printed, for the students to confirm it.`,
+		Long: `Validate the team in the registry. The errors prevent its provisioning: an invalid or reserved
+name, a name used by another team, a member without a GitHub username or whose GitHub user does not
+exist. The warnings do not, once the teacher confirms: more than 2 members, a member in several
+teams, a member without a name, or not among the students of the registry. The display name of
+each GitHub account is printed, for the students to confirm it.`,
 		Example: "  mc team " + name + " validate\n  mc team " + name + " validate --json",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,20 +43,25 @@ var teamNamePattern = regexp.MustCompile(`^[a-z]+$`)
 type Validation struct {
 	Team     common.Team
 	Users    map[string]*github.User // GitHub account of each member found, by GitHub username
-	Problems []string
+	Errors   []string                // Prevent the provisioning
+	Warnings []string                // The teacher confirms before the provisioning
 }
 
-func (v *Validation) addf(format string, args ...any) {
-	v.Problems = append(v.Problems, fmt.Sprintf(format, args...))
+func (v *Validation) errorf(format string, args ...any) {
+	v.Errors = append(v.Errors, fmt.Sprintf(format, args...))
+}
+
+func (v *Validation) warnf(format string, args ...any) {
+	v.Warnings = append(v.Warnings, fmt.Sprintf(format, args...))
 }
 
 func runValidate(out io.Writer, name string, asJSON bool) error {
-	teams, team, err := loadTeam(name)
+	registry, team, err := loadTeam(name)
 	if err != nil {
 		return err
 	}
 
-	v := validateTeam(team, teams, github.CLI{})
+	v := validateTeam(team, registry, github.CLI{})
 	if asJSON {
 		if err := writeJSON(out, newTeamJSON(team, &v, nil)); err != nil {
 			return err
@@ -62,48 +69,51 @@ func runValidate(out io.Writer, name string, asJSON bool) error {
 	} else {
 		printValidation(out, v)
 	}
-	if len(v.Problems) > 0 {
+	if len(v.Errors) > 0 {
 		return fmt.Errorf("the team %s is not valid", name)
 	}
 	return nil
 }
 
-// validateTeam validates the team among all the teams of the registry. It only relies on the
-// registry and on GitHub: a valid team can be provisioned.
-func validateTeam(team common.Team, teams []common.Team, client github.Client) Validation {
+// validateTeam validates the team among all the teams of the registry. For a member, only the
+// GitHub user must be valid: being among the students of the registry is a warning, and nothing
+// when the registry has no students.
+func validateTeam(team common.Team, registry *common.TeamRegistry, client github.Client) Validation {
 	v := Validation{Team: team, Users: map[string]*github.User{}}
 
 	if !teamNamePattern.MatchString(team.Name) {
-		v.addf("invalid name %q: use lowercase letters only, such as a color", team.Name)
+		v.errorf("invalid name %q: use lowercase letters only, such as a color", team.Name)
 	}
 	if slices.Contains(reservedNames, team.Name) {
-		v.addf("invalid name %q: reserved by the command \"mc team %s\"", team.Name, team.Name)
+		v.errorf("invalid name %q: reserved by the command \"mc team %s\"", team.Name, team.Name)
 	}
-	if n := countTeams(teams, team.Name); n > 1 {
-		v.addf("the name %q is used by %d teams", team.Name, n)
+	if n := countTeams(registry.Teams, team.Name); n > 1 {
+		v.errorf("the name %q is used by %d teams", team.Name, n)
 	}
 	if len(team.Members) > maxMembers {
-		v.addf("%d members, at most %d are allowed", len(team.Members), maxMembers)
+		v.warnf("%d members, at most %d are expected", len(team.Members), maxMembers)
 	}
 
 	for _, member := range team.Members {
 		if member.Name == "" {
-			v.addf("@%s has no name", member.Github)
+			v.warnf("@%s has no name", member.Github)
+		} else if registry.Students != nil && !isStudent(registry.Students, member.Name) {
+			v.warnf("%s is not among the students of the registry", member.Name)
 		}
-		if teamNames := findTeamsOf(teams, member); len(teamNames) > 1 {
-			v.addf("%s is in several teams: %s", describeMember(member), strings.Join(teamNames, ", "))
+		if teamNames := findTeamsOf(registry.Teams, member); len(teamNames) > 1 {
+			v.warnf("%s is in several teams: %s", describeMember(member), strings.Join(teamNames, ", "))
 		}
 
 		if member.Github == "" {
-			v.addf("%s has no GitHub username", member.Name)
+			v.errorf("%s has no GitHub username", member.Name)
 			continue
 		}
 		user, err := client.GetUser(member.Github)
 		switch {
 		case err != nil:
-			v.addf("cannot check the GitHub user @%s: %v", member.Github, err)
+			v.errorf("cannot check the GitHub user @%s: %v", member.Github, err)
 		case user == nil:
-			v.addf("the GitHub user @%s does not exist", member.Github)
+			v.errorf("the GitHub user @%s does not exist", member.Github)
 		default:
 			v.Users[member.Github] = user
 		}
@@ -119,6 +129,10 @@ func countTeams(teams []common.Team, name string) int {
 		}
 	}
 	return count
+}
+
+func isStudent(students []common.Student, name string) bool {
+	return slices.ContainsFunc(students, func(s common.Student) bool { return common.SameName(s.Name, name) })
 }
 
 // findTeamsOf returns the names of the teams having this member, identified by their name or
@@ -156,15 +170,27 @@ func describeGithubUser(user *github.User) string {
 	}
 }
 
+// printProblems prints the errors, then the warnings of a validation, after the given indentation.
+func printProblems(out io.Writer, indent string, v Validation) {
+	for _, message := range v.Errors {
+		fmt.Fprintf(out, "%s✗ %s\n", indent, message)
+	}
+	for _, message := range v.Warnings {
+		fmt.Fprintf(out, "%s⚠ %s\n", indent, message)
+	}
+}
+
 func printValidation(out io.Writer, v Validation) {
 	fmt.Fprintf(out, "%s: %s\n", v.Team.Name, describeMemberCount(v.Team))
 	for _, member := range v.Team.Members {
 		fmt.Fprintf(out, "  - %s: %s\n", describeMember(member), describeGithubUser(v.Users[member.Github]))
 	}
-	for _, problem := range v.Problems {
-		fmt.Fprintf(out, "  ✗ %s\n", problem)
-	}
-	if len(v.Problems) == 0 {
+	printProblems(out, "  ", v)
+	switch {
+	case len(v.Errors) > 0:
+	case len(v.Warnings) > 0:
+		fmt.Fprintln(out, "  ✓ valid, with warnings to confirm when provisioning")
+	default:
 		fmt.Fprintln(out, "  ✓ valid")
 	}
 }

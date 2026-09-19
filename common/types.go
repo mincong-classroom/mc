@@ -6,8 +6,17 @@ import (
 	"strings"
 )
 
+// TeamRegistry is the team registry of a year, ~/.mc/teams-{year}.yaml.
 type TeamRegistry struct {
-	Teams []Team
+	// Students are the students of the year, known before the course starts. Optional: they are
+	// only used to list the students not in a team, and to warn about a member not among them.
+	Students []Student
+	Teams    []Team
+}
+
+// Student is a student of the year. Other keys, such as an email, are ignored.
+type Student struct {
+	Name string // Full name in format "LAST, First", as for the team members
 }
 
 type Team struct {

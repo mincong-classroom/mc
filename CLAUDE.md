@@ -25,7 +25,7 @@ so far; add `_test.go` files alongside the package under test. The team unit tes
 in-memory `github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
 
 The end-to-end tests (`e2e/`) build the real binary and run it with `HOME` pointing at a copy of
-`e2e/testdata/mc` (a made-up registry and school list — never real student data, this repo is
+`e2e/testdata/mc` (a made-up registry and students — never real student data, this repo is
 public) and a fake `gh` first in `PATH` (`e2e/testdata/bin/gh`, a shell script). The fake serves
 `gh api <path>` from `e2e/testdata/github/<path>.json` (HTTP 404 when missing) and appends every
 change (`gh repo create`, `gh api -X POST|PUT|DELETE`) to `$FAKE_GH_LOG` instead of making it, so
@@ -58,11 +58,13 @@ assume exists at runtime. Nothing here works without it:
   The global flag `--team-file` replaces it for any command (`common.TeamRegistryFile`, a leading
   `~/` is expanded). Since the `mc team <team>` subcommands are built before Cobra parses the
   flags, `cmd.Execute()` reads `--team-file` ahead from `os.Args` (`teamFileFromArgs`).
-- `~/.mc/students-{year}.yaml` — the school list (`common.StudentList`), optional: `students:` with
-  one `name: "LAST, First"` each, as in the registry; other keys are ignored. Informational only:
-  `mc team ls` lists the students not in a team, and nothing is shown when the file does not
-  exist. It never blocks a validation or a provisioning: those only rely on the registry and on
-  GitHub.
+  The registry's optional `students:` list (`common.Student`, one `name: "LAST, First"` each) is
+  informational: `mc team ls` lists the students not in a team, and a member not among them is a
+  validation **warning**. There is no separate student file.
+  `validateTeam()` returns **errors** (block `provision`: team name format/reserved/duplicate, a
+  member's GitHub username missing or not found) and **warnings** (`provision` asks "Provision it
+  anyway?" before the steps: more than 2 members, a member in several teams, without a name, or
+  not among the students). For a member, only the GitHub user is enforced.
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 
@@ -81,8 +83,8 @@ repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` 
 `github.Client` holds the reads (repo/team exist, team role on the repo, membership state, user);
 the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision` can show the exact
 `gh` command before running it, and the tests can record them. `provision` computes the steps
-from `teamStatus()`, skips those already done (idempotent), refuses a team failing
-`validateTeam()`, and asks for each step (`y`/`n` skips the team/`a` yes to the remaining steps of
+from `teamStatus()`, skips those already done (idempotent), refuses a team with
+`validateTeam()` errors, asks to confirm its warnings, and asks for each step (`y`/`n` skips the team/`a` yes to the remaining steps of
 the team/`q`); `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` asks for the team
 by name, reloads the registry before each one, and loops until an empty answer. `ls` fetches per
 team concurrently (`forEach`).

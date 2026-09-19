@@ -1,4 +1,9 @@
 # The team registry of the end-to-end tests. The names are made up.
+students:
+  - name: "SMITH, John"
+  - name: "DOE, Jane"
+  - name: "MARTIN, Alex"
+  - name: "DURAND, Camille"
 teams:
   # Provisioned: SMITH accepted the invitation, DOE did not yet.
   - name: red
@@ -16,7 +21,7 @@ teams:
   # Created before the course, no members yet.
   - name: green
     members: []
-  # Not valid: the name, the member not on the school list, the GitHub user not found.
+  # Errors: the name, the GitHub user not found. Warning: the member is not among the students.
   - name: Pink-2
     members:
       - name: "NOBODY, Someone"

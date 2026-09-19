@@ -1,5 +1,5 @@
-// Package e2e runs the mc binary end to end, against the team registry and the school list of
-// testdata/mc (made-up names), and a fake gh CLI (testdata/bin/gh) serving the GitHub responses of
+// Package e2e runs the mc binary end to end, against the team registry of testdata/mc (made-up
+// names), and a fake gh CLI (testdata/bin/gh) serving the GitHub responses of
 // testdata/github. The fake gh records the changes mc asks for instead of making them.
 package e2e
 
@@ -146,7 +146,8 @@ type teamJSON struct {
 	Repo     string       `json:"repo"`
 	Members  []memberJSON `json:"members"`
 	Status   *statusJSON  `json:"status"`
-	Problems []string     `json:"problems"`
+	Errors   []string     `json:"errors"`
+	Warnings []string     `json:"warnings"`
 }
 
 type memberJSON struct {
@@ -205,10 +206,11 @@ var (
 		Repo:    "k8s-Pink-2",
 		Members: []memberJSON{{Name: "NOBODY, Someone", Github: "ghost-user-404"}},
 		Status:  &statusJSON{},
-		Problems: []string{
+		Errors: []string{
 			`invalid name "Pink-2": use lowercase letters only, such as a color`,
 			"the GitHub user @ghost-user-404 does not exist",
 		},
+		Warnings: []string{"NOBODY, Someone is not among the students of the registry"},
 	}
 )
 
@@ -241,7 +243,8 @@ func TestTeamLs(t *testing.T) {
 		"    ✗ repo k8s-blue · ✗ team blue · ✗ no access · @amartin not invited",
 		"  - green: no members yet",
 		"    ✓ repo k8s-green · ✓ team green · ⚠ access admin instead of write",
-		"    ⚠ the GitHub user @ghost-user-404 does not exist",
+		"    ✗ the GitHub user @ghost-user-404 does not exist",
+		"    ⚠ NOBODY, Someone is not among the students of the registry",
 		"1 of 4 students not in a team yet:",
 		"  - DURAND, Camille",
 	} {
@@ -251,23 +254,23 @@ func TestTeamLs(t *testing.T) {
 	}
 }
 
-func TestTeamLsWithoutSchoolList(t *testing.T) {
+func TestTeamLsWithoutStudents(t *testing.T) {
 	e := newEnv(t)
-	if err := os.Remove(filepath.Join(e.home, ".mc", "students-2026.yaml")); err != nil {
+	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
+	if err := os.WriteFile(teamFile, []byte("teams:\n  - name: green\n    members: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	r := e.run(t, "", "team", "ls", "--json")
+	r := e.run(t, "", "team", "ls", "--json", "--team-file", teamFile)
 
-	got := decode[lsJSON](t, r)
-	want := lsJSON{Year: 2026, Teams: []teamJSON{red, blue, green, pink}}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("mc team ls --json without school list =\n%+v\nwant\n%+v", got, want)
+	want := lsJSON{Year: 2026, Teams: []teamJSON{green}}
+	if got := decode[lsJSON](t, r); !reflect.DeepEqual(got, want) {
+		t.Errorf("mc team ls --json without students =\n%+v\nwant\n%+v", got, want)
 	}
 
-	r = e.run(t, "", "team", "ls")
+	r = e.run(t, "", "team", "ls", "--team-file", teamFile)
 	if r.exitCode != 0 || strings.Contains(r.stdout, "not in a team") || r.stderr != "" {
-		t.Errorf("mc team ls without school list: exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
+		t.Errorf("mc team ls without students: exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
 	}
 }
 
@@ -336,8 +339,8 @@ func TestTeamValidateInvalid(t *testing.T) {
 	if r.exitCode != 1 || !strings.Contains(r.stderr, "the team Pink-2 is not valid") {
 		t.Errorf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
-	if got := decode[teamJSON](t, r).Problems; !reflect.DeepEqual(got, pink.Problems) {
-		t.Errorf("problems = %q, want %q", got, pink.Problems)
+	if got := decode[teamJSON](t, r); !reflect.DeepEqual(got.Errors, pink.Errors) || !reflect.DeepEqual(got.Warnings, pink.Warnings) {
+		t.Errorf("errors = %q, warnings = %q, want %q and %q", got.Errors, got.Warnings, pink.Errors, pink.Warnings)
 	}
 }
 
@@ -468,12 +471,13 @@ func TestTeamFile(t *testing.T) {
 	want := lsJSON{
 		Year: 2026,
 		Teams: []teamJSON{{
-			Name:    "yellow",
-			Repo:    "k8s-yellow",
-			Members: []memberJSON{{Name: "NEWCOMER, Sam", Github: "snewcomer", GithubName: "Sam Newcomer"}},
-			Status:  &statusJSON{},
+			Name:     "yellow",
+			Repo:     "k8s-yellow",
+			Members:  []memberJSON{{Name: "NEWCOMER, Sam", Github: "snewcomer", GithubName: "Sam Newcomer"}},
+			Status:   &statusJSON{},
+			Warnings: []string{"NEWCOMER, Sam is not among the students of the registry"},
 		}},
-		StudentsNotInTeam: []string{"SMITH, John", "DOE, Jane", "MARTIN, Alex", "DURAND, Camille"},
+		StudentsNotInTeam: []string{"DURAND, Camille"},
 	}
 	if got := decode[lsJSON](t, r); !reflect.DeepEqual(got, want) {
 		t.Errorf("mc team ls --json --team-file =\n%+v\nwant\n%+v", got, want)
@@ -489,8 +493,15 @@ func TestTeamFile(t *testing.T) {
 		t.Errorf("mc team red status with the test registry: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
 
-	// NEWCOMER is not on the school list: the team is provisioned all the same.
-	r = e.run(t, "yellow\na\n\n", "team", "provision", "--team-file", teamFile)
+	// NEWCOMER is not among the students: a warning, the team is provisioned once confirmed.
+	r = e.run(t, "yellow\nn\n\n", "team", "provision", "--team-file", teamFile)
+	if got := e.ghChanges(t); got != nil {
+		t.Errorf("changes after declining the warning = %q, want none", got)
+	}
+	if !strings.Contains(r.stdout, "⚠ NEWCOMER, Sam is not among the students of the registry\nProvision it anyway?") {
+		t.Errorf("mc team provision does not ask to confirm the warning:\n%s", r.stdout)
+	}
+	r = e.run(t, "yellow\ny\na\n\n", "team", "provision", "--team-file", teamFile)
 	wantChanges := []string{
 		"gh repo create mincong-classroom/k8s-yellow --private --template mincong-classroom/containers",
 		"gh api -X POST orgs/mincong-classroom/teams -f name=yellow -f privacy=secret",

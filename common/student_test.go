@@ -1,42 +1,6 @@
 package common
 
-import (
-	"reflect"
-	"testing"
-)
-
-func TestParseStudents(t *testing.T) {
-	input := `
-students:
-  - name: "SMITH, John"
-  - name: "DOE, Jane Marie"
-    email: ignored@example.org
-`
-
-	got, err := ParseStudents([]byte(input))
-
-	if err != nil {
-		t.Fatalf("ParseStudents: %v", err)
-	}
-	want := []Student{{Name: "SMITH, John"}, {Name: "DOE, Jane Marie"}}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ParseStudents = %v, want %v", got, want)
-	}
-}
-
-func TestParseStudentsEmpty(t *testing.T) {
-	got, err := ParseStudents([]byte("students: []\n"))
-
-	if err != nil || got == nil || len(got) != 0 {
-		t.Errorf("ParseStudents = %#v, %v; want an empty, non-nil list", got, err)
-	}
-}
-
-func TestParseStudentsInvalid(t *testing.T) {
-	if _, err := ParseStudents([]byte("students: [")); err == nil {
-		t.Error("ParseStudents with invalid YAML: want an error")
-	}
-}
+import "testing"
 
 func TestSameName(t *testing.T) {
 	tests := []struct {
