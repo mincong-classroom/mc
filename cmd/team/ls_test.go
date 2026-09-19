@@ -1,6 +1,7 @@
 package team
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 
@@ -25,5 +26,24 @@ func TestUnassignedStudents(t *testing.T) {
 	want := []common.Student{testStudents[2], testStudents[3]}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("unassignedStudents = %v, want %v", got, want)
+	}
+}
+
+func TestPrintUnassignedStudents(t *testing.T) {
+	tests := []struct {
+		students []common.Student
+		want     string
+	}{
+		{[]common.Student{{Name: "SMITH John"}}, "The only student is in a team.\n"},
+		{[]common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}}, "All the 2 students are in a team.\n"},
+		{[]common.Student{{Name: "SMITH John"}, {Name: "MARTIN Alex"}}, "1 of 2 students not in a team yet:\n  - MARTIN Alex\n"},
+	}
+	teams := []common.Team{newTeam("red", member("SMITH John", "jsmith"), member("DOE Jane", "jdoe"))}
+	for _, tt := range tests {
+		var out bytes.Buffer
+		printUnassignedStudents(&out, tt.students, teams)
+		if out.String() != tt.want {
+			t.Errorf("printUnassignedStudents(%v) = %q, want %q", tt.students, out.String(), tt.want)
+		}
 	}
 }

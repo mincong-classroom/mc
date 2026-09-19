@@ -90,7 +90,11 @@ func unassignedStudents(students []common.Student, teams []common.Team) []common
 func printUnassignedStudents(out io.Writer, students []common.Student, teams []common.Team) {
 	unassigned := unassignedStudents(students, teams)
 	if len(unassigned) == 0 {
-		fmt.Fprintf(out, "All the %d students are in a team.\n", len(students))
+		if len(students) == 1 {
+			fmt.Fprintln(out, "The only student is in a team.")
+		} else {
+			fmt.Fprintf(out, "All the %d students are in a team.\n", len(students))
+		}
 		return
 	}
 	fmt.Fprintf(out, "%d of %d students not in a team yet:\n", len(unassigned), len(students))
