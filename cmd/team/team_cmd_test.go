@@ -35,7 +35,7 @@ func TestAddTeamCommands(t *testing.T) {
 	if red.Short != "SMITH, John (@jsmith)" {
 		t.Errorf("red.Short = %q", red.Short)
 	}
-	for _, action := range []string{"validate", "status", "provision"} {
+	for _, action := range []string{"validate", "status"} {
 		cmd, _, err := root.Find([]string{"red", action})
 		if err != nil || cmd.CommandPath() != "team red "+action {
 			t.Errorf("Find(red %s) = %q, %v", action, cmd.CommandPath(), err)

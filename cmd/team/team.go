@@ -17,11 +17,11 @@ import (
 )
 
 const (
-	allTeamsGroup = "all"
-	teamsGroup    = "teams"
+	actionsGroup = "actions"
+	teamsGroup   = "teams"
 )
 
-// reservedNames are the actions on all the teams, which cannot be used as a team name.
+// reservedNames are the actions of "mc team", which cannot be used as a team name.
 var reservedNames = []string{"ls", "provision"}
 
 var TeamCmd = newTeamRootCmd()
@@ -34,12 +34,13 @@ func newTeamRootCmd() *cobra.Command {
 in the GitHub organization. The GitHub calls go through the gh CLI, logged in with the scopes
 "repo" and "admin:org" (gh auth refresh -s admin:org).
 
-An action applies to all the teams ("mc team ls"), or to one team ("mc team red status").`,
+The actions are "mc team ls", which lists all the teams, and "mc team provision", which asks
+for the team to provision. Each team of the registry is also a subcommand, holding the actions
+on that team, such as "mc team red status".`,
 		Example: `  mc team ls
-  mc team provision --dry-run
+  mc team provision
   mc team red validate
-  mc team red status
-  mc team red provision`,
+  mc team red status`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -53,14 +54,14 @@ An action applies to all the teams ("mc team ls"), or to one team ("mc team red 
 		SilenceUsage: true,
 	}
 	cmd.AddGroup(
-		&cobra.Group{ID: allTeamsGroup, Title: "Actions on all the teams:"},
+		&cobra.Group{ID: actionsGroup, Title: "Actions:"},
 		&cobra.Group{ID: teamsGroup, Title: "Teams, see \"mc team <team> --help\" for their actions:"},
 	)
 
 	ls := newLsCmd()
-	provision := newProvisionCmd("")
-	ls.GroupID = allTeamsGroup
-	provision.GroupID = allTeamsGroup
+	provision := newProvisionCmd()
+	ls.GroupID = actionsGroup
+	provision.GroupID = actionsGroup
 	cmd.AddCommand(ls, provision)
 	return cmd
 }
@@ -107,22 +108,21 @@ func newTeamCmd(team common.Team) *cobra.Command {
 		},
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(newValidateCmd(team.Name), newStatusCmd(team.Name), newProvisionCmd(team.Name))
+	cmd.AddCommand(newValidateCmd(team.Name), newStatusCmd(team.Name))
 	return cmd
 }
 
-// loadTeams returns all the registered teams, and the team with the given name, or all the teams
-// when the name is empty.
-func loadTeams(name string) (all []common.Team, selected []common.Team, err error) {
-	all, err = common.ListTeams()
+// loadTeam returns all the registered teams, and the team with the given name.
+func loadTeam(name string) ([]common.Team, common.Team, error) {
+	teams, err := common.ListTeams()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list teams: %v", err)
+		return nil, common.Team{}, fmt.Errorf("failed to list teams: %v", err)
 	}
-	if name == "" {
-		return all, all, nil
+	selected, err := common.FilterTeams(teams, []string{name})
+	if err != nil {
+		return nil, common.Team{}, err
 	}
-	selected, err = common.FilterTeams(all, []string{name})
-	return all, selected, err
+	return teams, selected[0], nil
 }
 
 // loadStudents reads the school list. When it does not exist, it prints a note and returns nil:

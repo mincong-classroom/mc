@@ -18,7 +18,8 @@ func newValidateCmd(name string) *cobra.Command {
 		Short: "Validate the team in the registry",
 		Long: `Validate the team in the registry: the name format and its uniqueness, at most 2 members,
 each member on the school list and in one team only, and each GitHub username existing. The
-display name of each GitHub account is printed, for the students to confirm it.`,
+display name of each GitHub account is printed, for the students to confirm it. The students of
+the school list who are not in a team yet are listed at the end.`,
 		Example: "  mc team " + name + " validate",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -50,7 +51,7 @@ func (v *Validation) addf(format string, args ...any) {
 }
 
 func runValidate(out io.Writer, name string) error {
-	teams, selected, err := loadTeams(name)
+	teams, team, err := loadTeam(name)
 	if err != nil {
 		return err
 	}
@@ -59,8 +60,10 @@ func runValidate(out io.Writer, name string) error {
 		return err
 	}
 
-	v := validateTeam(selected[0], teams, students, github.CLI{})
+	v := validateTeam(team, teams, students, github.CLI{})
 	printValidation(out, v)
+	fmt.Fprintln(out)
+	printUnassignedStudents(out, students, teams)
 	if len(v.Problems) > 0 {
 		return fmt.Errorf("the team %s is not valid", name)
 	}

@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/mincong-classroom/mc/common"
 	"github.com/mincong-classroom/mc/github"
 )
 
@@ -130,6 +133,71 @@ func TestProvisionReplacesTheAdminAccess(t *testing.T) {
 	want := []github.Command{github.GrantPushCommand("red", "k8s-red")}
 	if !reflect.DeepEqual(client.ran, want) {
 		t.Errorf("ran = %v, want %v", client.ran, want)
+	}
+}
+
+func TestRun(t *testing.T) {
+	registry := []common.Team{redTeam, newTeam("orange"), newTeam("Bad")}
+	load := func(out io.Writer) ([]common.Team, []common.Student, error) {
+		return registry, nil, nil
+	}
+	orangeCommands := []github.Command{
+		github.CreateRepoCommand("k8s-orange"),
+		github.CreateTeamCommand("orange"),
+		github.GrantPushCommand("orange", "k8s-orange"),
+	}
+	tests := []struct {
+		name       string
+		input      string
+		wantErr    string
+		wantRan    []github.Command
+		wantOutput string
+	}{
+		{
+			name:    "one team, then an empty line quits",
+			input:   "orange\na\n\n",
+			wantRan: orangeCommands,
+		},
+		{
+			name:  "end of input quits",
+			input: "",
+		},
+		{
+			name:       "unknown team is asked again",
+			input:      "blue\norange\nq\n",
+			wantOutput: `Unknown team "blue".`,
+		},
+		{
+			name:    "all applies to the steps of one team only",
+			input:   "red\na\norange\ny\nn\n\n",
+			wantRan: append(append([]github.Command{}, allRedCommands...), orangeCommands[0]),
+		},
+		{
+			name:       "invalid team is not provisioned",
+			input:      "Bad\n\n",
+			wantErr:    "1 team(s) not provisioned",
+			wantOutput: `invalid name "Bad"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newFakeClient()
+			client.addUser("jsmith", "John Smith")
+			client.addUser("jdoe", "Jane Doe")
+			p, out := newTestProvisioner(client, tt.input, false)
+
+			err := p.run(load)
+
+			if gotErr := fmt.Sprint(err); (tt.wantErr == "" && err != nil) || !strings.Contains(gotErr, tt.wantErr) {
+				t.Errorf("error = %v, want %q", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(client.ran, tt.wantRan) {
+				t.Errorf("ran = %v, want %v", client.ran, tt.wantRan)
+			}
+			if !strings.Contains(out.String(), tt.wantOutput) {
+				t.Errorf("output does not contain %q:\n%s", tt.wantOutput, out)
+			}
+		})
 	}
 }
 

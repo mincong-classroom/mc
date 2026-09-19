@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/mincong-classroom/mc/common"
@@ -13,14 +14,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// newProvisionCmd returns the command provisioning the team with the given name, or all the teams
-// when the name is empty.
-func newProvisionCmd(name string) *cobra.Command {
+func newProvisionCmd() *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "provision",
-		Short: "Create the repository and the GitHub team of the team, and invite its members",
-		Long: `Provision the team on GitHub, one step at a time:
+		Short: "Provision a team on GitHub: its repository, its GitHub team and its members",
+		Long: `Provision a team on GitHub. The command asks for the team, then goes through the steps
+one at a time:
 
   1. create the private repository k8s-{team} from the template repository,
   2. create the secret GitHub team {team},
@@ -28,20 +28,23 @@ func newProvisionCmd(name string) *cobra.Command {
   4. add each member to the GitHub team, which invites them to the organization.
 
 Each step is described, with the gh command it runs, and runs only once confirmed. The steps
-already done are skipped, so the command can run again, e.g. once the members of a team created
-before the course are known. A team that is not valid (see "mc team <team> validate") is not
-provisioned. With --dry-run, the steps are described and confirmed, but nothing runs.`,
-		Example: "  mc team " + name + " provision\n  mc team " + name + " provision --dry-run",
+already done are skipped, so a team can be provisioned again, e.g. once the members of a team
+created before the course are known. A team that is not valid (see "mc team <team> validate")
+is not provisioned. Once a team is done, the command asks for the next one, and reads the
+registry again, so it can be edited in between. With --dry-run, the steps are described and
+confirmed, but nothing runs.`,
+		Example: "  mc team provision\n  mc team provision --dry-run",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProvision(cmd.OutOrStdout(), name, dryRun)
+			p := &provisioner{
+				client: github.CLI{},
+				in:     bufio.NewReader(os.Stdin),
+				out:    cmd.OutOrStdout(),
+				dryRun: dryRun,
+			}
+			return p.run(loadRegistry)
 		},
 		SilenceUsage: true,
-	}
-	if name == "" {
-		cmd.Short = "Create the repository and the GitHub team of every team, and invite the members"
-		cmd.Long = strings.Replace(cmd.Long, "Provision the team on GitHub", "Provision every team of the registry on GitHub", 1)
-		cmd.Example = "  mc team provision\n  mc team provision --dry-run"
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Describe and confirm the steps, but do not run them")
 	return cmd
@@ -66,7 +69,7 @@ type provisioner struct {
 	in       *bufio.Reader
 	out      io.Writer
 	dryRun   bool
-	yesToAll bool // Set when the teacher answers "all"
+	yesToAll bool // Set when the teacher answers "all", until the end of the team
 }
 
 // step is one change to make on GitHub to provision a team.
@@ -76,57 +79,54 @@ type step struct {
 	command     github.Command
 }
 
-func runProvision(out io.Writer, name string, dryRun bool) error {
-	teams, selected, err := loadTeams(name)
+// loadRegistry reads the team registry and the school list, which is nil when it does not exist.
+func loadRegistry(out io.Writer) ([]common.Team, []common.Student, error) {
+	teams, err := common.ListTeams()
 	if err != nil {
-		return err
+		return nil, nil, fmt.Errorf("failed to list teams: %v", err)
 	}
 	students, err := loadStudents(out)
-	if err != nil {
-		return err
-	}
+	return teams, students, err
+}
 
-	p := &provisioner{
-		client: github.CLI{},
-		in:     bufio.NewReader(os.Stdin),
-		out:    out,
-		dryRun: dryRun,
+// run asks for a team and provisions it, until the teacher quits. The registry is loaded again
+// before each team.
+func (p *provisioner) run(load func(out io.Writer) ([]common.Team, []common.Student, error)) error {
+	if p.dryRun {
+		fmt.Fprintln(p.out, "Dry run: the steps are confirmed, but nothing changes on GitHub.")
 	}
-	if dryRun {
-		fmt.Fprintln(out, "Dry run: the steps are confirmed, but nothing changes on GitHub.")
-	}
+	failed := 0
+	for round := 0; ; round++ {
+		notes := p.out
+		if round > 0 {
+			notes = io.Discard // The notes about the registry were printed the first time
+		}
+		teams, students, err := load(notes)
+		if err != nil {
+			return err
+		}
+		team, ok := p.askTeam(teams)
+		if !ok {
+			break
+		}
 
-	var provisioned, skipped, failed int
-	for i, team := range selected {
-		fmt.Fprintf(out, "\n== Team %s (%d/%d)\n", team.Name, i+1, len(selected))
+		fmt.Fprintf(p.out, "\n== Team %s\n", team.Name)
 		v := validateTeam(team, teams, students, p.client)
 		if len(v.Problems) > 0 {
 			for _, problem := range v.Problems {
-				fmt.Fprintf(out, "✗ %s\n", problem)
+				fmt.Fprintf(p.out, "✗ %s\n", problem)
 			}
-			fmt.Fprintln(out, "Not provisioned: fix the registry, then run the command again.")
+			fmt.Fprintln(p.out, "Not provisioned: fix the registry, then provision the team again.")
 			failed++
 			continue
 		}
-
-		err := p.provision(team, v.Users)
-		switch {
-		case err == nil:
-			provisioned++
-		case errors.Is(err, errSkipped):
-			skipped++
-		case errors.Is(err, errQuit):
-			skipped += len(selected) - i
-		default:
-			failed++
-		}
+		err = p.provision(team, v.Users)
 		if errors.Is(err, errQuit) {
 			break
 		}
-	}
-
-	if len(selected) > 1 {
-		fmt.Fprintf(out, "\nProvisioned: %d · skipped: %d · failed: %d\n", provisioned, skipped, failed)
+		if err != nil && !errors.Is(err, errSkipped) {
+			failed++
+		}
 	}
 	if failed > 0 {
 		return fmt.Errorf("%d team(s) not provisioned", failed)
@@ -134,9 +134,34 @@ func runProvision(out io.Writer, name string, dryRun bool) error {
 	return nil
 }
 
+// askTeam asks the teacher which team to provision. It returns false when the teacher quits.
+func (p *provisioner) askTeam(teams []common.Team) (common.Team, bool) {
+	names := make([]string, len(teams))
+	for i, team := range teams {
+		names[i] = team.Name
+	}
+	fmt.Fprintf(p.out, "\nTeams: %s\n", strings.Join(names, ", "))
+	for {
+		fmt.Fprint(p.out, "Team to provision (empty to quit): ")
+		line, err := p.in.ReadString('\n')
+		name := strings.TrimSpace(line)
+		if i := slices.Index(names, name); name != "" && i >= 0 {
+			return teams[i], true
+		}
+		if name == "" || err != nil {
+			if err != nil { // No more input, e.g. end of a pipe
+				fmt.Fprintln(p.out)
+			}
+			return common.Team{}, false
+		}
+		fmt.Fprintf(p.out, "Unknown team %q.\n", name)
+	}
+}
+
 // provision runs the steps of one team. It returns errSkipped or errQuit when the teacher
 // declines a step, or the error of the step that failed.
 func (p *provisioner) provision(team common.Team, users map[string]*github.User) error {
+	p.yesToAll = false // "all" applies to the steps of one team only
 	steps, err := p.steps(team, users)
 	if err != nil {
 		fmt.Fprintf(p.out, "✗ cannot get the status of the team: %v\n", err)
@@ -226,7 +251,7 @@ func (p *provisioner) ask() answer {
 		return answerYes
 	}
 	for {
-		fmt.Fprint(p.out, "      Run it? [y]es, [n]o (skip the team), [a]ll (yes to everything), [q]uit: ")
+		fmt.Fprint(p.out, "      Run it? [y]es, [n]o (skip the team), [a]ll (yes to the next steps of the team), [q]uit: ")
 		line, err := p.in.ReadString('\n')
 		switch strings.ToLower(strings.TrimSpace(line)) {
 		case "y", "yes":

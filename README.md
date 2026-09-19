@@ -90,26 +90,29 @@ see their own repository. The GitHub calls go through the `gh` CLI, logged in wi
 gh auth refresh -s admin:org
 ```
 
-An action applies to all the teams, `mc team <action>`, or to one team of the registry,
-`mc team <team> <action>`. Each team is a subcommand: `mc team --help` lists them with their
-members, and `mc team red --help` lists the actions on the team `red`. The names `ls` and
-`provision` are reserved.
+The commands are `mc team <action>`, and `mc team <team> <action>` for the actions on one team
+of the registry: each team is a subcommand. `mc team --help` lists the teams with their members,
+and `mc team red --help` the actions on the team `red`. The names `ls` and `provision` are
+reserved.
 
 | Command | What it does |
 |---|---|
 | `mc team ls` | Lists the teams with their members, their status on GitHub and their validation problems, then the students not in a team yet |
-| `mc team provision [--dry-run]` | Provisions every team, as `mc team <team> provision` does |
-| `mc team red validate` | Checks the name format and its uniqueness, at most 2 members, each member on the school list and in one team only, each GitHub username existing; prints the display name of each GitHub account, for the students to confirm it |
+| `mc team provision [--dry-run]` | Asks for a team, then creates its repository and its GitHub team, grants the team push access, and adds the members, which invites them to the organization; then asks for the next team |
+| `mc team red validate` | Checks the name format and its uniqueness, at most 2 members, each member on the school list and in one team only, each GitHub username existing; prints the display name of each GitHub account, for the students to confirm it; lists the students not in a team yet |
 | `mc team red status` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
-| `mc team red provision [--dry-run]` | Creates the repository and the GitHub team, grants the team push access, and adds the members, which invites them to the organization |
 
 `provision` is interactive: it describes each step with the `gh` command it runs, and runs it
-only once confirmed. The steps already done are skipped, so it can run again, e.g. once the
-members of a team are known. A team that is not valid is not provisioned. With `--dry-run`, the
-steps are described and confirmed, but nothing runs.
+only once confirmed. The steps already done are skipped, so a team can be provisioned again,
+e.g. once its members are known. A team that is not valid is not provisioned. The registry is
+read again before each team, so it can be edited in between. With `--dry-run`, the steps are
+described and confirmed, but nothing runs.
 
 ```
-== Team red (1/1)
+Teams: red, orange, yellow
+Team to provision (empty to quit): red
+
+== Team red
 [1/5] Create the private repository mincong-classroom/k8s-red from the template mincong-classroom/containers
       ✓ the repository exists
 [2/5] Create the secret GitHub team red
@@ -118,7 +121,7 @@ steps are described and confirmed, but nothing runs.
       ✓ the GitHub team has push access
 [4/5] Add SMITH, John (@jsmith), "John Smith" on GitHub, to the GitHub team red: GitHub invites them to the organization by email
       $ gh api -X PUT orgs/mincong-classroom/teams/red/memberships/jsmith -f role=member
-      Run it? [y]es, [n]o (skip the team), [a]ll (yes to everything), [q]uit:
+      Run it? [y]es, [n]o (skip the team), [a]ll (yes to the next steps of the team), [q]uit:
 ```
 
 ## Rule

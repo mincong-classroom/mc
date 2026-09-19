@@ -19,11 +19,11 @@ the access of the GitHub team to the repository, and whether each member is "act
 		Example: "  mc team " + name + " status",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, selected, err := loadTeams(name)
+			_, team, err := loadTeam(name)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), teamStatus(selected[0], github.CLI{}).Summary())
+			fmt.Fprintln(cmd.OutOrStdout(), teamStatus(team, github.CLI{}).Summary())
 			return nil
 		},
 		SilenceUsage: true,
