@@ -107,9 +107,10 @@ The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <
 `cmd.Execute()` before Cobra resolves the args, so the registry is read at startup. `ls` and
 `provision` are reserved team names (`reservedNames`).
 
-**Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, a `Role`
-(`"frontend"` | `"customer"` | `"veterinarian"`, which selects the L3 Docker image rule), and an
-optional `CustomRepoName`. All team-derived paths/URLs come from methods on `Team`
+**Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, and an optional
+`CustomRepoName`. There is no role anymore: every team is graded as the former "frontend" role in
+L3 (`L3_DIF`); `L3_DIC` and `L3_DIV` are still listed by `mc rule` but no longer graded, and an old
+`role:` key in a registry is ignored. All team-derived paths/URLs come from methods on `Team`
 (`GetRepoPath`, `GetKubeNamespace` → `team-<name>`, `GetContainerRepoForWeekendServer`, `GetRepoURL`).
 Prefer these helpers over rebuilding paths inline. Note an existing inconsistency: `GetRepoPath()`
 uses `$HOME/github/mincong-classroom/k8s-<name>`, while `cmd/git/clone.go` and `show.go` hardcode
