@@ -13,20 +13,23 @@ import (
 )
 
 func newValidateCmd(name string) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate the team in the registry",
 		Long: `Validate the team in the registry: the name format and its uniqueness, at most 2 members,
 each member on the school list and in one team only, and each GitHub username existing. The
 display name of each GitHub account is printed, for the students to confirm it. The students of
 the school list who are not in a team yet are listed at the end.`,
-		Example: "  mc team " + name + " validate",
+		Example: "  mc team " + name + " validate\n  mc team " + name + " validate --json",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runValidate(cmd.OutOrStdout(), name)
+			return runValidate(cmd.OutOrStdout(), cmd.ErrOrStderr(), name, asJSON)
 		},
 		SilenceUsage: true,
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "Print the result as JSON")
+	return cmd
 }
 
 const (
@@ -50,20 +53,27 @@ func (v *Validation) addf(format string, args ...any) {
 	v.Problems = append(v.Problems, fmt.Sprintf(format, args...))
 }
 
-func runValidate(out io.Writer, name string) error {
+func runValidate(out, notes io.Writer, name string, asJSON bool) error {
 	teams, team, err := loadTeam(name)
 	if err != nil {
 		return err
 	}
-	students, err := loadStudents(out)
+	students, err := loadStudents(notes)
 	if err != nil {
 		return err
 	}
 
 	v := validateTeam(team, teams, students, github.CLI{})
-	printValidation(out, v)
-	fmt.Fprintln(out)
-	printUnassignedStudents(out, students, teams)
+	if asJSON {
+		result := validateJSON{newTeamJSON(team, &v, nil), studentsNotInTeam(students, teams)}
+		if err := writeJSON(out, result); err != nil {
+			return err
+		}
+	} else {
+		printValidation(out, v)
+		fmt.Fprintln(out)
+		printUnassignedStudents(out, students, teams)
+	}
 	if len(v.Problems) > 0 {
 		return fmt.Errorf("the team %s is not valid", name)
 	}
@@ -127,7 +137,7 @@ func countTeams(teams []common.Team, name string) int {
 
 func findStudent(students []common.Student, name string) *common.Student {
 	for i := range students {
-		if common.SameName(students[i].FullName(), name) {
+		if common.SameName(students[i].Name, name) {
 			return &students[i]
 		}
 	}
@@ -157,7 +167,7 @@ func unassignedStudents(students []common.Student, teams []common.Team) []common
 		assigned := false
 		for _, team := range teams {
 			for _, member := range team.Members {
-				if common.SameName(member.Name, student.FullName()) {
+				if common.SameName(member.Name, student.Name) {
 					assigned = true
 				}
 			}
@@ -223,6 +233,6 @@ func printUnassignedStudents(out io.Writer, students []common.Student, teams []c
 	}
 	fmt.Fprintf(out, "%d of %d students not in a team yet:\n", len(unassigned), len(students))
 	for _, student := range unassigned {
-		fmt.Fprintf(out, "  - %s\n", student.FullName())
+		fmt.Fprintf(out, "  - %s\n", student.Name)
 	}
 }

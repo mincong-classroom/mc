@@ -8,10 +8,10 @@ import (
 )
 
 var testStudents = []common.Student{
-	{LastName: "SMITH", FirstName: "John"},
-	{LastName: "DOE", FirstName: "Jane"},
-	{LastName: "MARTIN", FirstName: "Alex"},
-	{LastName: "DURAND", FirstName: "Camille"},
+	{Name: "SMITH, John"},
+	{Name: "DOE, Jane"},
+	{Name: "MARTIN, Alex"},
+	{Name: "DURAND, Camille"},
 }
 
 func TestValidateTeam(t *testing.T) {

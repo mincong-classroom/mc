@@ -2,35 +2,39 @@ package common
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 )
 
 func TestParseStudents(t *testing.T) {
-	input := "SMITH\tJohn\n\nDOE\tJane Marie\tignored@example.org\r\n"
+	input := `
+students:
+  - name: "SMITH, John"
+  - name: "DOE, Jane Marie"
+    email: ignored@example.org
+`
 
-	got, err := ParseStudents(strings.NewReader(input))
+	got, err := ParseStudents([]byte(input))
 
 	if err != nil {
 		t.Fatalf("ParseStudents: %v", err)
 	}
-	want := []Student{
-		{LastName: "SMITH", FirstName: "John"},
-		{LastName: "DOE", FirstName: "Jane Marie"},
-	}
+	want := []Student{{Name: "SMITH, John"}, {Name: "DOE, Jane Marie"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseStudents = %v, want %v", got, want)
 	}
-	if got[1].FullName() != "DOE, Jane Marie" {
-		t.Errorf("FullName = %q", got[1].FullName())
+}
+
+func TestParseStudentsEmpty(t *testing.T) {
+	got, err := ParseStudents([]byte("students: []\n"))
+
+	if err != nil || got == nil || len(got) != 0 {
+		t.Errorf("ParseStudents = %#v, %v; want an empty, non-nil list", got, err)
 	}
 }
 
-func TestParseStudentsRejectsALineWithOneColumn(t *testing.T) {
-	_, err := ParseStudents(strings.NewReader("SMITH\tJohn\nDOE Jane\n"))
-
-	if err == nil || !strings.Contains(err.Error(), "line 2") {
-		t.Errorf("error = %v, want an error on line 2", err)
+func TestParseStudentsInvalid(t *testing.T) {
+	if _, err := ParseStudents([]byte("students: [")); err == nil {
+		t.Error("ParseStudents with invalid YAML: want an error")
 	}
 }
 

@@ -20,16 +20,26 @@ go build -o dist/mc     # binary is gitignored under dist/
 ```
 
 CI (`.github/workflows/mincong-classroom.yaml`, runs on every push) does: `go mod tidy`,
-`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/` and `cmd/team/` so far;
-add `_test.go` files alongside the package under test. The team tests use an in-memory
-`github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
+`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/` and `e2e/`
+so far; add `_test.go` files alongside the package under test. The team unit tests use an
+in-memory `github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
+
+The end-to-end tests (`e2e/`) build the real binary and run it with `HOME` pointing at a copy of
+`e2e/testdata/mc` (a made-up registry and school list — never real student data, this repo is
+public) and a fake `gh` first in `PATH` (`e2e/testdata/bin/gh`, a shell script). The fake serves
+`gh api <path>` from `e2e/testdata/github/<path>.json` (HTTP 404 when missing) and appends every
+change (`gh repo create`, `gh api -X POST|PUT|DELETE`) to `$FAKE_GH_LOG` instead of making it, so
+the tests assert the exact `gh` commands `provision` runs. Assert on `--json` output where
+possible. The e2e package blank-imports `mc/cmd` and reads every fixture so that `go test`'s
+cache is invalidated by a source or fixture change; add a fixture under `testdata/` and it is
+covered automatically.
 
 Key commands (all read the team registry, see "External data" below):
 
 ```sh
-mc team ls                    # teams, their GitHub status and validation problems, students not in a team
+mc team ls [--json]           # teams, their GitHub status and validation problems, students not in a team
 mc team provision [--dry-run] # interactive: asks for the team, creates repo + GitHub team, invites the members
-mc team red validate|status   # the actions on one team of the registry
+mc team red validate|status [--json]  # the actions on one team of the registry
 mc rule                       # print every grading rule's spec/description
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -45,9 +55,10 @@ assume exists at runtime. Nothing here works without it:
 - `~/.mc/teams-{year}.yaml` — the team registry (`TeamRegistry`). The year is `common.Year()`:
   the `defaultYear` const in `common/team.go` (bump it for a new cohort), overridden by the
   environment variable `MC_YEAR`. Unknown keys (e.g. an old `role`) are ignored when read.
-- `~/.mc/students-{year}.tsv` — the school list (`common.Student`), optional: `LAST<TAB>First`, no
-  header, extra columns ignored. `mc team` checks the members against it and lists the students
-  not in a team; the checks are skipped when the file does not exist.
+- `~/.mc/students-{year}.yaml` — the school list (`common.StudentList`), optional: `students:` with
+  one `name: "LAST, First"` each, as in the registry; other keys are ignored. `mc team` checks the
+  members against it and lists the students not in a team; the checks are skipped (with a note
+  on stderr) when the file does not exist.
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 

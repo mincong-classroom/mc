@@ -1,0 +1,6 @@
+# The school list of the end-to-end tests. The names are made up.
+students:
+  - name: "SMITH, John"
+  - name: "DOE, Jane"
+  - name: "MARTIN, Alex"
+  - name: "DURAND, Camille"

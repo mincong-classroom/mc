@@ -1,61 +1,49 @@
 package common
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
-// Student is a student of the school list, known before the course starts.
-type Student struct {
-	LastName  string
-	FirstName string
+// StudentList is the school list of a year: the students known before the course starts.
+type StudentList struct {
+	Students []Student
 }
 
-// FullName returns the name in the format "LAST, First", as used in the team registry.
-func (s Student) FullName() string {
-	return fmt.Sprintf("%s, %s", s.LastName, s.FirstName)
+// Student is a student of the school list. Other keys, such as an email, are ignored.
+type Student struct {
+	Name string // Full name in format "LAST, First", as in the team registry
 }
 
 // StudentListPath returns the path of the school list of the current year.
 func StudentListPath() string {
-	return filepath.Join(ConfigDir(), fmt.Sprintf("students-%d.tsv", Year()))
+	return filepath.Join(ConfigDir(), fmt.Sprintf("students-%d.yaml", Year()))
 }
 
 // ListStudents reads the school list of the current year. The error wraps fs.ErrNotExist when
 // the file does not exist.
 func ListStudents() ([]Student, error) {
-	file, err := os.Open(StudentListPath())
+	data, err := os.ReadFile(StudentListPath())
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-	return ParseStudents(file)
+	return ParseStudents(data)
 }
 
-// ParseStudents parses a school list: tab-separated, no header, one student per line, in the
-// format "LAST<TAB>First". Other columns, such as an email, are ignored. The result is never nil.
-func ParseStudents(r io.Reader) ([]Student, error) {
-	students := []Student{}
-	scanner := bufio.NewScanner(r)
-	for lineNumber := 1; scanner.Scan(); lineNumber++ {
-		line := strings.TrimRight(scanner.Text(), "\r")
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		fields := strings.Split(line, "\t")
-		if len(fields) < 2 {
-			return nil, fmt.Errorf("line %d: expected at least 2 tab-separated columns, got %d", lineNumber, len(fields))
-		}
-		students = append(students, Student{
-			LastName:  strings.TrimSpace(fields[0]),
-			FirstName: strings.TrimSpace(fields[1]),
-		})
+// ParseStudents parses a school list. The result is never nil.
+func ParseStudents(data []byte) ([]Student, error) {
+	var list StudentList
+	if err := yaml.Unmarshal(data, &list); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal the school list: %v", err)
 	}
-	return students, scanner.Err()
+	if list.Students == nil {
+		return []Student{}, nil
+	}
+	return list.Students, nil
 }
 
 // SameName reports whether two names in the format "LAST, First" designate the same person,

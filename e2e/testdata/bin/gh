@@ -1,0 +1,40 @@
+#!/bin/sh
+# A fake gh CLI for the end-to-end tests, put first in the PATH of mc.
+#
+# - "gh api <path>" prints the file $FAKE_GH_DATA/<path>.json, or fails like gh with an HTTP 404
+#   when it does not exist.
+# - A change ("gh repo create ...", "gh api -X POST|PUT|DELETE ...") changes nothing: it is
+#   appended to the file $FAKE_GH_LOG, for the tests to check which commands mc ran.
+
+if [ "$1" = "repo" ]; then
+  echo "gh $*" >> "$FAKE_GH_LOG"
+  exit 0
+fi
+if [ "$1" != "api" ]; then
+  echo "fake gh: unsupported command: gh $*" >&2
+  exit 2
+fi
+
+all="$*"
+shift
+method=GET
+path=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -X) method=$2; shift 2 ;;
+    -H|-f|-F) shift 2 ;;
+    *) path=$1; shift ;;
+  esac
+done
+
+if [ "$method" != GET ]; then
+  echo "gh $all" >> "$FAKE_GH_LOG"
+  exit 0
+fi
+if [ -f "$FAKE_GH_DATA/$path.json" ]; then
+  cat "$FAKE_GH_DATA/$path.json"
+  exit 0
+fi
+echo '{"message":"Not Found","status":"404"}'
+echo "gh: Not Found (HTTP 404)" >&2
+exit 1

@@ -10,24 +10,31 @@ import (
 )
 
 func newStatusCmd(name string) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show the status of the team on GitHub",
 		Long: `Show the status of the team on GitHub: whether the repository and the GitHub team exist,
 the access of the GitHub team to the repository, and whether each member is "active" or
 "pending" (invitation not accepted yet).`,
-		Example: "  mc team " + name + " status",
+		Example: "  mc team " + name + " status\n  mc team " + name + " status --json",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, team, err := loadTeam(name)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), teamStatus(team, github.CLI{}).Summary())
+			s := teamStatus(team, github.CLI{})
+			if asJSON {
+				return writeJSON(cmd.OutOrStdout(), newTeamJSON(team, nil, &s))
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), s.Summary())
 			return nil
 		},
 		SilenceUsage: true,
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "Print the status as JSON")
+	return cmd
 }
 
 // Status is the state of a team on GitHub.
