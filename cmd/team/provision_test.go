@@ -157,10 +157,14 @@ func TestRun(t *testing.T) {
 		wantOutput string
 	}{
 		{
-			name:       "one team without members, provisioned",
-			input:      "orange\nn\ny\ny\ny\n",
-			wantRan:    orangeCommands,
-			wantOutput: "\nTeam \"orange\" provisioned.\n- repo: https://github.com/mincong-classroom/k8s-orange\n- team: https://github.com/orgs/mincong-classroom/teams/orange\n",
+			name:    "one team without members, provisioned",
+			input:   "orange\nn\ny\ny\ny\n",
+			wantRan: orangeCommands,
+			wantOutput: `
+Team "orange" provisioned.
+- repo: https://github.com/mincong-classroom/k8s-orange
+- team: https://github.com/orgs/mincong-classroom/teams/orange
+`,
 		},
 		{
 			name:  "end of input quits",
@@ -254,7 +258,10 @@ func TestRegisterTeam(t *testing.T) {
 			input:    "y\n2 1\n@amartin\njdoe\n",
 			wantTeam: newTeam("purple", member("MARTIN Alex", "amartin"), member("DOE Jane", "jdoe")),
 			wantOutput: []string{
-				"Students not in a team yet:\n   1. DOE Jane\n   2. MARTIN Alex\n",
+				`Students not in a team yet:
+   1. DOE Jane
+   2. MARTIN Alex
+`,
 				`@jdoe: no display name on GitHub`,
 				`@amartin: "Alex Martin" on GitHub`,
 				"(dry run) the team purple not saved to the registry",

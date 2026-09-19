@@ -196,7 +196,11 @@ teams:
 
 func TestLoadRegistryRejectsAnUnknownKey(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "teams.yaml")
-	if err := os.WriteFile(file, []byte("student:\n  - name: \"SMITH John\"\nteams: []\n"), 0o644); err != nil {
+	registry := `student:
+  - name: "SMITH John"
+teams: []
+`
+	if err := os.WriteFile(file, []byte(registry), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	TeamRegistryFile = file
@@ -211,7 +215,11 @@ func TestLoadRegistryRejectsAnUnknownKey(t *testing.T) {
 
 func TestLoadRegistryIgnoresTheFormerRole(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "teams.yaml")
-	data := "teams:\n  - name: red\n    members: []\n    role: veterinarian\n"
+	data := `teams:
+  - name: red
+    members: []
+    role: veterinarian
+`
 	if err := os.WriteFile(file, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}

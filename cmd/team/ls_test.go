@@ -34,9 +34,20 @@ func TestPrintUnassignedStudents(t *testing.T) {
 		students []common.Student
 		want     string
 	}{
-		{[]common.Student{{Name: "SMITH John"}}, "The only student is in a team.\n"},
-		{[]common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}}, "All the 2 students are in a team.\n"},
-		{[]common.Student{{Name: "SMITH John"}, {Name: "MARTIN Alex"}}, "1 of 2 students not in a team yet:\n  - MARTIN Alex\n"},
+		{
+			students: []common.Student{{Name: "SMITH John"}},
+			want:     "The only student is in a team.\n",
+		},
+		{
+			students: []common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}},
+			want:     "All the 2 students are in a team.\n",
+		},
+		{
+			students: []common.Student{{Name: "SMITH John"}, {Name: "MARTIN Alex"}},
+			want: `1 of 2 students not in a team yet:
+  - MARTIN Alex
+`,
+		},
 	}
 	teams := []common.Team{newTeam("red", member("SMITH John", "jsmith"), member("DOE Jane", "jdoe"))}
 	for _, tt := range tests {

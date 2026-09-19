@@ -34,6 +34,21 @@ possible. The e2e package blank-imports `mc/cmd` and reads every fixture so that
 cache is invalidated by a source or fixture change; add a fixture under `testdata/` and it is
 covered automatically.
 
+**Multi-line test data**: write the content of a file (YAML, JSON) or a multi-line expected output
+as a Go *raw string literal* (between backquotes), laid out exactly like the real file, not as a
+one-line string with `\n` and `\"` escapes:
+
+```go
+registry := `teams:
+  - name: red
+    members: []
+`
+```
+
+Start the content right after the opening backquote, and put the closing one at the start of the
+line after the last line, so that the string holds exactly the file, final newline included. Keep
+the escapes for one-line strings, and for the answers typed on stdin in the tests (`"y\nn\n"`).
+
 Key commands (all read the team registry, see "External data" below):
 
 ```sh
