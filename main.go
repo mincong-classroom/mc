@@ -1,15 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/mincong-classroom/mc/cmd"
 )
 
 func main() {
-	if err := cmd.RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+	// Cobra already prints the error.
+	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }

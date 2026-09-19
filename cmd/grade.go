@@ -31,7 +31,11 @@ func runGrade(cmd *cobra.Command, args []string) {
 	}
 	if len(selectedTeamNames) > 0 {
 		fmt.Printf("Grading %d team(s): %s\n", len(selectedTeamNames), selectedTeamNames)
-		teams = filterTeams(teams, selectedTeamNames)
+		teams, err = common.FilterTeams(teams, selectedTeamNames)
+		if err != nil {
+			fmt.Printf("Failed to select teams: %v", err)
+			return
+		}
 	} else {
 		fmt.Println("Grading all teams")
 	}
@@ -87,16 +91,4 @@ func runGrade(cmd *cobra.Command, args []string) {
 		}
 	}
 	fmt.Println(report)
-}
-
-func filterTeams(teams []common.Team, selectedTeamNames []string) []common.Team {
-	var selectedTeams []common.Team
-	for _, team := range teams {
-		for _, name := range selectedTeamNames {
-			if team.Name == name {
-				selectedTeams = append(selectedTeams, team)
-			}
-		}
-	}
-	return selectedTeams
 }

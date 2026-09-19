@@ -6,8 +6,17 @@ import (
 	"strings"
 )
 
+// TeamRegistry is the team registry of a year, ~/.mc/teams-{year}.yaml.
 type TeamRegistry struct {
-	Teams []Team
+	// Students are the students of the year, known before the course starts. Optional: they are
+	// only used to list the students not in a team, and to warn about a member not among them.
+	Students []Student
+	Teams    []Team
+}
+
+// Student is a student of the year. Other keys, such as an email, are ignored.
+type Student struct {
+	Name string // Full name in the format "LAST First" (see ParseName), as for the team members
 }
 
 type Team struct {
@@ -21,8 +30,9 @@ type Team struct {
 	CustomRepoName *string `yaml:"repo_name"`
 }
 
+// TeamMember is a student of a team. Other keys of the registry, such as an email, are ignored.
 type TeamMember struct {
-	Name   string // Full name in format "LAST, First", e.g. "SMITH, John"
+	Name   string // Full name in the format "LAST First" (see ParseName), e.g. "SMITH John"
 	Github string // Github username
 }
 
@@ -42,14 +52,17 @@ func (t Team) GetContainerRepoForWeekendServer() string {
 	return fmt.Sprintf("mincongclassroom/weekend-server-%s", t.Name)
 }
 
-func (t Team) GetRepoURL() string {
-	var repoName string
+// GetRepoName returns the name of the team's repository in the GitHub organization, such as
+// "k8s-red".
+func (t Team) GetRepoName() string {
 	if t.CustomRepoName != nil {
-		repoName = *t.CustomRepoName
-	} else {
-		repoName = "k8s-" + t.Name
+		return *t.CustomRepoName
 	}
-	return fmt.Sprintf("git@github.com:mincong-classroom/%s.git", repoName)
+	return "k8s-" + t.Name
+}
+
+func (t Team) GetRepoURL() string {
+	return fmt.Sprintf("git@github.com:mincong-classroom/%s.git", t.GetRepoName())
 }
 
 func (t Team) GetLocalRepoDirName() string {

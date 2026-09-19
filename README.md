@@ -49,12 +49,121 @@ Available Commands:
   help        Help about any command
   info        Display CLI information
   rule        List grading rules
-  team        List all teams
+  team        Manage the teams
 
 Flags:
-  -h, --help   help for mc
+  -h, --help               help for mc
+      --team-file string   Team registry to use instead of ~/.mc/teams-{year}.yaml, e.g. a test registry to try the commands
 
 Use "mc [command] --help" for more information about a command.
+```
+
+## Team
+
+The teams are registered in a private YAML file, the team registry `~/.mc/teams-{year}.yaml`.
+A team has a name, lowercase letters only (such as a color), and at most two members. A team
+can have no members yet: it is created before the course, and its members are added later.
+
+A name is written `"LAST First"`: the last name in upper case, then the first name in Pascal case,
+each of one or more words, e.g. `"DE LA FONTAINE Jean-Pierre"`. A member whose name does not follow
+this format is a warning; the names are compared ignoring the case and the extra spaces.
+
+The optional `students` list holds the students of the year, known before the course. It is
+informational: `mc team ls` lists the students who are not in a team yet, and a member who is not
+among them is a warning, which `provision` asks to confirm. For a member, only the GitHub user
+must be valid.
+
+```yaml
+students:
+  - name: "SMITH John"        # "LAST First"
+  - name: "DOE Jane"
+teams:
+  - name: red
+    members:
+      - name: "SMITH John"    # as in the students
+        github: jsmith        # GitHub username
+  - name: orange
+    members: []               # not taken yet
+```
+
+The year is the current cohort, 2026. Set the environment variable `MC_YEAR` to use another one,
+e.g. `MC_YEAR=2025 mc grade`.
+
+The global flag `--team-file` replaces the team registry for any command, e.g. to rehearse with a
+test registry before the course. `provision` still acts on the real organization: add `--dry-run`.
+
+```sh
+mc team ls --team-file ~/.mc/test-teams-2026.yaml
+mc team provision --dry-run --team-file ~/.mc/test-teams-2026.yaml
+```
+
+Each team gets a private repository `k8s-{team}` in the GitHub organization, generated from the
+template repository `mincong-classroom/containers`, and a secret GitHub team `{team}` with push
+access to it. With the organization's base permission set to `none`, the members of a team only
+see their own repository. The GitHub calls go through the `gh` CLI, logged in with the scopes
+`repo` and `admin:org`:
+
+```sh
+gh auth refresh -s admin:org
+```
+
+The commands are `mc team <action>`, and `mc team <team> <action>` for the actions on one team
+of the registry: each team is a subcommand. `mc team --help` lists the teams with their members,
+and `mc team red --help` the actions on the team `red`. The names `ls` and `provision` are
+reserved.
+
+| Command | What it does |
+|---|---|
+| `mc team ls [--json]` | Lists the teams with their members, their status on GitHub and their validation problems, then the students not in a team yet |
+| `mc team provision [--dry-run]` | Asks for one team, registered or new, then creates its repository and its GitHub team, grants the team push access, and adds the members, which invites them to the organization |
+| `mc team red validate [--json]` | Errors, which prevent the provisioning: an invalid or reserved name, a name used by another team, a member without a GitHub username or whose GitHub user does not exist. Warnings, confirmed when provisioning: more than 2 members, a member in several teams or not among the students. Prints the display name of each GitHub account, for the students to confirm it |
+| `mc team red status [--json]` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
+
+`provision` is interactive, and provisions one team per run, one step at a time: it describes each
+step with the `gh` command it runs (in dark yellow in a terminal, unless `NO_COLOR` is set), and
+runs it only once confirmed with `y` — "no" is the default, and skips the rest of the team. The
+steps already done are skipped, so a team can be provisioned again. A team with errors is not
+provisioned; with warnings, `provision` asks to confirm them first. ctrl+c stops the command. With
+`--dry-run`, the steps are described and confirmed, but nothing runs.
+
+The members come from the registry, or are asked on the way:
+
+- a team that is not in the registry yet is registered, once confirmed;
+- a registered team without members, such as a team created before the course, can get them.
+
+The members are picked by number among the students of the registry who are not in a team yet, or
+typed when there is none to pick, each with their GitHub username (checked right away, and its
+display name shown to confirm). The registry is updated, keeping its comments, except with
+`--dry-run`.
+
+```
+Teams: red, orange
+Team to provision: purple
+purple is not in the registry. Register it? (y/N): y
+Students not in a team yet:
+   1. DOE Jane
+   2. MARTIN Alex
+Members, by number, e.g. "1 2" (empty for none yet): 1 2
+GitHub username of DOE Jane: jdoe
+  @jdoe: "Jane Doe" on GitHub
+GitHub username of MARTIN Alex: amartin
+  @amartin: "Alex Martin" on GitHub
+✓ the team purple saved to ~/.mc/teams-2026.yaml
+
+== Team purple
+[1/5] Create the private repository mincong-classroom/k8s-purple from the template mincong-classroom/containers
+      $ gh repo create mincong-classroom/k8s-purple --private --template mincong-classroom/containers
+      Run it? (y/N): y
+      ✓ done
+...
+[5/5] Add MARTIN Alex (@amartin), "Alex Martin" on GitHub, to the GitHub team purple: GitHub invites them to the organization by email
+      $ gh api -X PUT orgs/mincong-classroom/teams/purple/memberships/amartin -f role=member
+      Run it? (y/N): y
+      ✓ done
+
+Team "purple" provisioned.
+- repo: https://github.com/mincong-classroom/k8s-purple
+- team: https://github.com/orgs/mincong-classroom/teams/purple
 ```
 
 ## Rule
@@ -305,4 +414,6 @@ The `cmd` directory contains all the commands exposed in the command line interf
 
 The `rules` directory contains all the rules for the auto-grading.
 
-The `.mc` directory is private. It contains all the team information `.mc/teams.yaml` and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.
+The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
+
+The `.mc` directory is private. It contains the team registry `.mc/teams-{year}.yaml`, and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.
