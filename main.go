@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// Cobra already prints the error.
-	if err := cmd.RootCmd.Execute(); err != nil {
+	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }

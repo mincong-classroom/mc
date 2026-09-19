@@ -9,15 +9,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var statusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show the status of the teams on GitHub",
-	Long: `Show the status of the teams on GitHub: whether the repository and the GitHub team exist,
+func newStatusCmd(name string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show the status of the team on GitHub",
+		Long: `Show the status of the team on GitHub: whether the repository and the GitHub team exist,
 the access of the GitHub team to the repository, and whether each member is "active" or
 "pending" (invitation not accepted yet).`,
-	Example: `  mc team status
-  mc team status --team red`,
-	RunE: runStatus,
+		Example: "  mc team " + name + " status",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, selected, err := loadTeams(name)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), teamStatus(selected[0], github.CLI{}).Summary())
+			return nil
+		},
+		SilenceUsage: true,
+	}
 }
 
 // Status is the state of a team on GitHub.
@@ -28,23 +38,6 @@ type Status struct {
 	RepoRole   string            // Role of the GitHub team on the repository, "" if none
 	States     map[string]string // Membership state by GitHub username: "active", "pending" or ""
 	Err        error             // Set when the status could not be fetched
-}
-
-func runStatus(cmd *cobra.Command, args []string) error {
-	out := cmd.OutOrStdout()
-	_, selected, err := loadTeams()
-	if err != nil {
-		return err
-	}
-
-	statuses := make([]Status, len(selected))
-	forEach(len(selected), func(i int) {
-		statuses[i] = teamStatus(selected[i], github.CLI{})
-	})
-	for _, s := range statuses {
-		fmt.Fprintf(out, "%s: %s\n", s.Team.Name, s.Summary())
-	}
-	return nil
 }
 
 func teamStatus(team common.Team, client github.Client) Status {

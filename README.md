@@ -90,12 +90,18 @@ see their own repository. The GitHub calls go through the `gh` CLI, logged in wi
 gh auth refresh -s admin:org
 ```
 
+An action applies to all the teams, `mc team <action>`, or to one team of the registry,
+`mc team <team> <action>`. Each team is a subcommand: `mc team --help` lists them with their
+members, and `mc team red --help` lists the actions on the team `red`. The names `ls` and
+`provision` are reserved.
+
 | Command | What it does |
 |---|---|
 | `mc team ls` | Lists the teams with their members, their status on GitHub and their validation problems, then the students not in a team yet |
-| `mc team validate [--team red]` | Checks the name format and its uniqueness, at most 2 members, each member on the school list and in one team only, each GitHub username existing; prints the display name of each GitHub account, for the students to confirm it |
-| `mc team status [--team red]` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
-| `mc team provision [--team red] [--dry-run]` | Creates the repository and the GitHub team, grants the team push access, and adds the members, which invites them to the organization |
+| `mc team provision [--dry-run]` | Provisions every team, as `mc team <team> provision` does |
+| `mc team red validate` | Checks the name format and its uniqueness, at most 2 members, each member on the school list and in one team only, each GitHub username existing; prints the display name of each GitHub account, for the students to confirm it |
+| `mc team red status` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
+| `mc team red provision [--dry-run]` | Creates the repository and the GitHub team, grants the team push access, and adds the members, which invites them to the organization |
 
 `provision` is interactive: it describes each step with the `gh` command it runs, and runs it
 only once confirmed. The steps already done are skipped, so it can run again, e.g. once the

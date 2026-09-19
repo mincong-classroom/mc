@@ -8,45 +8,120 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/mincong-classroom/mc/common"
 	"github.com/spf13/cobra"
 )
 
-var TeamCmd = &cobra.Command{
-	Use:   "team",
-	Short: "Manage the teams",
-	Long: `Manage the teams registered in the team registry, and their repository and GitHub team
+const (
+	allTeamsGroup = "all"
+	teamsGroup    = "teams"
+)
+
+// reservedNames are the actions on all the teams, which cannot be used as a team name.
+var reservedNames = []string{"ls", "provision"}
+
+var TeamCmd = newTeamRootCmd()
+
+func newTeamRootCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "team [<team>] <action>",
+		Short: "Manage the teams",
+		Long: `Manage the teams registered in the team registry, and their repository and GitHub team
 in the GitHub organization. The GitHub calls go through the gh CLI, logged in with the scopes
-"repo" and "admin:org" (gh auth refresh -s admin:org).`,
+"repo" and "admin:org" (gh auth refresh -s admin:org).
+
+An action applies to all the teams ("mc team ls"), or to one team ("mc team red status").`,
+		Example: `  mc team ls
+  mc team provision --dry-run
+  mc team red validate
+  mc team red status
+  mc team red provision`,
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			if _, err := common.ListTeams(); err != nil {
+				return fmt.Errorf("failed to list teams: %v", err)
+			}
+			return fmt.Errorf("unknown team or action %q, see \"mc team ls\" for the teams of %s", args[0], common.TeamRegistryPath())
+		},
+		SilenceUsage: true,
+	}
+	cmd.AddGroup(
+		&cobra.Group{ID: allTeamsGroup, Title: "Actions on all the teams:"},
+		&cobra.Group{ID: teamsGroup, Title: "Teams, see \"mc team <team> --help\" for their actions:"},
+	)
+
+	ls := newLsCmd()
+	provision := newProvisionCmd("")
+	ls.GroupID = allTeamsGroup
+	provision.GroupID = allTeamsGroup
+	cmd.AddCommand(ls, provision)
+	return cmd
 }
 
-// selectedTeamNames is the value of the flag --team, shared by the subcommands.
-var selectedTeamNames []string
+// AddTeamCommands adds one subcommand per team of the registry, such as "mc team red", holding the
+// actions on that team. Cobra resolves the subcommands before running them, so it is called before
+// running the CLI. When the registry cannot be read, no team is added and "mc team ls" reports the
+// error.
+func AddTeamCommands() {
+	teams, err := common.ListTeams()
+	if err != nil {
+		return
+	}
+	addTeamCommands(TeamCmd, teams)
+}
 
-func init() {
-	TeamCmd.AddCommand(lsCmd)
-	TeamCmd.AddCommand(validateCmd)
-	TeamCmd.AddCommand(statusCmd)
-	TeamCmd.AddCommand(provisionCmd)
-
-	for _, cmd := range []*cobra.Command{validateCmd, statusCmd, provisionCmd} {
-		cmd.Flags().StringArrayVarP(&selectedTeamNames, "team", "t", []string{}, "Team(s) to select, all teams if omitted")
-		cmd.SilenceUsage = true
+func addTeamCommands(parent *cobra.Command, teams []common.Team) {
+	for _, team := range teams {
+		// A reserved or duplicated name is reported by "mc team ls". A name that is not a single
+		// word cannot be typed as a command.
+		registered := slices.ContainsFunc(parent.Commands(), func(c *cobra.Command) bool { return c.Name() == team.Name })
+		if registered || slices.Contains(reservedNames, team.Name) || len(strings.Fields(team.Name)) != 1 {
+			continue
+		}
+		parent.AddCommand(newTeamCmd(team))
 	}
 }
 
-// loadTeams returns all the registered teams, and the ones selected with the flag --team.
-func loadTeams() (all []common.Team, selected []common.Team, err error) {
+func newTeamCmd(team common.Team) *cobra.Command {
+	short := team.GetMembersAsString()
+	if len(team.Members) == 0 {
+		short = "no members yet"
+	}
+	cmd := &cobra.Command{
+		Use:     team.Name + " <action>",
+		Short:   short,
+		GroupID: teamsGroup,
+		Args:    cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			return fmt.Errorf("unknown action %q for the team %s, see \"mc team %s --help\"", args[0], team.Name, team.Name)
+		},
+		SilenceUsage: true,
+	}
+	cmd.AddCommand(newValidateCmd(team.Name), newStatusCmd(team.Name), newProvisionCmd(team.Name))
+	return cmd
+}
+
+// loadTeams returns all the registered teams, and the team with the given name, or all the teams
+// when the name is empty.
+func loadTeams(name string) (all []common.Team, selected []common.Team, err error) {
 	all, err = common.ListTeams()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list teams: %v", err)
 	}
-	if len(selectedTeamNames) == 0 {
+	if name == "" {
 		return all, all, nil
 	}
-	selected, err = common.FilterTeams(all, selectedTeamNames)
+	selected, err = common.FilterTeams(all, []string{name})
 	return all, selected, err
 }
 

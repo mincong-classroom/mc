@@ -8,16 +8,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var lsCmd = &cobra.Command{
-	Use:     "ls",
-	Aliases: []string{"list"},
-	Short:   "List the teams, their status and the students not in a team",
-	Long: `List the teams of the registry with their members, their status on GitHub (see
-"mc team status") and a warning for each validation problem (see "mc team validate"). The
-students of the school list who are not in a team yet are listed at the end.`,
-	Args:         cobra.NoArgs,
-	SilenceUsage: true,
-	RunE:         runLs,
+func newLsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "ls",
+		Short: "List the teams, their status and the students not in a team",
+		Long: `List the teams of the registry with their members, their status on GitHub (see
+"mc team <team> status") and a warning for each validation problem (see
+"mc team <team> validate"). The students of the school list who are not in a team yet are
+listed at the end.`,
+		Args:         cobra.NoArgs,
+		SilenceUsage: true,
+		RunE:         runLs,
+	}
 }
 
 func runLs(cmd *cobra.Command, args []string) error {

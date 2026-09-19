@@ -13,10 +13,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var provisionCmd = &cobra.Command{
-	Use:   "provision",
-	Short: "Create the repository and the GitHub team of each team, and invite the members",
-	Long: `Provision the teams on GitHub, one step at a time:
+// newProvisionCmd returns the command provisioning the team with the given name, or all the teams
+// when the name is empty.
+func newProvisionCmd(name string) *cobra.Command {
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "provision",
+		Short: "Create the repository and the GitHub team of the team, and invite its members",
+		Long: `Provision the team on GitHub, one step at a time:
 
   1. create the private repository k8s-{team} from the template repository,
   2. create the secret GitHub team {team},
@@ -25,18 +29,22 @@ var provisionCmd = &cobra.Command{
 
 Each step is described, with the gh command it runs, and runs only once confirmed. The steps
 already done are skipped, so the command can run again, e.g. once the members of a team created
-before the course are known. A team that is not valid (see "mc team validate") is not
+before the course are known. A team that is not valid (see "mc team <team> validate") is not
 provisioned. With --dry-run, the steps are described and confirmed, but nothing runs.`,
-	Example: `  mc team provision --team red
-  mc team provision --team red --dry-run
-  mc team provision   # all the teams`,
-	RunE: runProvision,
-}
-
-var dryRun bool
-
-func init() {
-	provisionCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Describe and confirm the steps, but do not run them")
+		Example: "  mc team " + name + " provision\n  mc team " + name + " provision --dry-run",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProvision(cmd.OutOrStdout(), name, dryRun)
+		},
+		SilenceUsage: true,
+	}
+	if name == "" {
+		cmd.Short = "Create the repository and the GitHub team of every team, and invite the members"
+		cmd.Long = strings.Replace(cmd.Long, "Provision the team on GitHub", "Provision every team of the registry on GitHub", 1)
+		cmd.Example = "  mc team provision\n  mc team provision --dry-run"
+	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Describe and confirm the steps, but do not run them")
+	return cmd
 }
 
 var (
@@ -68,9 +76,8 @@ type step struct {
 	command     github.Command
 }
 
-func runProvision(cmd *cobra.Command, args []string) error {
-	out := cmd.OutOrStdout()
-	teams, selected, err := loadTeams()
+func runProvision(out io.Writer, name string, dryRun bool) error {
+	teams, selected, err := loadTeams(name)
 	if err != nil {
 		return err
 	}
@@ -118,7 +125,9 @@ func runProvision(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(out, "\nProvisioned: %d · skipped: %d · failed: %d\n", provisioned, skipped, failed)
+	if len(selected) > 1 {
+		fmt.Fprintf(out, "\nProvisioned: %d · skipped: %d · failed: %d\n", provisioned, skipped, failed)
+	}
 	if failed > 0 {
 		return fmt.Errorf("%d team(s) not provisioned", failed)
 	}

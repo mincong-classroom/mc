@@ -15,6 +15,7 @@ assignments in the Kubernetes course.`,
 }
 
 func Execute() error {
+	team.AddTeamCommands()
 	return RootCmd.Execute()
 }
 

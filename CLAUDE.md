@@ -28,8 +28,8 @@ Key commands (all read the team registry, see "External data" below):
 
 ```sh
 mc team ls                    # teams, their GitHub status and validation problems, students not in a team
-mc team validate|status [-t red]
-mc team provision -t red [--dry-run] # interactive: create repo + GitHub team, invite the members
+mc team provision [--dry-run] # all the teams, interactive: create repo + GitHub team, invite the members
+mc team red validate|status|provision  # the same, for one team of the registry
 mc rule                       # print every grading rule's spec/description
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -68,8 +68,11 @@ the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision
 `gh` command before running it, and the tests can record them. `provision` computes the steps
 from `teamStatus()`, skips those already done (idempotent), refuses a team failing
 `validateTeam()`, and asks for each step (`y`/`n` skips the team/`a` yes to all/`q`); `--dry-run`
-keeps the prompts but runs nothing. `ls`, `validate` and `status` fetch per team concurrently
-(`forEach`).
+keeps the prompts but runs nothing. `ls` fetches per team concurrently (`forEach`).
+The command tree is `mc team <action>` (`ls`, `provision`: all the teams) and
+`mc team <team> <action>` (`validate`, `status`, `provision`): `AddTeamCommands()` adds one
+subcommand per registered team, called from `cmd.Execute()` before Cobra resolves the args, so
+the registry is read at startup. `ls` and `provision` are reserved team names (`reservedNames`).
 
 **Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, a `Role`
 (`"frontend"` | `"customer"` | `"veterinarian"`, which selects the L3 Docker image rule), and an

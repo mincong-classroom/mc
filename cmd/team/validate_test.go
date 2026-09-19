@@ -51,6 +51,12 @@ func TestValidateTeam(t *testing.T) {
 			want:     []string{`invalid name "north-1": use lowercase letters only, such as a color`},
 		},
 		{
+			name:     "reserved name",
+			team:     newTeam("ls"),
+			students: testStudents,
+			want:     []string{`invalid name "ls": reserved by the command "mc team ls"`},
+		},
+		{
 			name:     "name used by two teams",
 			team:     newTeam("red"),
 			others:   []common.Team{newTeam("red")},

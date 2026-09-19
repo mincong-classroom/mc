@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/mincong-classroom/mc/common"
@@ -11,16 +12,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var validateCmd = &cobra.Command{
-	Use:   "validate",
-	Short: "Validate the teams of the registry",
-	Long: `Validate the teams of the registry: the name format, its uniqueness, at most 2 members,
+func newValidateCmd(name string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "validate",
+		Short: "Validate the team in the registry",
+		Long: `Validate the team in the registry: the name format and its uniqueness, at most 2 members,
 each member on the school list and in one team only, and each GitHub username existing. The
-display name of each GitHub account is printed, for the students to confirm it. The students of
-the school list who are not in a team yet are listed at the end.`,
-	Example: `  mc team validate
-  mc team validate --team red`,
-	RunE: runValidate,
+display name of each GitHub account is printed, for the students to confirm it.`,
+		Example: "  mc team " + name + " validate",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runValidate(cmd.OutOrStdout(), name)
+		},
+		SilenceUsage: true,
+	}
 }
 
 const (
@@ -44,9 +49,8 @@ func (v *Validation) addf(format string, args ...any) {
 	v.Problems = append(v.Problems, fmt.Sprintf(format, args...))
 }
 
-func runValidate(cmd *cobra.Command, args []string) error {
-	out := cmd.OutOrStdout()
-	teams, selected, err := loadTeams()
+func runValidate(out io.Writer, name string) error {
+	teams, selected, err := loadTeams(name)
 	if err != nil {
 		return err
 	}
@@ -55,22 +59,10 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	validations := make([]Validation, len(selected))
-	forEach(len(selected), func(i int) {
-		validations[i] = validateTeam(selected[i], teams, students, github.CLI{})
-	})
-
-	invalid := 0
-	for _, v := range validations {
-		printValidation(out, v)
-		if len(v.Problems) > 0 {
-			invalid++
-		}
-	}
-	printUnassignedStudents(out, students, teams)
-
-	if invalid > 0 {
-		return fmt.Errorf("%d of %d team(s) are not valid", invalid, len(validations))
+	v := validateTeam(selected[0], teams, students, github.CLI{})
+	printValidation(out, v)
+	if len(v.Problems) > 0 {
+		return fmt.Errorf("the team %s is not valid", name)
 	}
 	return nil
 }
@@ -82,6 +74,9 @@ func validateTeam(team common.Team, teams []common.Team, students []common.Stude
 
 	if !teamNamePattern.MatchString(team.Name) {
 		v.addf("invalid name %q: use lowercase letters only, such as a color", team.Name)
+	}
+	if slices.Contains(reservedNames, team.Name) {
+		v.addf("invalid name %q: reserved by the command \"mc team %s\"", team.Name, team.Name)
 	}
 	if n := countTeams(teams, team.Name); n > 1 {
 		v.addf("the name %q is used by %d teams", team.Name, n)
@@ -201,7 +196,6 @@ func printValidation(out io.Writer, v Validation) {
 	if len(v.Problems) == 0 {
 		fmt.Fprintln(out, "  ✓ valid")
 	}
-	fmt.Fprintln(out)
 }
 
 func describeMemberCount(team common.Team) string {
