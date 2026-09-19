@@ -86,13 +86,18 @@ the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision
 from `teamStatus()`, skips those already done (idempotent), refuses a team with
 `validateTeam()` errors, asks to confirm its warnings, and asks for each step, one at a time: every prompt is a
 `(y/N)` question (`confirm()`), "no" by default, with no "all" nor "quit" answer — a "no" skips
-the rest of the team, ctrl+c stops the command. `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` asks for the team
-by name, reloads the registry before each one, and loops until ctrl+c (or the end of the input,
-which the tests use). An unknown name
+the rest of the team, ctrl+c stops the command. `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` provisions **one team
+per run**: it asks for the team by name (an empty answer asks again; ctrl+c, or the end of the
+input in the tests, stops it), then prints `Team "x" provisioned.` with `github.RepoURL`/`TeamURL`.
+The `$ gh …` lines are dark yellow when stdout is a terminal and `NO_COLOR` is unset
+(`provisioner.color`). A registered team without members goes to `completeTeam()` (members saved
+with `common.SetTeamMembers()`); an unknown name
 goes to `registerTeam()`: name checked (`teamNameErrors`), members picked by number among the
-registry's students not in a team (`pickStudents`, `parsePicks`), GitHub usernames checked on
-entry, then `common.AddTeam()` appends it to the registry file through the `yaml.Node` API (the
-comments survive; written to a temp file, then renamed). Not saved with `--dry-run`. The
+registry's students not in a team (`askMembers`: `pickStudents`, `parsePicks`, or `typeMembers`
+when there is none to pick), GitHub usernames checked on entry, then `common.AddTeam()` appends it to the registry file through the `yaml.Node` API (the
+comments survive; `editRegistry` writes a temp file, then renames it). `LoadRegistry` rejects an
+unknown top-level key (only `students` and `teams`), so that a typo such as `student:` is not
+silently ignored. Not saved with `--dry-run`. The
 `cmd/team` unit tests run with a temporary `HOME` (`TestMain`), so they can never write the
 teacher's `~/.mc`. `ls` fetches per team concurrently (`forEach`).
 The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <action>`

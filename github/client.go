@@ -43,6 +43,16 @@ type Client interface {
 	Run(command Command) error
 }
 
+// RepoURL returns the web address of the repository of the organization.
+func RepoURL(repo string) string {
+	return fmt.Sprintf("https://github.com/%s/%s", Org, repo)
+}
+
+// TeamURL returns the web address of the GitHub team of the organization.
+func TeamURL(team string) string {
+	return fmt.Sprintf("https://github.com/orgs/%s/teams/%s", Org, team)
+}
+
 // Command is a gh command changing the organization, shown to the teacher before it runs.
 type Command []string
 

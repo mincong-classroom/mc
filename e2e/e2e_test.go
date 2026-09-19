@@ -398,13 +398,16 @@ func TestTeamProvision(t *testing.T) {
 			name:        "all the steps of a new team",
 			stdin:       "blue\ny\ny\ny\ny\n",
 			wantChanges: []string{createBlueRepo, createBlueTeam, grantBlue, inviteAmartin},
-			wantOutput:  []string{"Teams: red, blue, green, Pink-2", "== Team blue", "✓ done"},
+			wantOutput: []string{
+				"Teams: red, blue, green, Pink-2", "== Team blue", "✓ done",
+				"\nTeam \"blue\" provisioned.\n- repo: https://github.com/mincong-classroom/k8s-blue\n- team: https://github.com/orgs/mincong-classroom/teams/blue\n",
+			},
 		},
 		{
 			name:       "dry run",
 			args:       []string{"--dry-run"},
 			stdin:      "blue\ny\ny\ny\ny\n",
-			wantOutput: []string{"(dry run) not run"},
+			wantOutput: []string{"(dry run) not run", `Dry run: team "blue" not provisioned, nothing changed on GitHub.`},
 		},
 		{
 			name:       "the steps already done are skipped",
@@ -413,13 +416,8 @@ func TestTeamProvision(t *testing.T) {
 		},
 		{
 			name:        "the admin access is replaced by push",
-			stdin:       "green\ny\n\n",
+			stdin:       "green\nn\ny\n",
 			wantChanges: []string{grantGreen},
-		},
-		{
-			name:        "several teams, one at a time",
-			stdin:       "blue\ny\ny\ny\ny\ngreen\ny\n",
-			wantChanges: []string{createBlueRepo, createBlueTeam, grantBlue, inviteAmartin, grantGreen},
 		},
 		{
 			name:        "no skips the rest of the team",
@@ -441,7 +439,7 @@ func TestTeamProvision(t *testing.T) {
 			name:         "an invalid team is not provisioned",
 			stdin:        "Pink-2\n\n",
 			wantExitCode: 1,
-			wantOutput:   []string{"Not provisioned: fix the registry"},
+			wantOutput:   []string{`✗ invalid name "Pink-2"`},
 		},
 	}
 	for _, tt := range tests {
@@ -536,7 +534,8 @@ func TestTeamProvisionRegistersANewTeam(t *testing.T) {
 	for _, want := range []string{
 		"Students not in a team yet:\n   1. DURAND, Camille\n",
 		`@cdurand: "Camille Durand" on GitHub`,
-		"✓ the team purple is saved to " + registryFile,
+		"✓ the team purple saved to " + registryFile,
+		"\nTeam \"purple\" provisioned.\n",
 	} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("output does not contain %q:\n%s", want, r.stdout)
@@ -581,7 +580,7 @@ func TestTeamProvisionDryRunDoesNotRegister(t *testing.T) {
 
 	r := e.run(t, "purple\ny\n1\ncdurand\ny\ny\ny\ny\n", "team", "provision", "--dry-run")
 
-	if !strings.Contains(r.stdout, "(dry run) the team purple is not saved to the registry") {
+	if !strings.Contains(r.stdout, "(dry run) the team purple not saved to the registry") {
 		t.Errorf("output:\n%s", r.stdout)
 	}
 	if after, _ := os.ReadFile(registryFile); !bytes.Equal(after, before) {
@@ -589,5 +588,46 @@ func TestTeamProvisionDryRunDoesNotRegister(t *testing.T) {
 	}
 	if got := e.ghChanges(t); got != nil {
 		t.Errorf("changes in a dry run = %q", got)
+	}
+}
+
+func TestTeamProvisionAddsTheMembersOfARegisteredTeam(t *testing.T) {
+	e := newEnv(t)
+	registryFile := filepath.Join(e.home, ".mc", "teams-2026.yaml")
+
+	// green is registered without members; DURAND is the only student not in a team yet.
+	r := e.run(t, "green\ny\n1\ncdurand\ny\ny\n", "team", "provision")
+
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "green has no members yet. Add them? (y/N): ") {
+		t.Fatalf("exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
+	}
+	wantChanges := []string{
+		"gh api -X PUT orgs/mincong-classroom/teams/green/repos/mincong-classroom/k8s-green -f permission=push",
+		"gh api -X PUT orgs/mincong-classroom/teams/green/memberships/cdurand -f role=member",
+	}
+	if got := e.ghChanges(t); !reflect.DeepEqual(got, wantChanges) {
+		t.Errorf("changes =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(wantChanges, "\n"))
+	}
+	data, err := os.ReadFile(registryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "  # Created before the course, no members yet.\n  - name: green\n    members:\n      - name: \"DURAND, Camille\"\n        github: cdurand\n"
+	if !strings.Contains(string(data), want) {
+		t.Errorf("registry does not have the members of green:\n%s", data)
+	}
+}
+
+func TestTeamRegistryWithAnUnknownKey(t *testing.T) {
+	e := newEnv(t)
+	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
+	if err := os.WriteFile(teamFile, []byte("student:\n  - name: \"DURAND, Camille\"\nteams: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := e.run(t, "", "team", "ls", "--team-file", teamFile)
+
+	if r.exitCode != 1 || !strings.Contains(r.stderr, `unknown key "student"`) {
+		t.Errorf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
 }

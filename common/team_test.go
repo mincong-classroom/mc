@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -149,5 +150,61 @@ teams:
 				t.Errorf("permissions = %v, want the original ones", info.Mode().Perm())
 			}
 		})
+	}
+}
+
+func TestSetTeamMembers(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "teams.yaml")
+	registry := `students:
+  - name: "SMITH, John"
+teams:
+  # Created before the course.
+  - name: green
+    members: [] # not taken yet
+  - name: red
+    members: []
+`
+	if err := os.WriteFile(file, []byte(registry), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	TeamRegistryFile = file
+	defer func() { TeamRegistryFile = "" }()
+
+	err := SetTeamMembers("green", []TeamMember{{Name: "SMITH, John", Github: "jsmith"}})
+
+	if err != nil {
+		t.Fatalf("SetTeamMembers: %v", err)
+	}
+	want := `students:
+  - name: "SMITH, John"
+teams:
+  # Created before the course.
+  - name: green
+    members:
+      - name: "SMITH, John"
+        github: jsmith
+  - name: red
+    members: []
+`
+	if got, _ := os.ReadFile(file); string(got) != want {
+		t.Errorf("registry =\n%s\nwant\n%s", got, want)
+	}
+	if err := SetTeamMembers("blue", nil); err == nil || !strings.Contains(err.Error(), `team "blue" not found`) {
+		t.Errorf("SetTeamMembers of an unknown team: error = %v", err)
+	}
+}
+
+func TestLoadRegistryRejectsAnUnknownKey(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "teams.yaml")
+	if err := os.WriteFile(file, []byte("student:\n  - name: \"SMITH, John\"\nteams: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	TeamRegistryFile = file
+	defer func() { TeamRegistryFile = "" }()
+
+	_, err := LoadRegistry()
+
+	if err == nil || !strings.Contains(err.Error(), `unknown key "student"`) {
+		t.Errorf("LoadRegistry with a typo: error = %v", err)
 	}
 }

@@ -20,10 +20,8 @@ func newProvisionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "provision",
 		Short: "Provision a team on GitHub: its repository, its GitHub team and its members",
-		Long: `Provision a team on GitHub. The command asks for the team, then goes through the steps
-one at a time. A team that is not in the registry yet can be registered on the way: its members
-are picked among the students of the registry who are not in a team yet, with their GitHub
-username, and the team is saved to the registry (not with --dry-run). The steps:
+		Long: `Provision one team on GitHub. The command asks for the team, then goes through the steps
+one at a time:
 
   1. create the private repository k8s-{team} from the template repository,
   2. create the secret GitHub team {team},
@@ -31,20 +29,24 @@ username, and the team is saved to the registry (not with --dry-run). The steps:
   4. add each member to the GitHub team, which invites them to the organization.
 
 Each step is described, with the gh command it runs, and runs only once confirmed. The steps
-already done are skipped, so a team can be provisioned again, e.g. once the members of a team
-created before the course are known. A team with validation errors (see "mc team <team> validate")
-is not provisioned; with warnings, such as a member not among the students of the registry, the
-teacher confirms before the steps. Once a team is done, the command asks for the next one, and
-reads the registry again, so it can be edited in between; ctrl+c stops it. With --dry-run, the
-steps are described and confirmed, but nothing runs.`,
+already done are skipped, so a team can be provisioned again. A team with validation errors (see
+"mc team <team> validate") is not provisioned; with warnings, such as a member not among the
+students of the registry, the teacher confirms before the steps.
+
+A team that is not in the registry yet is registered on the way, and a registered team without
+members gets them: the members are picked among the students of the registry who are not in a
+team yet, or typed when there is none to pick, each with their GitHub username. The registry is
+updated, except with --dry-run, which describes and confirms the steps but runs nothing.`,
 		Example: "  mc team provision\n  mc team provision --dry-run",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			out := cmd.OutOrStdout()
 			p := &provisioner{
 				client: github.CLI{},
 				in:     bufio.NewReader(os.Stdin),
-				out:    cmd.OutOrStdout(),
+				out:    out,
 				dryRun: dryRun,
+				color:  isTerminal(out) && os.Getenv("NO_COLOR") == "",
 			}
 			return p.run(loadRegistry)
 		},
@@ -59,12 +61,13 @@ var (
 	errQuit    = errors.New("quit") // The input is over; the teacher stops the command with ctrl+c
 )
 
-// provisioner provisions the teams interactively, one at a time: the teacher confirms each step.
+// provisioner provisions one team interactively: the teacher confirms each step.
 type provisioner struct {
 	client github.Client
 	in     *bufio.Reader
 	out    io.Writer
 	dryRun bool
+	color  bool // Color the commands, when the output is a terminal
 }
 
 // step is one change to make on GitHub to provision a team.
@@ -74,56 +77,67 @@ type step struct {
 	command     github.Command
 }
 
-// run asks for a team and provisions it, until the teacher quits. The registry is loaded again
-// before each team.
+// isTerminal reports whether the output is a terminal.
+func isTerminal(out io.Writer) bool {
+	file, ok := out.(*os.File)
+	if !ok {
+		return false
+	}
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+// run asks for a team and provisions it.
 func (p *provisioner) run(load func() (*common.TeamRegistry, error)) error {
 	if p.dryRun {
 		fmt.Fprintln(p.out, "Dry run: the steps are confirmed, but nothing changes on GitHub.")
 	}
-	failed := 0
-	for {
-		registry, err := load()
-		if err != nil {
-			return err
-		}
-		team, ok := p.askTeam(registry)
-		if !ok {
-			break
-		}
+	registry, err := load()
+	if err != nil {
+		return err
+	}
+	team, ok := p.askTeam(registry)
+	if !ok {
+		return nil
+	}
 
-		fmt.Fprintf(p.out, "\n== Team %s\n", team.Name)
-		v := validateTeam(team, registry, p.client)
-		printProblems(p.out, "", v)
-		if len(v.Errors) > 0 {
-			fmt.Fprintln(p.out, "Not provisioned: fix the registry, then provision the team again.")
-			failed++
-			continue
+	fmt.Fprintf(p.out, "\n== Team %s\n", team.Name)
+	v := validateTeam(team, registry, p.client)
+	printProblems(p.out, "", v)
+	if len(v.Errors) > 0 {
+		return fmt.Errorf("the team %s is not provisioned: fix the registry, then provision it again", team.Name)
+	}
+	if len(v.Warnings) > 0 {
+		yes, ok := p.confirm("Provision it anyway? (y/N): ")
+		if !ok {
+			return nil
 		}
-		if len(v.Warnings) > 0 {
-			yes, ok := p.confirm("Provision it anyway? (y/N): ")
-			if !ok {
-				break
-			}
-			if !yes {
-				continue
-			}
-		}
-		err = p.provision(team, v.Users)
-		if errors.Is(err, errQuit) {
-			break
-		}
-		if err != nil && !errors.Is(err, errSkipped) {
-			failed++
+		if !yes {
+			fmt.Fprintf(p.out, "\nTeam %q not provisioned.\n", team.Name)
+			return nil
 		}
 	}
-	if failed > 0 {
-		return fmt.Errorf("%d team(s) not provisioned", failed)
+
+	err = p.provision(team, v.Users)
+	switch {
+	case errors.Is(err, errSkipped) || errors.Is(err, errQuit):
+		fmt.Fprintf(p.out, "\nTeam %q not provisioned.\n", team.Name)
+		return nil
+	case err != nil:
+		return fmt.Errorf("the team %s is not provisioned: %v", team.Name, err)
+	case p.dryRun:
+		fmt.Fprintf(p.out, "\nDry run: team %q not provisioned, nothing changed on GitHub.\n", team.Name)
+	default:
+		fmt.Fprintf(p.out, "\nTeam %q provisioned.\n", team.Name)
+		fmt.Fprintf(p.out, "- repo: %s\n", github.RepoURL(team.GetRepoName()))
+		fmt.Fprintf(p.out, "- team: %s\n", github.TeamURL(team.Name))
 	}
 	return nil
 }
 
-// askTeam asks the teacher which team to provision, and registers it when it is new. The teacher
-// stops the command with ctrl+c; it returns false only at the end of the input, e.g. of a pipe.
+// askTeam asks the teacher which team to provision. A new team is registered, and a registered
+// team without members gets them. The teacher stops the command with ctrl+c; it returns false only
+// at the end of the input, e.g. of a pipe.
 func (p *provisioner) askTeam(registry *common.TeamRegistry) (common.Team, bool) {
 	names := make([]string, len(registry.Teams))
 	for i, team := range registry.Teams {
@@ -143,10 +157,13 @@ func (p *provisioner) askTeam(registry *common.TeamRegistry) (common.Team, bool)
 		if name == "" {
 			continue
 		}
+		var team common.Team
+		var err error
 		if i := slices.Index(names, name); i >= 0 {
-			return registry.Teams[i], true
+			team, err = p.completeTeam(i, registry)
+		} else {
+			team, err = p.registerTeam(name, registry)
 		}
-		team, err := p.registerTeam(name, registry)
 		if err == nil {
 			return team, true
 		}
@@ -156,9 +173,9 @@ func (p *provisioner) askTeam(registry *common.TeamRegistry) (common.Team, bool)
 	}
 }
 
-// registerTeam registers a new team, once the teacher confirms: its members are picked among the
-// students not in a team yet, with their GitHub username, and it is saved to the registry. It
-// returns errSkipped when the team is not registered, and errQuit when the teacher quits.
+// registerTeam registers a new team, once the teacher confirms, with its members, and saves it to
+// the registry. It returns errSkipped when the team is not registered, and errQuit when the input
+// is over.
 func (p *provisioner) registerTeam(name string, registry *common.TeamRegistry) (common.Team, error) {
 	if errs := teamNameErrors(name, registry.Teams); len(errs) > 0 {
 		for _, e := range errs {
@@ -174,39 +191,90 @@ func (p *provisioner) registerTeam(name string, registry *common.TeamRegistry) (
 		return common.Team{}, errSkipped
 	}
 
-	team := common.Team{Name: name}
-	students, err := p.pickStudents(registry)
+	members, err := p.askMembers(registry)
 	if err != nil {
 		return common.Team{}, err
 	}
-	for _, student := range students {
-		login, err := p.askGithubUsername(student.Name)
-		if err != nil {
-			return common.Team{}, err
-		}
-		team.Members = append(team.Members, common.TeamMember{Name: student.Name, Github: login})
-	}
-
-	if p.dryRun {
-		fmt.Fprintf(p.out, "(dry run) the team %s is not saved to the registry\n", name)
-	} else if err := common.AddTeam(team); err != nil {
-		fmt.Fprintf(p.out, "✗ cannot save the team %s: %v\n", name, err)
+	team := common.Team{Name: name, Members: members}
+	if err := p.save(fmt.Sprintf("the team %s", name), func() error { return common.AddTeam(team) }); err != nil {
 		return common.Team{}, errSkipped
-	} else {
-		fmt.Fprintf(p.out, "✓ the team %s is saved to %s\n", name, common.TeamRegistryPath())
 	}
 	registry.Teams = append(registry.Teams, team)
 	return team, nil
 }
 
-// pickStudents asks the teacher to pick the members, by number, among the students of the
-// registry who are not in a team yet.
-func (p *provisioner) pickStudents(registry *common.TeamRegistry) ([]common.Student, error) {
-	students := unassignedStudents(registry.Students, registry.Teams)
-	if len(students) == 0 {
-		fmt.Fprintln(p.out, "No student to pick in the registry: the team is registered without members.")
-		return nil, nil
+// completeTeam returns the i-th team of the registry. When it has no members yet, e.g. a team
+// created before the course, the teacher can add them, and they are saved to the registry.
+func (p *provisioner) completeTeam(i int, registry *common.TeamRegistry) (common.Team, error) {
+	team := registry.Teams[i]
+	if len(team.Members) > 0 {
+		return team, nil
 	}
+	yes, ok := p.confirm(fmt.Sprintf("%s has no members yet. Add them? (y/N): ", team.Name))
+	if !ok {
+		return common.Team{}, errQuit
+	}
+	if !yes {
+		return team, nil
+	}
+
+	members, err := p.askMembers(registry)
+	if err != nil {
+		return common.Team{}, err
+	}
+	if len(members) == 0 {
+		return team, nil
+	}
+	team.Members = members
+	if err := p.save(fmt.Sprintf("the members of %s", team.Name), func() error { return common.SetTeamMembers(team.Name, members) }); err != nil {
+		return common.Team{}, errSkipped
+	}
+	registry.Teams[i] = team
+	return team, nil
+}
+
+// save runs the change of the registry, except in a dry run, and tells the teacher.
+func (p *provisioner) save(what string, change func() error) error {
+	if p.dryRun {
+		fmt.Fprintf(p.out, "(dry run) %s not saved to the registry\n", what)
+		return nil
+	}
+	if err := change(); err != nil {
+		fmt.Fprintf(p.out, "✗ cannot save %s: %v\n", what, err)
+		return err
+	}
+	fmt.Fprintf(p.out, "✓ %s saved to %s\n", what, common.TeamRegistryPath())
+	return nil
+}
+
+// askMembers asks the members of a team, each with their GitHub username: picked by number among
+// the students of the registry who are not in a team yet, or typed when there is none to pick.
+func (p *provisioner) askMembers(registry *common.TeamRegistry) ([]common.TeamMember, error) {
+	var names []string
+	var err error
+	if students := unassignedStudents(registry.Students, registry.Teams); len(students) > 0 {
+		names, err = p.pickStudents(students)
+	} else {
+		fmt.Fprintln(p.out, "No student to pick in the registry: type the members instead.")
+		names, err = p.typeMembers()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var members []common.TeamMember
+	for _, name := range names {
+		login, err := p.askGithubUsername(name)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, common.TeamMember{Name: name, Github: login})
+	}
+	return members, nil
+}
+
+// pickStudents asks the teacher to pick the members among the students, by number.
+func (p *provisioner) pickStudents(students []common.Student) ([]string, error) {
 	fmt.Fprintln(p.out, "Students not in a team yet:")
 	for i, student := range students {
 		fmt.Fprintf(p.out, "  %2d. %s\n", i+1, student.Name)
@@ -222,11 +290,27 @@ func (p *provisioner) pickStudents(registry *common.TeamRegistry) ([]common.Stud
 			fmt.Fprintf(p.out, "✗ %v\n", err)
 			continue
 		}
-		var picked []common.Student
+		var names []string
 		for _, i := range picks {
-			picked = append(picked, students[i-1])
+			names = append(names, students[i-1].Name)
 		}
-		return picked, nil
+		return names, nil
+	}
+}
+
+// typeMembers asks the teacher the names of the members, until an empty one.
+func (p *provisioner) typeMembers() ([]string, error) {
+	var names []string
+	for {
+		fmt.Fprintf(p.out, "Member %d, \"LAST, First\" (empty when done): ", len(names)+1)
+		name, ok := p.readLine()
+		if !ok {
+			return nil, errQuit
+		}
+		if name == "" {
+			return names, nil
+		}
+		names = append(names, name)
 	}
 }
 
@@ -287,7 +371,7 @@ func (p *provisioner) provision(team common.Team, users map[string]*github.User)
 			fmt.Fprintf(p.out, "      ✓ %s\n", s.done)
 			continue
 		}
-		fmt.Fprintf(p.out, "      $ %s\n", s.command)
+		fmt.Fprintf(p.out, "      %s\n", p.commandColor("$ "+s.command.String()))
 
 		yes, ok := p.confirm("      Run it? (y/N): ")
 		if !ok {
@@ -307,11 +391,15 @@ func (p *provisioner) provision(team common.Team, users map[string]*github.User)
 		}
 		fmt.Fprintln(p.out, "      ✓ done")
 	}
-
-	if !p.dryRun {
-		fmt.Fprintf(p.out, "Status: %s\n", teamStatus(team, p.client).Summary())
-	}
 	return nil
+}
+
+// commandColor renders a command that mc runs in dark yellow, when the output is colored.
+func (p *provisioner) commandColor(text string) string {
+	if !p.color {
+		return text
+	}
+	return "\033[33m" + text + "\033[0m"
 }
 
 // steps returns the steps to provision the team, and whether each one is already done.

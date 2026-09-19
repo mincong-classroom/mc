@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -58,6 +59,21 @@ func LoadRegistry() (*TeamRegistry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
 	}
+	// A typo in a top-level key, such as "student", would silently lose its content.
+	var keys map[string]any
+	if err := yaml.Unmarshal(teamData, &keys); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
+	}
+	var unknown []string
+	for key := range keys {
+		if key != "students" && key != "teams" {
+			unknown = append(unknown, key)
+		}
+	}
+	if len(unknown) > 0 {
+		sort.Strings(unknown)
+		return nil, fmt.Errorf("unknown key %q in %s: expected \"students\" or \"teams\"", unknown[0], TeamRegistryPath())
+	}
 	return &data, nil
 }
 
@@ -83,12 +99,7 @@ func FilterTeams(teams []Team, names []string) ([]Team, error) {
 	return selected, nil
 }
 
-// teamYAML is a team as written in the registry by AddTeam.
-type teamYAML struct {
-	Name    string       `yaml:"name"`
-	Members []memberYAML `yaml:"members"`
-}
-
+// memberYAML is a team member as written in the registry by AddTeam and SetTeamMembers.
 type memberYAML struct {
 	Name   string `yaml:"name"`
 	Github string `yaml:"github"`
@@ -96,6 +107,49 @@ type memberYAML struct {
 
 // AddTeam appends the team to the team registry file, keeping its comments.
 func AddTeam(team Team) error {
+	return editRegistry(func(root *yaml.Node) error {
+		teams := mappingValue(root, "teams")
+		if teams.Kind != yaml.SequenceNode { // "teams:" without value
+			*teams = yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", HeadComment: teams.HeadComment, LineComment: teams.LineComment}
+		}
+		teams.Style = 0 // "teams: []" becomes a block sequence
+
+		members, err := membersNode(team.Members)
+		if err != nil {
+			return err
+		}
+		node := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map", Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "name"}, {Kind: yaml.ScalarNode, Tag: "!!str", Value: team.Name},
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "members"}, members,
+		}}
+		teams.Content = append(teams.Content, node)
+		return nil
+	})
+}
+
+// SetTeamMembers replaces the members of the team in the team registry file, keeping its comments.
+func SetTeamMembers(name string, members []TeamMember) error {
+	return editRegistry(func(root *yaml.Node) error {
+		if teams := findValue(root, "teams"); teams != nil {
+			for _, team := range teams.Content {
+				if value := findValue(team, "name"); value == nil || value.Value != name {
+					continue
+				}
+				node, err := membersNode(members)
+				if err != nil {
+					return err
+				}
+				*mappingValue(team, "members") = *node
+				return nil
+			}
+		}
+		return fmt.Errorf("team %q not found", name)
+	})
+}
+
+// editRegistry applies the edit to the root mapping of the team registry file. The comments are
+// kept, and the file is written to a new file then renamed, so that it is never left half written.
+func editRegistry(edit func(root *yaml.Node) error) error {
 	path := TeamRegistryPath()
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -108,22 +162,9 @@ func AddTeam(team Team) error {
 	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
 		return fmt.Errorf("%s is not a mapping", path)
 	}
-	teams := mappingValue(doc.Content[0], "teams")
-	if teams.Kind != yaml.SequenceNode { // "teams:" without value
-		*teams = yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq", HeadComment: teams.HeadComment, LineComment: teams.LineComment}
-	}
-	teams.Style = 0 // "teams: []" becomes a block sequence
-
-	value := teamYAML{Name: team.Name, Members: []memberYAML{}}
-	for _, member := range team.Members {
-		value.Members = append(value.Members, memberYAML(member))
-	}
-	var node yaml.Node
-	if err := node.Encode(value); err != nil {
+	if err := edit(doc.Content[0]); err != nil {
 		return err
 	}
-	quoteMemberNames(&node)
-	teams.Content = append(teams.Content, &node)
 
 	var buf bytes.Buffer
 	encoder := yaml.NewEncoder(&buf)
@@ -138,7 +179,6 @@ func AddTeam(team Team) error {
 	if err != nil {
 		return err
 	}
-	// Write a new file, then rename it, so that the registry is never left half written.
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, buf.Bytes(), info.Mode().Perm()); err != nil {
 		return err
@@ -146,22 +186,41 @@ func AddTeam(team Team) error {
 	return os.Rename(tmp, path)
 }
 
-// mappingValue returns the value of the key in the mapping, added when missing.
-func mappingValue(mapping *yaml.Node, key string) *yaml.Node {
+// membersNode returns the YAML sequence of the members, with their names quoted as "LAST, First"
+// is written by hand.
+func membersNode(members []TeamMember) (*yaml.Node, error) {
+	values := []memberYAML{}
+	for _, member := range members {
+		values = append(values, memberYAML(member))
+	}
+	var node yaml.Node
+	if err := node.Encode(values); err != nil {
+		return nil, err
+	}
+	for _, member := range node.Content {
+		if name := findValue(member, "name"); name != nil {
+			name.Style = yaml.DoubleQuotedStyle
+		}
+	}
+	return &node, nil
+}
+
+// findValue returns the value of the key in the mapping, or nil.
+func findValue(mapping *yaml.Node, key string) *yaml.Node {
 	for i := 0; i+1 < len(mapping.Content); i += 2 {
 		if mapping.Content[i].Value == key {
 			return mapping.Content[i+1]
 		}
 	}
+	return nil
+}
+
+// mappingValue returns the value of the key in the mapping, added as an empty sequence when missing.
+func mappingValue(mapping *yaml.Node, key string) *yaml.Node {
+	if value := findValue(mapping, key); value != nil {
+		return value
+	}
 	value := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 	mapping.Content = append(mapping.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, value)
 	return value
-}
-
-// quoteMemberNames quotes the names of the members, as "LAST, First" is written by hand.
-func quoteMemberNames(team *yaml.Node) {
-	members := mappingValue(team, "members")
-	for _, member := range members.Content {
-		mappingValue(member, "name").Style = yaml.DoubleQuotedStyle
-	}
 }
