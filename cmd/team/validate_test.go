@@ -12,7 +12,7 @@ func TestValidateTeam(t *testing.T) {
 	client.addUser("jsmith", "John Smith")
 	client.addUser("jdoe", "")
 	client.addUser("amartin", "Alex Martin")
-	students := []common.Student{{Name: "SMITH, John"}, {Name: "DOE, Jane"}, {Name: "MARTIN, Alex"}}
+	students := []common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}, {Name: "MARTIN Alex"}}
 
 	tests := []struct {
 		name         string
@@ -24,24 +24,34 @@ func TestValidateTeam(t *testing.T) {
 	}{
 		{
 			name: "valid team",
-			team: newTeam("red", member("SMITH, John", "jsmith"), member("DOE, Jane", "jdoe")),
+			team: newTeam("red", member("SMITH John", "jsmith"), member("DOE Jane", "jdoe")),
 		},
 		{
 			name: "team without members",
 			team: newTeam("orange"),
 		},
 		{
-			name: "student matched ignoring the case and the spaces",
-			team: newTeam("red", member("smith,  john", "jsmith")),
+			name: "student matched ignoring the extra spaces",
+			team: newTeam("red", member("SMITH   John", "jsmith")),
+		},
+		{
+			name:         "name not in the format LAST First",
+			team:         newTeam("red", member("smith john", "jsmith")),
+			wantWarnings: []string{`"smith john" is not "LAST First": it must start with the last name in upper case`},
+		},
+		{
+			name:         "name in the former format LAST, First",
+			team:         newTeam("red", member("SMITH, John", "jsmith")),
+			wantWarnings: []string{`"SMITH, John" is not "LAST First": remove the comma`},
 		},
 		{
 			name:         "member not among the students",
-			team:         newTeam("red", member("NEWCOMER, Sam", "jsmith")),
-			wantWarnings: []string{"NEWCOMER, Sam is not among the students of the registry"},
+			team:         newTeam("red", member("NEWCOMER Sam", "jsmith")),
+			wantWarnings: []string{"NEWCOMER Sam is not among the students of the registry"},
 		},
 		{
 			name:       "registry without students",
-			team:       newTeam("red", member("NEWCOMER, Sam", "jsmith")),
+			team:       newTeam("red", member("NEWCOMER Sam", "jsmith")),
 			noStudents: true,
 		},
 		{
@@ -63,30 +73,30 @@ func TestValidateTeam(t *testing.T) {
 		{
 			name: "three members",
 			team: newTeam("red",
-				member("SMITH, John", "jsmith"), member("DOE, Jane", "jdoe"), member("MARTIN, Alex", "amartin")),
+				member("SMITH John", "jsmith"), member("DOE Jane", "jdoe"), member("MARTIN Alex", "amartin")),
 			wantWarnings: []string{"3 members, at most 2 are expected"},
 		},
 		{
 			name:         "member in two teams",
-			team:         newTeam("red", member("SMITH, John", "jsmith")),
-			others:       []common.Team{newTeam("blue", member("SMITH, John", "jsmith"))},
-			wantWarnings: []string{"SMITH, John (@jsmith) is in several teams: red, blue"},
+			team:         newTeam("red", member("SMITH John", "jsmith")),
+			others:       []common.Team{newTeam("blue", member("SMITH John", "jsmith"))},
+			wantWarnings: []string{"SMITH John (@jsmith) is in several teams: red, blue"},
 		},
 		{
 			name:         "GitHub username in two teams",
-			team:         newTeam("red", member("SMITH, John", "jsmith")),
-			others:       []common.Team{newTeam("blue", member("DOE, Jane", "JSmith"))},
-			wantWarnings: []string{"SMITH, John (@jsmith) is in several teams: red, blue"},
+			team:         newTeam("red", member("SMITH John", "jsmith")),
+			others:       []common.Team{newTeam("blue", member("DOE Jane", "JSmith"))},
+			wantWarnings: []string{"SMITH John (@jsmith) is in several teams: red, blue"},
 		},
 		{
 			name:       "GitHub user not found",
-			team:       newTeam("red", member("SMITH, John", "jsmith-typo")),
+			team:       newTeam("red", member("SMITH John", "jsmith-typo")),
 			wantErrors: []string{"the GitHub user @jsmith-typo does not exist"},
 		},
 		{
 			name:       "no GitHub username",
-			team:       newTeam("red", member("SMITH, John", "")),
-			wantErrors: []string{"SMITH, John has no GitHub username"},
+			team:       newTeam("red", member("SMITH John", "")),
+			wantErrors: []string{"SMITH John has no GitHub username"},
 		},
 	}
 
@@ -112,7 +122,7 @@ func TestValidateTeam(t *testing.T) {
 func TestValidateTeamUsers(t *testing.T) {
 	client := newFakeClient()
 	client.addUser("jsmith", "John Smith")
-	team := newTeam("red", member("SMITH, John", "jsmith"))
+	team := newTeam("red", member("SMITH John", "jsmith"))
 
 	v := validateTeam(team, &common.TeamRegistry{Teams: []common.Team{team}}, client)
 

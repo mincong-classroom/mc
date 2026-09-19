@@ -58,7 +58,9 @@ assume exists at runtime. Nothing here works without it:
   The global flag `--team-file` replaces it for any command (`common.TeamRegistryFile`, a leading
   `~/` is expanded). Since the `mc team <team>` subcommands are built before Cobra parses the
   flags, `cmd.Execute()` reads `--team-file` ahead from `os.Args` (`teamFileFromArgs`).
-  The registry's optional `students:` list (`common.Student`, one `name: "LAST, First"` each) is
+  The registry's optional `students:` list (`common.Student`, one `name: "LAST First"` each — last name in
+  upper case, first name in Pascal case, parsed by `common.ParseName`; `SameName` ignores the case,
+  the spaces and the comma of the former `"LAST, First"`) is
   informational: `mc team ls` lists the students not in a team, and a member not among them is a
   validation **warning**. There is no separate student file.
   `validateTeam()` returns **errors** (block `provision`: team name format/reserved/duplicate, a

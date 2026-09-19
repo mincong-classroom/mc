@@ -298,19 +298,25 @@ func (p *provisioner) pickStudents(students []common.Student) ([]string, error) 
 	}
 }
 
-// typeMembers asks the teacher the names of the members, until an empty one.
+// typeMembers asks the teacher the names of the members, in the format "LAST First", until an
+// empty one.
 func (p *provisioner) typeMembers() ([]string, error) {
 	var names []string
 	for {
-		fmt.Fprintf(p.out, "Member %d, \"LAST, First\" (empty when done): ", len(names)+1)
-		name, ok := p.readLine()
+		fmt.Fprintf(p.out, "Member %d, \"LAST First\" (empty when done): ", len(names)+1)
+		line, ok := p.readLine()
 		if !ok {
 			return nil, errQuit
 		}
-		if name == "" {
+		if line == "" {
 			return names, nil
 		}
-		names = append(names, name)
+		name, err := common.ParseName(line)
+		if err != nil {
+			fmt.Fprintf(p.out, "✗ %v\n", err)
+			continue
+		}
+		names = append(names, name.String())
 	}
 }
 

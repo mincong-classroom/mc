@@ -8,15 +8,15 @@ import (
 )
 
 var testStudents = []common.Student{
-	{Name: "SMITH, John"},
-	{Name: "DOE, Jane"},
-	{Name: "MARTIN, Alex"},
-	{Name: "DURAND, Camille"},
+	{Name: "SMITH John"},
+	{Name: "DOE Jane"},
+	{Name: "MARTIN Alex"},
+	{Name: "DURAND Camille"},
 }
 
 func TestUnassignedStudents(t *testing.T) {
 	teams := []common.Team{
-		newTeam("red", member("SMITH, John", "jsmith"), member("doe, jane", "jdoe")),
+		newTeam("red", member("SMITH John", "jsmith"), member("doe, jane", "jdoe")),
 		newTeam("orange"),
 	}
 

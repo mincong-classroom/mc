@@ -186,8 +186,8 @@ func editRegistry(edit func(root *yaml.Node) error) error {
 	return os.Rename(tmp, path)
 }
 
-// membersNode returns the YAML sequence of the members, with their names quoted as "LAST, First"
-// is written by hand.
+// membersNode returns the YAML sequence of the members, with their names quoted, as they are
+// written by hand.
 func membersNode(members []TeamMember) (*yaml.Node, error) {
 	values := []memberYAML{}
 	for _, member := range members {

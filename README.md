@@ -64,6 +64,10 @@ The teams are registered in a private YAML file, the team registry `~/.mc/teams-
 A team has a name, lowercase letters only (such as a color), and at most two members. A team
 can have no members yet: it is created before the course, and its members are added later.
 
+A name is written `"LAST First"`: the last name in upper case, then the first name in Pascal case,
+each of one or more words, e.g. `"DE LA FONTAINE Jean-Pierre"`. A member whose name does not follow
+this format is a warning; the names are compared ignoring the case and the extra spaces.
+
 The optional `students` list holds the students of the year, known before the course. It is
 informational: `mc team ls` lists the students who are not in a team yet, and a member who is not
 among them is a warning, which `provision` asks to confirm. For a member, only the GitHub user
@@ -71,12 +75,12 @@ must be valid.
 
 ```yaml
 students:
-  - name: "SMITH, John"       # "LAST, First"
-  - name: "DOE, Jane"
+  - name: "SMITH John"        # "LAST First"
+  - name: "DOE Jane"
 teams:
   - name: red
     members:
-      - name: "SMITH, John"   # as in the students
+      - name: "SMITH John"    # as in the students
         github: jsmith        # GitHub username
   - name: orange
     members: []               # not taken yet
@@ -137,12 +141,12 @@ Teams: red, orange
 Team to provision: purple
 purple is not in the registry. Register it? (y/N): y
 Students not in a team yet:
-   1. DOE, Jane
-   2. MARTIN, Alex
+   1. DOE Jane
+   2. MARTIN Alex
 Members, by number, e.g. "1 2" (empty for none yet): 1 2
-GitHub username of DOE, Jane: jdoe
+GitHub username of DOE Jane: jdoe
   @jdoe: "Jane Doe" on GitHub
-GitHub username of MARTIN, Alex: amartin
+GitHub username of MARTIN Alex: amartin
   @amartin: "Alex Martin" on GitHub
 ✓ the team purple saved to ~/.mc/teams-2026.yaml
 
@@ -152,7 +156,7 @@ GitHub username of MARTIN, Alex: amartin
       Run it? (y/N): y
       ✓ done
 ...
-[5/5] Add MARTIN, Alex (@amartin), "Alex Martin" on GitHub, to the GitHub team purple: GitHub invites them to the organization by email
+[5/5] Add MARTIN Alex (@amartin), "Alex Martin" on GitHub, to the GitHub team purple: GitHub invites them to the organization by email
       $ gh api -X PUT orgs/mincong-classroom/teams/purple/memberships/amartin -f role=member
       Run it? (y/N): y
       ✓ done

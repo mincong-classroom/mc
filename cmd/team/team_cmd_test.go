@@ -16,7 +16,7 @@ func TestAddTeamCommands(t *testing.T) {
 	root := newTeamRootCmd()
 
 	addTeamCommands(root, []common.Team{
-		newTeam("red", member("SMITH, John", "jsmith")),
+		newTeam("red", member("SMITH John", "jsmith")),
 		newTeam("orange"),
 		newTeam("red"),       // duplicated
 		newTeam("ls"),        // reserved
@@ -32,7 +32,7 @@ func TestAddTeamCommands(t *testing.T) {
 	}
 
 	red, _, _ := root.Find([]string{"red"})
-	if red.Short != "SMITH, John (@jsmith)" {
+	if red.Short != "SMITH John (@jsmith)" {
 		t.Errorf("red.Short = %q", red.Short)
 	}
 	for _, action := range []string{"validate", "status"} {

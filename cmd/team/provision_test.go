@@ -13,7 +13,7 @@ import (
 	"github.com/mincong-classroom/mc/github"
 )
 
-var redTeam = newTeam("red", member("SMITH, John", "jsmith"), member("DOE, Jane", "jdoe"))
+var redTeam = newTeam("red", member("SMITH John", "jsmith"), member("DOE Jane", "jdoe"))
 
 var allRedCommands = []github.Command{
 	github.CreateRepoCommand("k8s-red"),
@@ -138,7 +138,7 @@ func TestProvisionReplacesTheAdminAccess(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	registry := &common.TeamRegistry{
-		Students: []common.Student{{Name: "SMITH, John"}}, // DOE, Jane is not among them
+		Students: []common.Student{{Name: "SMITH John"}}, // DOE Jane is not among them
 		Teams:    []common.Team{redTeam, newTeam("orange"), newTeam("Bad")},
 	}
 	load := func() (*common.TeamRegistry, error) {
@@ -186,7 +186,7 @@ func TestRun(t *testing.T) {
 			name:       "a warning is confirmed before the steps",
 			input:      "red\ny\ny\ny\ny\ny\ny\n",
 			wantRan:    allRedCommands,
-			wantOutput: "⚠ DOE, Jane is not among the students of the registry\nProvision it anyway?",
+			wantOutput: "⚠ DOE Jane is not among the students of the registry\nProvision it anyway?",
 		},
 		{
 			name:  "a warning declined skips the team",
@@ -237,8 +237,8 @@ func TestCommandString(t *testing.T) {
 func TestRegisterTeam(t *testing.T) {
 	newRegistry := func() *common.TeamRegistry {
 		return &common.TeamRegistry{
-			Students: []common.Student{{Name: "SMITH, John"}, {Name: "DOE, Jane"}, {Name: "MARTIN, Alex"}},
-			Teams:    []common.Team{newTeam("red", member("SMITH, John", "jsmith"))},
+			Students: []common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}, {Name: "MARTIN Alex"}},
+			Teams:    []common.Team{newTeam("red", member("SMITH John", "jsmith"))},
 		}
 	}
 	tests := []struct {
@@ -252,9 +252,9 @@ func TestRegisterTeam(t *testing.T) {
 		{
 			name:     "two students",
 			input:    "y\n2 1\n@amartin\njdoe\n",
-			wantTeam: newTeam("purple", member("MARTIN, Alex", "amartin"), member("DOE, Jane", "jdoe")),
+			wantTeam: newTeam("purple", member("MARTIN Alex", "amartin"), member("DOE Jane", "jdoe")),
 			wantOutput: []string{
-				"Students not in a team yet:\n   1. DOE, Jane\n   2. MARTIN, Alex\n",
+				"Students not in a team yet:\n   1. DOE Jane\n   2. MARTIN Alex\n",
 				`@jdoe: no display name on GitHub`,
 				`@amartin: "Alex Martin" on GitHub`,
 				"(dry run) the team purple not saved to the registry",
@@ -268,15 +268,15 @@ func TestRegisterTeam(t *testing.T) {
 		{
 			name:       "a wrong pick, then a GitHub user not found",
 			input:      "y\n3\n1,1\n1\nnobody\njdoe\n",
-			wantTeam:   newTeam("purple", member("DOE, Jane", "jdoe")),
+			wantTeam:   newTeam("purple", member("DOE Jane", "jdoe")),
 			wantOutput: []string{`✗ "3" is not a number between 1 and 2`, "✗ 1 is picked twice", "✗ the GitHub user @nobody does not exist"},
 		},
 		{
 			name:       "no students to pick: the members are typed",
-			input:      "y\nNEWCOMER, Sam\n\njdoe\n",
+			input:      "y\nnewcomer sam\nNEWCOMER Sam\n\njdoe\n",
 			registry:   &common.TeamRegistry{},
-			wantTeam:   newTeam("purple", member("NEWCOMER, Sam", "jdoe")),
-			wantOutput: []string{"No student to pick in the registry: type the members instead.", `Member 1, "LAST, First" (empty when done): `},
+			wantTeam:   newTeam("purple", member("NEWCOMER Sam", "jdoe")),
+			wantOutput: []string{"No student to pick in the registry: type the members instead.", `Member 1, "LAST First" (empty when done): `, `✗ "newcomer sam" is not "LAST First"`},
 		},
 		{
 			name:    "declined",
@@ -370,8 +370,8 @@ func TestParsePicks(t *testing.T) {
 func TestCompleteTeam(t *testing.T) {
 	newRegistry := func() *common.TeamRegistry {
 		return &common.TeamRegistry{
-			Students: []common.Student{{Name: "SMITH, John"}, {Name: "DOE, Jane"}},
-			Teams:    []common.Team{newTeam("green"), newTeam("red", member("DOE, Jane", "jdoe"))},
+			Students: []common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}},
+			Teams:    []common.Team{newTeam("green"), newTeam("red", member("DOE Jane", "jdoe"))},
 		}
 	}
 	tests := []struct {
@@ -384,7 +384,7 @@ func TestCompleteTeam(t *testing.T) {
 		{
 			name:       "members added to a team without members",
 			input:      "y\n1\njsmith\n",
-			wantTeam:   newTeam("green", member("SMITH, John", "jsmith")),
+			wantTeam:   newTeam("green", member("SMITH John", "jsmith")),
 			wantOutput: "(dry run) the members of green not saved to the registry",
 		},
 		{
@@ -395,7 +395,7 @@ func TestCompleteTeam(t *testing.T) {
 		{
 			name:     "a team with members is not asked",
 			index:    1,
-			wantTeam: newTeam("red", member("DOE, Jane", "jdoe")),
+			wantTeam: newTeam("red", member("DOE Jane", "jdoe")),
 		},
 	}
 	for _, tt := range tests {

@@ -1,22 +1,22 @@
 # The team registry of the end-to-end tests. The names are made up.
 students:
-  - name: "SMITH, John"
-  - name: "DOE, Jane"
-  - name: "MARTIN, Alex"
-  - name: "DURAND, Camille"
+  - name: "SMITH John"
+  - name: "DOE Jane"
+  - name: "MARTIN Alex"
+  - name: "DURAND Camille"
 teams:
   # Provisioned: SMITH accepted the invitation, DOE did not yet.
   - name: red
     members:
-      - name: "SMITH, John"
+      - name: "SMITH John"
         github: jsmith
-      - name: "DOE, Jane"
+      - name: "DOE Jane"
         email: jane.doe@example.org # ignored
         github: jdoe
   # Not provisioned yet.
   - name: blue
     members:
-      - name: "MARTIN, Alex"
+      - name: "MARTIN Alex"
         github: amartin
   # Created before the course, no members yet.
   - name: green
@@ -24,5 +24,5 @@ teams:
   # Errors: the name, the GitHub user not found. Warning: the member is not among the students.
   - name: Pink-2
     members:
-      - name: "NOBODY, Someone"
+      - name: "NOBODY Someone"
         github: ghost-user-404

@@ -184,15 +184,15 @@ var (
 		Name: "red",
 		Repo: "k8s-red",
 		Members: []memberJSON{
-			{Name: "SMITH, John", Github: "jsmith", GithubName: "John Smith", State: "active"},
-			{Name: "DOE, Jane", Github: "jdoe", State: "pending"},
+			{Name: "SMITH John", Github: "jsmith", GithubName: "John Smith", State: "active"},
+			{Name: "DOE Jane", Github: "jdoe", State: "pending"},
 		},
 		Status: &statusJSON{RepoExists: true, TeamExists: true, Access: "write"},
 	}
 	blue = teamJSON{
 		Name:    "blue",
 		Repo:    "k8s-blue",
-		Members: []memberJSON{{Name: "MARTIN, Alex", Github: "amartin", GithubName: "Alex Martin"}},
+		Members: []memberJSON{{Name: "MARTIN Alex", Github: "amartin", GithubName: "Alex Martin"}},
 		Status:  &statusJSON{},
 	}
 	green = teamJSON{
@@ -204,13 +204,13 @@ var (
 	pink = teamJSON{
 		Name:    "Pink-2",
 		Repo:    "k8s-Pink-2",
-		Members: []memberJSON{{Name: "NOBODY, Someone", Github: "ghost-user-404"}},
+		Members: []memberJSON{{Name: "NOBODY Someone", Github: "ghost-user-404"}},
 		Status:  &statusJSON{},
 		Errors: []string{
 			`invalid name "Pink-2": use lowercase letters only, such as a color`,
 			"the GitHub user @ghost-user-404 does not exist",
 		},
-		Warnings: []string{"NOBODY, Someone is not among the students of the registry"},
+		Warnings: []string{"NOBODY Someone is not among the students of the registry"},
 	}
 )
 
@@ -227,7 +227,7 @@ func TestTeamLsJSON(t *testing.T) {
 	want := lsJSON{
 		Year:              2026,
 		Teams:             []teamJSON{red, blue, green, pink},
-		StudentsNotInTeam: []string{"DURAND, Camille"},
+		StudentsNotInTeam: []string{"DURAND Camille"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("mc team ls --json =\n%+v\nwant\n%+v", got, want)
@@ -238,15 +238,15 @@ func TestTeamLs(t *testing.T) {
 	r := newEnv(t).run(t, "", "team", "ls")
 
 	for _, line := range []string{
-		"  - red: SMITH, John (@jsmith), DOE, Jane (@jdoe)",
+		"  - red: SMITH John (@jsmith), DOE Jane (@jdoe)",
 		"    ✓ repo k8s-red · ✓ team red · ✓ access write · @jsmith active · @jdoe pending",
 		"    ✗ repo k8s-blue · ✗ team blue · ✗ no access · @amartin not invited",
 		"  - green: no members yet",
 		"    ✓ repo k8s-green · ✓ team green · ⚠ access admin instead of write",
 		"    ✗ the GitHub user @ghost-user-404 does not exist",
-		"    ⚠ NOBODY, Someone is not among the students of the registry",
+		"    ⚠ NOBODY Someone is not among the students of the registry",
 		"1 of 4 students not in a team yet:",
-		"  - DURAND, Camille",
+		"  - DURAND Camille",
 	} {
 		if !strings.Contains(r.stdout, line+"\n") {
 			t.Errorf("mc team ls: missing line %q in:\n%s", line, r.stdout)
@@ -293,7 +293,7 @@ func TestTeamHelpListsTheTeams(t *testing.T) {
 	for _, pattern := range []string{
 		`(?m)^  ls +List the teams`,
 		`(?m)^  provision +Provision a team`,
-		`(?m)^  red +SMITH, John \(@jsmith\), DOE, Jane \(@jdoe\)$`,
+		`(?m)^  red +SMITH John \(@jsmith\), DOE Jane \(@jdoe\)$`,
 		`(?m)^  green +no members yet$`,
 	} {
 		if !regexp.MustCompile(pattern).MatchString(r.stdout) {
@@ -313,8 +313,8 @@ func TestTeamValidate(t *testing.T) {
 		Name: "red",
 		Repo: "k8s-red",
 		Members: []memberJSON{
-			{Name: "SMITH, John", Github: "jsmith", GithubName: "John Smith"},
-			{Name: "DOE, Jane", Github: "jdoe"},
+			{Name: "SMITH John", Github: "jsmith", GithubName: "John Smith"},
+			{Name: "DOE Jane", Github: "jdoe"},
 		},
 	}
 	if got := decode[teamJSON](t, r); !reflect.DeepEqual(got, want) {
@@ -323,8 +323,8 @@ func TestTeamValidate(t *testing.T) {
 
 	r = e.run(t, "", "team", "red", "validate")
 	for _, line := range []string{
-		`  - SMITH, John (@jsmith): "John Smith" on GitHub`,
-		"  - DOE, Jane (@jdoe): no display name on GitHub",
+		`  - SMITH John (@jsmith): "John Smith" on GitHub`,
+		"  - DOE Jane (@jdoe): no display name on GitHub",
 		"  ✓ valid",
 	} {
 		if !strings.Contains(r.stdout, line+"\n") {
@@ -355,7 +355,7 @@ func TestTeamStatus(t *testing.T) {
 
 	r = e.run(t, "", "team", "blue", "status", "--json")
 	wantBlue := blue
-	wantBlue.Members = []memberJSON{{Name: "MARTIN, Alex", Github: "amartin"}}
+	wantBlue.Members = []memberJSON{{Name: "MARTIN Alex", Github: "amartin"}}
 	if got := decode[teamJSON](t, r); !reflect.DeepEqual(got, wantBlue) {
 		t.Errorf("mc team blue status --json =\n%+v\nwant\n%+v", got, wantBlue)
 	}
@@ -476,11 +476,11 @@ func TestTeamFile(t *testing.T) {
 		Teams: []teamJSON{{
 			Name:     "yellow",
 			Repo:     "k8s-yellow",
-			Members:  []memberJSON{{Name: "NEWCOMER, Sam", Github: "snewcomer", GithubName: "Sam Newcomer"}},
+			Members:  []memberJSON{{Name: "NEWCOMER Sam", Github: "snewcomer", GithubName: "Sam Newcomer"}},
 			Status:   &statusJSON{},
-			Warnings: []string{"NEWCOMER, Sam is not among the students of the registry"},
+			Warnings: []string{"NEWCOMER Sam is not among the students of the registry"},
 		}},
-		StudentsNotInTeam: []string{"DURAND, Camille"},
+		StudentsNotInTeam: []string{"DURAND Camille"},
 	}
 	if got := decode[lsJSON](t, r); !reflect.DeepEqual(got, want) {
 		t.Errorf("mc team ls --json --team-file =\n%+v\nwant\n%+v", got, want)
@@ -501,7 +501,7 @@ func TestTeamFile(t *testing.T) {
 	if got := e.ghChanges(t); got != nil {
 		t.Errorf("changes after declining the warning = %q, want none", got)
 	}
-	if !strings.Contains(r.stdout, "⚠ NEWCOMER, Sam is not among the students of the registry\nProvision it anyway?") {
+	if !strings.Contains(r.stdout, "⚠ NEWCOMER Sam is not among the students of the registry\nProvision it anyway?") {
 		t.Errorf("mc team provision does not ask to confirm the warning:\n%s", r.stdout)
 	}
 	r = e.run(t, "yellow\ny\ny\ny\ny\ny\n", "team", "provision", "--team-file", teamFile)
@@ -532,7 +532,7 @@ func TestTeamProvisionRegistersANewTeam(t *testing.T) {
 		t.Fatalf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
 	for _, want := range []string{
-		"Students not in a team yet:\n   1. DURAND, Camille\n",
+		"Students not in a team yet:\n   1. DURAND Camille\n",
 		`@cdurand: "Camille Durand" on GitHub`,
 		"✓ the team purple saved to " + registryFile,
 		"\nTeam \"purple\" provisioned.\n",
@@ -555,7 +555,7 @@ func TestTeamProvisionRegistersANewTeam(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantEnd := "  - name: purple\n    members:\n      - name: \"DURAND, Camille\"\n        github: cdurand\n"
+	wantEnd := "  - name: purple\n    members:\n      - name: \"DURAND Camille\"\n        github: cdurand\n"
 	if !strings.HasSuffix(string(data), wantEnd) || !strings.Contains(string(data), "# Created before the course, no members yet.") {
 		t.Errorf("registry does not end with the new team, or lost its comments:\n%s", data)
 	}
@@ -612,7 +612,7 @@ func TestTeamProvisionAddsTheMembersOfARegisteredTeam(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "  # Created before the course, no members yet.\n  - name: green\n    members:\n      - name: \"DURAND, Camille\"\n        github: cdurand\n"
+	want := "  # Created before the course, no members yet.\n  - name: green\n    members:\n      - name: \"DURAND Camille\"\n        github: cdurand\n"
 	if !strings.Contains(string(data), want) {
 		t.Errorf("registry does not have the members of green:\n%s", data)
 	}
@@ -621,7 +621,7 @@ func TestTeamProvisionAddsTheMembersOfARegisteredTeam(t *testing.T) {
 func TestTeamRegistryWithAnUnknownKey(t *testing.T) {
 	e := newEnv(t)
 	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
-	if err := os.WriteFile(teamFile, []byte("student:\n  - name: \"DURAND, Camille\"\nteams: []\n"), 0o644); err != nil {
+	if err := os.WriteFile(teamFile, []byte("student:\n  - name: \"DURAND Camille\"\nteams: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -20,7 +20,8 @@ func newValidateCmd(name string) *cobra.Command {
 		Long: `Validate the team in the registry. The errors prevent its provisioning: an invalid or reserved
 name, a name used by another team, a member without a GitHub username or whose GitHub user does not
 exist. The warnings do not, once the teacher confirms: more than 2 members, a member in several
-teams, a member without a name, or not among the students of the registry. The display name of
+teams, a member without a name, with a name not in the format "LAST First", or not among the
+students of the registry. The display name of
 each GitHub account is printed, for the students to confirm it.`,
 		Example: "  mc team " + name + " validate\n  mc team " + name + " validate --json",
 		Args:    cobra.NoArgs,
@@ -88,8 +89,13 @@ func validateTeam(team common.Team, registry *common.TeamRegistry, client github
 	for _, member := range team.Members {
 		if member.Name == "" {
 			v.warnf("@%s has no name", member.Github)
-		} else if registry.Students != nil && !isStudent(registry.Students, member.Name) {
-			v.warnf("%s is not among the students of the registry", member.Name)
+		} else {
+			if _, err := common.ParseName(member.Name); err != nil {
+				v.warnf("%v", err)
+			}
+			if registry.Students != nil && !isStudent(registry.Students, member.Name) {
+				v.warnf("%s is not among the students of the registry", member.Name)
+			}
 		}
 		if teamNames := findTeamsOf(registry.Teams, member); len(teamNames) > 1 {
 			v.warnf("%s is in several teams: %s", describeMember(member), strings.Join(teamNames, ", "))

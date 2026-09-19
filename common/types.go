@@ -16,7 +16,7 @@ type TeamRegistry struct {
 
 // Student is a student of the year. Other keys, such as an email, are ignored.
 type Student struct {
-	Name string // Full name in format "LAST, First", as for the team members
+	Name string // Full name in the format "LAST First" (see ParseName), as for the team members
 }
 
 type Team struct {
@@ -32,7 +32,7 @@ type Team struct {
 
 // TeamMember is a student of a team. Other keys of the registry, such as an email, are ignored.
 type TeamMember struct {
-	Name   string // Full name in format "LAST, First", e.g. "SMITH, John"
+	Name   string // Full name in the format "LAST First" (see ParseName), e.g. "SMITH John"
 	Github string // Github username
 }
 

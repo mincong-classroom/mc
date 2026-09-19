@@ -45,13 +45,13 @@ func TestLoadRegistry(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "teams.yaml")
 	data := `
 students:
-  - name: "SMITH, John"
-  - name: "DOE, Jane"
+  - name: "SMITH John"
+  - name: "DOE Jane"
     email: ignored@example.org
 teams:
   - name: red
     members:
-      - name: "SMITH, John"
+      - name: "SMITH John"
         github: jsmith
 `
 	if err := os.WriteFile(file, []byte(data), 0o644); err != nil {
@@ -65,7 +65,7 @@ teams:
 	if err != nil {
 		t.Fatalf("LoadRegistry: %v", err)
 	}
-	if want := []Student{{Name: "SMITH, John"}, {Name: "DOE, Jane"}}; !reflect.DeepEqual(registry.Students, want) {
+	if want := []Student{{Name: "SMITH John"}, {Name: "DOE Jane"}}; !reflect.DeepEqual(registry.Students, want) {
 		t.Errorf("students = %v, want %v", registry.Students, want)
 	}
 	if len(registry.Teams) != 1 || registry.Teams[0].Members[0].Github != "jsmith" {
@@ -83,7 +83,7 @@ func TestAddTeam(t *testing.T) {
 			name: "after the other teams, keeping the comments",
 			registry: `# The registry.
 students:
-  - name: "SMITH, John"
+  - name: "SMITH John"
 teams:
   # Created before the course.
   - name: green
@@ -91,14 +91,14 @@ teams:
 `,
 			want: `# The registry.
 students:
-  - name: "SMITH, John"
+  - name: "SMITH John"
 teams:
   # Created before the course.
   - name: green
     members: [] # not taken yet
   - name: red
     members:
-      - name: "SMITH, John"
+      - name: "SMITH John"
         github: jsmith
 `,
 		},
@@ -111,7 +111,7 @@ teams: []
 teams:
   - name: red
     members:
-      - name: "SMITH, John"
+      - name: "SMITH John"
         github: jsmith
 `,
 		},
@@ -123,7 +123,7 @@ teams:
 teams:
   - name: red
     members:
-      - name: "SMITH, John"
+      - name: "SMITH John"
         github: jsmith
 `,
 		},
@@ -137,7 +137,7 @@ teams:
 			TeamRegistryFile = file
 			defer func() { TeamRegistryFile = "" }()
 
-			err := AddTeam(Team{Name: "red", Members: []TeamMember{{Name: "SMITH, John", Github: "jsmith"}}})
+			err := AddTeam(Team{Name: "red", Members: []TeamMember{{Name: "SMITH John", Github: "jsmith"}}})
 
 			if err != nil {
 				t.Fatalf("AddTeam: %v", err)
@@ -156,7 +156,7 @@ teams:
 func TestSetTeamMembers(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "teams.yaml")
 	registry := `students:
-  - name: "SMITH, John"
+  - name: "SMITH John"
 teams:
   # Created before the course.
   - name: green
@@ -170,18 +170,18 @@ teams:
 	TeamRegistryFile = file
 	defer func() { TeamRegistryFile = "" }()
 
-	err := SetTeamMembers("green", []TeamMember{{Name: "SMITH, John", Github: "jsmith"}})
+	err := SetTeamMembers("green", []TeamMember{{Name: "SMITH John", Github: "jsmith"}})
 
 	if err != nil {
 		t.Fatalf("SetTeamMembers: %v", err)
 	}
 	want := `students:
-  - name: "SMITH, John"
+  - name: "SMITH John"
 teams:
   # Created before the course.
   - name: green
     members:
-      - name: "SMITH, John"
+      - name: "SMITH John"
         github: jsmith
   - name: red
     members: []
@@ -196,7 +196,7 @@ teams:
 
 func TestLoadRegistryRejectsAnUnknownKey(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "teams.yaml")
-	if err := os.WriteFile(file, []byte("student:\n  - name: \"SMITH, John\"\nteams: []\n"), 0o644); err != nil {
+	if err := os.WriteFile(file, []byte("student:\n  - name: \"SMITH John\"\nteams: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	TeamRegistryFile = file
