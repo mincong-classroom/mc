@@ -220,6 +220,9 @@ func TestTeamLsJSON(t *testing.T) {
 	if r.exitCode != 0 {
 		t.Fatalf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
+	if prefix := "{\n    \"year\": 2026,\n    \"teams\": [\n        {\n"; !strings.HasPrefix(r.stdout, prefix) {
+		t.Errorf("mc team ls --json is not indented with 4 spaces:\n%s", r.stdout)
+	}
 	got := decode[lsJSON](t, r)
 	want := lsJSON{
 		Year:              2026,

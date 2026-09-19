@@ -81,6 +81,6 @@ func studentsNotInTeam(students []common.Student, teams []common.Team) []string 
 
 func writeJSON(out io.Writer, value any) error {
 	encoder := json.NewEncoder(out)
-	encoder.SetIndent("", "  ")
+	encoder.SetIndent("", "    ")
 	return encoder.Encode(value)
 }
