@@ -49,12 +49,70 @@ Available Commands:
   help        Help about any command
   info        Display CLI information
   rule        List grading rules
-  team        List all teams
+  team        Manage the teams
 
 Flags:
   -h, --help   help for mc
 
 Use "mc [command] --help" for more information about a command.
+```
+
+## Team
+
+The teams are registered in a private YAML file, the team registry `~/.mc/teams-{year}.yaml`.
+A team has a name, lowercase letters only (such as a color), and at most two members. A team
+can have no members yet: it is created before the course, and its members are added later.
+
+```yaml
+teams:
+  - name: red
+    members:
+      - name: "SMITH, John"   # "LAST, First", as on the school list
+        github: jsmith        # GitHub username
+  - name: orange
+    members: []               # not taken yet
+```
+
+The school list `~/.mc/students-{year}.tsv` is optional. It lists the students of the year, one
+per line, in the format `LAST<TAB>First`, without a header. When it exists, each member must be
+on it, and the students who are not in a team yet are listed.
+
+The year is the current cohort, 2026. Set the environment variable `MC_YEAR` to use another one,
+e.g. `MC_YEAR=2025 mc grade`.
+
+Each team gets a private repository `k8s-{team}` in the GitHub organization, generated from the
+template repository `mincong-classroom/containers`, and a secret GitHub team `{team}` with push
+access to it. With the organization's base permission set to `none`, the members of a team only
+see their own repository. The GitHub calls go through the `gh` CLI, logged in with the scopes
+`repo` and `admin:org`:
+
+```sh
+gh auth refresh -s admin:org
+```
+
+| Command | What it does |
+|---|---|
+| `mc team ls` | Lists the teams with their members, their status on GitHub and their validation problems, then the students not in a team yet |
+| `mc team validate [--team red]` | Checks the name format and its uniqueness, at most 2 members, each member on the school list and in one team only, each GitHub username existing; prints the display name of each GitHub account, for the students to confirm it |
+| `mc team status [--team red]` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
+| `mc team provision [--team red] [--dry-run]` | Creates the repository and the GitHub team, grants the team push access, and adds the members, which invites them to the organization |
+
+`provision` is interactive: it describes each step with the `gh` command it runs, and runs it
+only once confirmed. The steps already done are skipped, so it can run again, e.g. once the
+members of a team are known. A team that is not valid is not provisioned. With `--dry-run`, the
+steps are described and confirmed, but nothing runs.
+
+```
+== Team red (1/1)
+[1/5] Create the private repository mincong-classroom/k8s-red from the template mincong-classroom/containers
+      ✓ the repository exists
+[2/5] Create the secret GitHub team red
+      ✓ the GitHub team exists
+[3/5] Grant the GitHub team red push access to k8s-red
+      ✓ the GitHub team has push access
+[4/5] Add SMITH, John (@jsmith), "John Smith" on GitHub, to the GitHub team red: GitHub invites them to the organization by email
+      $ gh api -X PUT orgs/mincong-classroom/teams/red/memberships/jsmith -f role=member
+      Run it? [y]es, [n]o (skip the team), [a]ll (yes to everything), [q]uit:
 ```
 
 ## Rule
@@ -305,4 +363,6 @@ The `cmd` directory contains all the commands exposed in the command line interf
 
 The `rules` directory contains all the rules for the auto-grading.
 
-The `.mc` directory is private. It contains all the team information `.mc/teams.yaml` and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.
+The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
+
+The `.mc` directory is private. It contains the team registry `.mc/teams-{year}.yaml`, the school list `.mc/students-{year}.tsv` and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.

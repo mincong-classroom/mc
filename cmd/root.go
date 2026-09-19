@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mincong-classroom/mc/cmd/git"
+	"github.com/mincong-classroom/mc/cmd/team"
 )
 
 var RootCmd = &cobra.Command{
@@ -23,5 +24,5 @@ func init() {
 	RootCmd.AddCommand(infoCmd)
 	RootCmd.AddCommand(k8sCmd)
 	RootCmd.AddCommand(ruleCmd)
-	RootCmd.AddCommand(teamCmd)
+	RootCmd.AddCommand(team.TeamCmd)
 }

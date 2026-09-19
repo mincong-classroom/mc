@@ -3,16 +3,37 @@ package common
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
 
-const year = 2025
+const defaultYear = 2026
+
+// Year returns the year of the cohort, which selects the files read in ~/.mc. It can be
+// overridden with the environment variable MC_YEAR, e.g. MC_YEAR=2025.
+func Year() int {
+	if year, err := strconv.Atoi(os.Getenv("MC_YEAR")); err == nil {
+		return year
+	}
+	return defaultYear
+}
+
+// ConfigDir returns the directory holding the private data of the classroom, i.e. ~/.mc.
+func ConfigDir() string {
+	return filepath.Join(os.Getenv("HOME"), ".mc")
+}
+
+// TeamRegistryPath returns the path of the team registry of the current year.
+func TeamRegistryPath() string {
+	return filepath.Join(ConfigDir(), fmt.Sprintf("teams-%d.yaml", Year()))
+}
 
 // ListTeams returns a list of team names by reading the classroom directory
 func ListTeams() ([]Team, error) {
-	teamFile := fmt.Sprintf("%s/.mc/teams-%d.yaml", os.Getenv("HOME"), year)
-	teamData, err := os.ReadFile(teamFile)
+	teamData, err := os.ReadFile(TeamRegistryPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %v", err)
 	}
@@ -24,4 +45,17 @@ func ListTeams() ([]Team, error) {
 		return nil, fmt.Errorf("failed to unmarshal data: %v", err)
 	}
 	return data.Teams, nil
+}
+
+// FilterTeams returns the teams with the given names, or an error if a name is not registered.
+func FilterTeams(teams []Team, names []string) ([]Team, error) {
+	var selected []Team
+	for _, name := range names {
+		i := slices.IndexFunc(teams, func(team Team) bool { return team.Name == name })
+		if i < 0 {
+			return nil, fmt.Errorf("team %q not found in %s", name, TeamRegistryPath())
+		}
+		selected = append(selected, teams[i])
+	}
+	return selected, nil
 }

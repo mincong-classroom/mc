@@ -20,13 +20,16 @@ go build -o dist/mc     # binary is gitignored under dist/
 ```
 
 CI (`.github/workflows/mincong-classroom.yaml`, runs on every push) does: `go mod tidy`,
-`golangci-lint`, then `go test ./... -v`. **There are currently no test files**, so `go test`
-passes vacuously — add `_test.go` files alongside the package under test if you write tests.
+`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/` and `cmd/team/` so far;
+add `_test.go` files alongside the package under test. The team tests use an in-memory
+`github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
 
 Key commands (all read the team registry, see "External data" below):
 
 ```sh
-mc team                       # list registered teams and members
+mc team ls                    # teams, their GitHub status and validation problems, students not in a team
+mc team validate|status [-t red]
+mc team provision -t red [--dry-run] # interactive: create repo + GitHub team, invite the members
 mc rule                       # print every grading rule's spec/description
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -39,8 +42,12 @@ mc k8s create-namespaces      # kubectl create one namespace per team
 Grading input lives **outside the repo** in a private, git-ignored `~/.mc/` directory that you must
 assume exists at runtime. Nothing here works without it:
 
-- `~/.mc/teams-2025.yaml` — the team registry (`TeamRegistry`). The year `2025` is hardcoded as the
-  `year` const in `common/team.go`; bump it there for a new cohort.
+- `~/.mc/teams-{year}.yaml` — the team registry (`TeamRegistry`). The year is `common.Year()`:
+  the `defaultYear` const in `common/team.go` (bump it for a new cohort), overridden by the
+  environment variable `MC_YEAR`. Unknown keys (e.g. an old `role`) are ignored when read.
+- `~/.mc/students-{year}.tsv` — the school list (`common.Student`), optional: `LAST<TAB>First`, no
+  header, extra columns ignored. `mc team` checks the members against it and lists the students
+  not in a team; the checks are skipped when the file does not exist.
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 
@@ -51,7 +58,18 @@ so `GradeL5` always reports "team not found in assignments" and grades nothing u
 
 ## Architecture
 
-Three packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rules/` (grading engine).
+Four packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rules/` (grading
+engine), `github/` (the GitHub organization, through the `gh` CLI).
+
+**Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
+repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
+`github.Client` holds the reads (repo/team exist, team role on the repo, membership state, user);
+the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision` can show the exact
+`gh` command before running it, and the tests can record them. `provision` computes the steps
+from `teamStatus()`, skips those already done (idempotent), refuses a team failing
+`validateTeam()`, and asks for each step (`y`/`n` skips the team/`a` yes to all/`q`); `--dry-run`
+keeps the prompts but runs nothing. `ls`, `validate` and `status` fetch per team concurrently
+(`forEach`).
 
 **Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, a `Role`
 (`"frontend"` | `"customer"` | `"veterinarian"`, which selects the L3 Docker image rule), and an
