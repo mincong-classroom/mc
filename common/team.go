@@ -116,7 +116,7 @@ func AddTeam(team Team) error {
 
 	value := teamYAML{Name: team.Name, Members: []memberYAML{}}
 	for _, member := range team.Members {
-		value.Members = append(value.Members, memberYAML{Name: member.Name, Github: member.Github})
+		value.Members = append(value.Members, memberYAML(member))
 	}
 	var node yaml.Node
 	if err := node.Encode(value); err != nil {
