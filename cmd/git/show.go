@@ -15,8 +15,8 @@ var showCmd = &cobra.Command{
 	Short: "Show content of the specific file of all teams",
 	Run:   runShow,
 	Example: `
-  Show the content of k8s/pod-nginx.yaml file:
-  mc git show main:k8s/pod-nginx.yaml
+  Show the content of k8s/lab-2/pod-nginx.yaml file:
+  mc git show main:k8s/lab-2/pod-nginx.yaml
 
   Show the content of Dockerfile:
   mc git show main:apps/spring-petclinic/Dockerfile`,
@@ -30,7 +30,7 @@ func runShow(cmd *cobra.Command, args []string) {
 	}
 
 	if len(args) == 0 {
-		fmt.Println("Please specify the file to show, e.g., main:k8s/pod-nginx.yaml")
+		fmt.Println("Please specify the file to show, e.g., main:k8s/lab-2/pod-nginx.yaml")
 		return
 	}
 

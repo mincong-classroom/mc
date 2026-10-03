@@ -237,7 +237,7 @@ L2_NGY: Nginx YAML Test (Ex 3)
 
     The team is expected to create a new Pod running with Nginx using a kubectl-apply
     command. This Pod should be reachable using the port 80 and should be named as
-    "nginx". The manifest should be saved under the path k8s/pod-nginx.yaml
+    "nginx". The manifest should be saved under the path k8s/lab-2/pod-nginx.yaml
     of the Git repository. Also, a team label should be added to the Pod definition.
 
 
@@ -245,7 +245,7 @@ L2_JVY: Java YAML Test (Ex 4)
 
     The team is expected to create a new pod running with Java using a kubectl-apply
     command. This pod should be reachable using the port 8080 and should be named as
-    "spring-petclinic". The manifest should be saved under the path k8s/pod-petclinic.yaml
+    "spring-petclinic". The manifest should be saved under the path k8s/lab-2/pod-petclinic.yaml
     of the Git repository. The Pod should contain 2 labels, app=spring-petclinic and
     team=${team}. The Pod must be up and running.
 
@@ -272,7 +272,7 @@ L2_FBP: Kubernetes Fix Broken Pod Test (Ex 6)
 L3_RST: ReplicaSet Test (Ex 1)
 
     The team is expected to create a new ReplicaSet and put the definition under the path
-    "k8s/replicaset-petclinic.yaml" of the Git repository. Operations should be assessed
+    "k8s/lab-3/replicaset-petclinic.yaml" of the Git repository. Operations should be assessed
     manually by the teacher. The container should use port 8080 to receive incoming
     traffic. The container name should be "main". The docker image should be the
     one published by the team in the previous lab, i.e.
@@ -286,11 +286,10 @@ L3_RST: ReplicaSet Test (Ex 1)
 L3_DPL: Deployment Test (Ex 2)
 
     The team is expected to create a new Deployment and put the definition under the path
-    "k8s/deployment-petclinic.yaml" of the Git repository. Operations should be assessed
+    "k8s/lab-3/deployment-petclinic.yaml" of the Git repository. Operations should be assessed
     manually by the teacher. Most of the requirements are similar to the ReplicaSet.
     That is, the container should use port 8080 to receive incoming
     traffic; the container name should be "main"; the team should use 2 labels:
-    petclinicDeploymentManifestPath),
     app=spring-petclinic and team=<team-name>. Then, they are expected to create a
     environment variable "TEAM" with the value in lowercase and observe the rollout
     history. Finally, they should disrupt the Deployment and observe what happens.
