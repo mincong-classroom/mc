@@ -37,7 +37,7 @@ of the Git repository. Also, a team label should be added to the Pod definition.
 
 func (r K8sJavaPodRule) Spec() common.RuleSpec {
 	return common.RuleSpec{
-		LabId:    "L3",
+		LabId:    "L2",
 		Symbol:   "JVY",
 		Name:     "Java YAML Test",
 		Exercice: "4",
@@ -155,22 +155,15 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 		fmt.Println("The manifest has been applied successfully")
 	}
 
-	// Create a context to manage the kubectl process lifecycle
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	time.Sleep(5 * time.Second) // Wait for the pod to be ready
-
-	// Start port-forwarding
-	fmt.Println("Setting up port-forward...")
-	if err := kubePortForward(ctx, namespace, petclinicPodName, localPort, petclinicContainerPort); err != nil {
-		result.ExecError = fmt.Errorf("failed to set up port-forward: %v", err)
-		fmt.Printf("Failed to port-forward: %v\n", err)
+	fmt.Println("Waiting for the Pod to be ready...")
+	if err := kubeWaitPodReady(namespace, petclinicPodName, podReadyTimeout); err != nil {
+		result.Reason = "The Pod is not ready"
+		result.ExecError = err
+		return result
 	}
-	defer cancel() // Ensure the port-forward process is terminated when we're done
 
 	fmt.Println("Fetching content from pod...")
-	content, err := getHttpContent(fmt.Sprintf("http://localhost:%d", localPort))
+	content, err := getPodHttpContent(namespace, petclinicPodName, petclinicContainerPort, appStartTimeout)
 	if err != nil {
 		result.ExecError = fmt.Errorf("failed to curl localhost: %v", err)
 		return result

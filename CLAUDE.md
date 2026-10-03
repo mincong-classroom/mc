@@ -126,7 +126,7 @@ The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <
 `CustomRepoName`. There is no role anymore: every team is graded as the former "frontend" role in
 L3 (`L3_DIF`); `L3_DIC` and `L3_DIV` are still listed by `mc rule` but no longer graded, and an old
 `role:` key in a registry is ignored. All team-derived paths/URLs come from methods on `Team`
-(`GetRepoPath`, `GetKubeNamespace` → `team-<name>`, `GetContainerRepoForWeekendServer`, `GetRepoURL`).
+(`GetRepoPath`, `GetKubeNamespace` → `team-<name>`, `GetRepoURL`).
 Prefer these helpers over rebuilding paths inline. Note an existing inconsistency: `GetRepoPath()`
 uses `$HOME/github/mincong-classroom/k8s-<name>`, while `cmd/git/clone.go` and `show.go` hardcode
 `/Users/mincong/github/mincong-classroom/<name>` — if you touch repo-path logic, reconcile these.
@@ -136,7 +136,7 @@ uses `$HOME/github/mincong-classroom/k8s-<name>`, while `cmd/git/clone.go` and `
 `LabId` + `Symbol` into an id like `L1_DKF` (see `RuleSpec.Id()`); `RuleEvaluationResult.Completeness`
 is a float in `[0,1]` (a percentage). There are three flavors of rule:
 - **Automated file/cluster checks** (`rules/docker.go` `DockerfileRule`, `rules/k8s_pod.go`,
-  `k8s_replicaset.go`, `k8s_deployment.go`, `k8s_service.go`, `k8s_namespace.go`, `registry.go`):
+  `k8s_replicaset.go`, `k8s_deployment.go`, `k8s_service.go`, `k8s_namespace.go`):
   read files from the locally-cloned student repo and/or drive the cluster — `kubectl apply` a
   manifest, `kubectl port-forward` (`rules/k8s.go`), then HTTP-fetch and string-match the response.
   These require the student repos to be cloned locally and (for k8s rules) a live cluster + kubectl.
@@ -154,8 +154,8 @@ return `[]RuleEvaluationResult`. `cmd/grade.go` loops teams × selected labs and
    manifest paths/ports/consts in `rules/k8s.go`).
 2. Add a field for it on the `Grader` struct and construct it in `NewGrader()`.
 3. Register it in `ListRuleRepresentations()` (so `mc rule` prints it) **and** in the matching
-   `GradeL<n>` method (so `mc grade` runs it). Some rules are effectively dead today: `RegistryRule`
-   (`registry.go`) and `SqlInitRule` (`sql.go`) are defined but never added to the `Grader`, and
+   `GradeL<n>` method (so `mc grade` runs it). Some rules are effectively dead today: `SqlInitRule`
+   (`sql.go`) is defined but never added to the `Grader`, and
    `MavenJarRule` (`maven.go`) is constructed and listed by `mc rule` but its `.Run` call is
    commented out in `GradeL1`, so it is never actually graded.
 

@@ -48,10 +48,6 @@ func (t Team) GetRepoPath() string {
 	return fmt.Sprintf("%s/github/mincong-classroom/k8s-%s", os.Getenv("HOME"), t.Name)
 }
 
-func (t Team) GetContainerRepoForWeekendServer() string {
-	return fmt.Sprintf("mincongclassroom/weekend-server-%s", t.Name)
-}
-
 // GetRepoName returns the name of the team's repository in the GitHub organization, such as
 // "k8s-red".
 func (t Team) GetRepoName() string {

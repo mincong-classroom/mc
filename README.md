@@ -241,7 +241,7 @@ L2_NGY: Nginx YAML Test (Ex 3)
     of the Git repository. Also, a team label should be added to the Pod definition.
 
 
-L3_JVY: Java YAML Test (Ex 4)
+L2_JVY: Java YAML Test (Ex 4)
 
     The team is expected to create a new pod running with Java using a kubectl-apply
     command. This pod should be reachable using the port 8080 and should be named as
