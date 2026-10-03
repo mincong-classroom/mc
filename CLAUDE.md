@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 "Software Containerization and Orchestration" (Docker/Kubernetes) course. Each year ~25-30 students
 form two-person teams; every team has its own Git repository cloned from the same template
 ([`mincong-classroom/containers`](https://github.com/mincong-classroom/containers)), so all student
-repos share an identical file layout (e.g. `apps/spring-petclinic/Dockerfile`, `k8s/pod-nginx.yaml`).
+repos share an identical file layout (e.g. `apps/spring-petclinic/Dockerfile`, `k8s/lab-2/pod-nginx.yaml`).
 The tool exists to run team-specific commands and grading rules in bulk across those dozens of repos.
 
 ## Build & run
@@ -58,7 +58,7 @@ mc team red validate|status [--json]  # the actions on one team of the registry
 mc rule                       # print every grading rule's spec/description
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
-mc git clone|pull|show        # bulk git ops over all team repos, e.g. `mc git show main:k8s/pod-nginx.yaml`
+mc git clone|pull|show        # bulk git ops over all team repos, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml`
 mc k8s create-namespaces      # kubectl create one namespace per team
 ```
 

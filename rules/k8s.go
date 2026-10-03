@@ -14,15 +14,15 @@ import (
 
 const (
 	nginxPodName       = "nginx"
-	nginxManifestPath  = "k8s/pod-nginx.yaml"
+	nginxManifestPath  = "k8s/lab-2/pod-nginx.yaml"
 	nginxContainerPort = 80
 
 	petclinicPodName         = "spring-petclinic"
 	petclinicContainerPort   = 8080
-	petclinicPodManifestPath = "k8s/pod-petclinic.yaml"
+	petclinicPodManifestPath = "k8s/lab-2/pod-petclinic.yaml"
 
-	petclinicReplicaSetManifestPath = "k8s/replicaset-petclinic.yaml"
-	petclinicDeploymentManifestPath = "k8s/deployment-petclinic.yaml"
+	petclinicReplicaSetManifestPath = "k8s/lab-3/replicaset-petclinic.yaml"
+	petclinicDeploymentManifestPath = "k8s/lab-3/deployment-petclinic.yaml"
 
 	localPort = 8080
 
