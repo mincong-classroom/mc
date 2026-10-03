@@ -23,9 +23,14 @@ const (
 
 	petclinicReplicaSetManifestPath = "k8s/replicaset-petclinic.yaml"
 	petclinicDeploymentManifestPath = "k8s/deployment-petclinic.yaml"
-	javaServiceManifestPath         = "k8s/service-weekend-server.yaml"
 
 	localPort = 8080
+
+	// podReadyTimeout covers the pull of the image, e.g. about 200 MB for PetClinic.
+	podReadyTimeout = 3 * time.Minute
+	// appStartTimeout covers the start of the application once its container runs, e.g. the
+	// Spring context of PetClinic, longer when the image runs through emulation.
+	appStartTimeout = 2 * time.Minute
 )
 
 func kubePortForward(ctx context.Context, namespace, podName string, localPort, remotePort int) error {
@@ -61,8 +66,53 @@ func kubePortForward(ctx context.Context, namespace, podName string, localPort, 
 	}
 }
 
+// kubeWaitPodReady waits until the containers of the Pod run, so that a port-forward can reach
+// it. A Pod without a readiness probe is ready as soon as its containers start, before the
+// application listens: see getPodHttpContent.
+func kubeWaitPodReady(namespace, podName string, timeout time.Duration) error {
+	cmd := exec.Command("kubectl", "wait",
+		"-n", namespace,
+		"--for=condition=Ready",
+		"pod/"+podName,
+		"--timeout="+timeout.String(),
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("pod %s is not ready: %w\n%s", podName, err, out)
+	}
+	return nil
+}
+
+// getPodHttpContent fetches the home page of the Pod through a port-forward, again until it
+// answers or the timeout expires. Each attempt needs a new port-forward: kubectl exits ("lost
+// connection to pod") at the first connection that the Pod refuses, which is what happens
+// while the application is still starting.
+func getPodHttpContent(namespace, podName string, remotePort int, timeout time.Duration) (string, error) {
+	deadline := time.Now().Add(timeout)
+	for {
+		content, err := tryPodHttpContent(namespace, podName, remotePort)
+		if err == nil {
+			return content, nil
+		}
+		if time.Now().After(deadline) {
+			return "", err
+		}
+		fmt.Printf("No answer yet, retrying in 5 seconds: %v\n", err)
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func tryPodHttpContent(namespace, podName string, remotePort int) (string, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // terminates the port-forward process
+	if err := kubePortForward(ctx, namespace, podName, localPort, remotePort); err != nil {
+		return "", err
+	}
+	return getHttpContent(fmt.Sprintf("http://localhost:%d", localPort))
+}
+
 func getHttpContent(url string) (string, error) {
-	resp, err := http.Get(url)
+	client := http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return "", err
 	}
