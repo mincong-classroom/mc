@@ -238,11 +238,14 @@ var k8sFixBrokenPodRuleSpec = common.RuleSpec{
 	Symbol:   "FBP",
 	Exercice: "6",
 	Name:     "Kubernetes Fix Broken Pod Test",
-	Description: `
-The team is expected to troubleshoot and fix a broken Pod provided by the
-teacher. The Pod is intentionally misconfigured to simulate common issues that
-may arise in a Kubernetes environment. The students need to identify the two
-problems, including the incorrect Docker image and the missing team name in the
-environment variables. After fixing the issues, the Pod should be up and
+	Description: fmt.Sprintf(`
+The team is expected to troubleshoot and fix a broken Pod named %q,
+whose manifest is provided in the Git repository under the path
+%s. The Pod is intentionally misconfigured to
+simulate common issues that may arise in a Kubernetes environment. The students
+need to identify the two problems, a tag of the Docker image that does not
+exist and a missing environment variable, and fix them in that manifest,
+keeping the same image. After fixing the issues, the Pod should be up and
 running.`,
+		teamInfoServerPodName, teamInfoServerPodManifestPath),
 }

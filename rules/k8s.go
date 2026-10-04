@@ -21,6 +21,9 @@ const (
 	petclinicContainerPort   = 8080
 	petclinicPodManifestPath = "k8s/lab-2/pod-petclinic.yaml"
 
+	teamInfoServerPodName         = "team-info-server"
+	teamInfoServerPodManifestPath = "k8s/lab-2/pod-team-info-server.yaml"
+
 	petclinicReplicaSetManifestPath = "k8s/lab-3/replicaset-petclinic.yaml"
 	petclinicDeploymentManifestPath = "k8s/lab-3/deployment-petclinic.yaml"
 

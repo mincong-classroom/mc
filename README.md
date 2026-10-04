@@ -198,9 +198,11 @@ L1_DKF: Dockerfile Test (Ex 2)
 L1_IMG: Docker Image Test (Ex 3, 4)
 
     The team is expected to build a Docker image using one single command. The
-    Docker image should be published to DockerHub under the mincongclassroom
-    namespace: mincongclassroom/spring-petclinic-{team}, where {team} is the team
-    name in lowercase. Inspection is done locally to verify the image published,
+    Docker image should support the platform linux/amd64; a multi-architecture
+    image, built for linux/amd64 and linux/arm64, is accepted too. It should be
+    published to Docker Hub under the mincongclassroom namespace:
+    mincongclassroom/spring-petclinic-{team}, where {team} is the team name in
+    lowercase. Inspection is done locally to verify the image published,
     runnable, and accessible. This is a manual verification.
 
 
@@ -263,11 +265,13 @@ L2_OJP: Kubernetes Operate Java Pod Test (Ex 5)
 
 L2_FBP: Kubernetes Fix Broken Pod Test (Ex 6)
 
-    The team is expected to troubleshoot and fix a broken Pod provided by the
-    teacher. The Pod is intentionally misconfigured to simulate common issues that
-    may arise in a Kubernetes environment. The students need to identify the two
-    problems, including the incorrect Docker image and the missing team name in the
-    environment variables. After fixing the issues, the Pod should be up and
+    The team is expected to troubleshoot and fix a broken Pod named "team-info-server",
+    whose manifest is provided in the Git repository under the path
+    k8s/lab-2/pod-team-info-server.yaml. The Pod is intentionally misconfigured to
+    simulate common issues that may arise in a Kubernetes environment. The students
+    need to identify the two problems, a tag of the Docker image that does not
+    exist and a missing environment variable, and fix them in that manifest,
+    keeping the same image. After fixing the issues, the Pod should be up and
     running.
 
 
