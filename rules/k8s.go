@@ -3,10 +3,12 @@ package rules
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/mincong-classroom/mc/common"
@@ -20,6 +22,9 @@ const (
 	petclinicPodName         = "spring-petclinic"
 	petclinicContainerPort   = 8080
 	petclinicPodManifestPath = "k8s/lab-2/pod-petclinic.yaml"
+
+	teamInfoServerPodName         = "team-info-server"
+	teamInfoServerPodManifestPath = "k8s/lab-2/pod-team-info-server.yaml"
 
 	petclinicReplicaSetManifestPath = "k8s/lab-3/replicaset-petclinic.yaml"
 	petclinicDeploymentManifestPath = "k8s/lab-3/deployment-petclinic.yaml"
@@ -80,6 +85,53 @@ func kubeWaitPodReady(namespace, podName string, timeout time.Duration) error {
 		return fmt.Errorf("pod %s is not ready: %w\n%s", podName, err, out)
 	}
 	return nil
+}
+
+// podInfo is the part of a Pod, as `kubectl get pod -o json` prints it, that the rules read.
+type podInfo struct {
+	Metadata struct {
+		Labels map[string]string `json:"labels"`
+	} `json:"metadata"`
+	Status struct {
+		ContainerStatuses []struct {
+			Name  string `json:"name"`
+			State struct {
+				Waiting *struct {
+					Reason  string `json:"reason"`
+					Message string `json:"message"`
+				} `json:"waiting"`
+			} `json:"state"`
+		} `json:"containerStatuses"`
+	} `json:"status"`
+}
+
+func kubeGetPod(namespace, podName string) (podInfo, error) {
+	var pod podInfo
+	out, err := exec.Command("kubectl", "get", "pod", podName, "-n", namespace, "-o", "json").Output()
+	if err != nil {
+		return pod, fmt.Errorf("failed to get pod %s: %w", podName, err)
+	}
+	if err := json.Unmarshal(out, &pod); err != nil {
+		return pod, fmt.Errorf("failed to parse pod %s: %w", podName, err)
+	}
+	return pod, nil
+}
+
+// waitingReasons says why the containers of the Pod don't run, e.g. "main: ErrImagePull: ...
+// no match for platform in manifest" for an image without a variant for the platform of the
+// node. It is empty when no container is waiting.
+func (p podInfo) waitingReasons() string {
+	var reasons []string
+	for _, c := range p.Status.ContainerStatuses {
+		if w := c.State.Waiting; w != nil {
+			reason := c.Name + ": " + w.Reason
+			if w.Message != "" {
+				reason += ": " + w.Message
+			}
+			reasons = append(reasons, reason)
+		}
+	}
+	return strings.Join(reasons, "; ")
 }
 
 // getPodHttpContent fetches the home page of the Pod through a port-forward, again until it

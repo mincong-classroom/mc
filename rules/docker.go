@@ -79,9 +79,11 @@ func (r DockerImageRule) Spec() common.RuleSpec {
 		Exercice: "3, 4",
 		Description: `
 The team is expected to build a Docker image using one single command. The
-Docker image should be published to DockerHub under the mincongclassroom
-namespace: mincongclassroom/spring-petclinic-{team}, where {team} is the team
-name in lowercase. Inspection is done locally to verify the image published,
+Docker image should support the platform linux/amd64; a multi-architecture
+image, built for linux/amd64 and linux/arm64, is accepted too. It should be
+published to Docker Hub under the mincongclassroom namespace:
+mincongclassroom/spring-petclinic-{team}, where {team} is the team name in
+lowercase. Inspection is done locally to verify the image published,
 runnable, and accessible. This is a manual verification.`,
 	}
 }

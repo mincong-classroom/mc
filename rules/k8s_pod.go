@@ -46,7 +46,9 @@ The team is expected to create a new pod running with Java using a kubectl-apply
 command. This pod should be reachable using the port %d and should be named as
 %q. The manifest should be saved under the path %s
 of the Git repository. The Pod should contain 2 labels, app=spring-petclinic and
-team=${team}. The Pod must be up and running.`,
+team=${team}. The Pod must be up and running. This rule applies the manifest,
+waits for the Pod, and reads its home page (80%%), then checks the team name on
+the page (10%%) and the two labels (5%% each).`,
 			petclinicContainerPort, petclinicPodName, petclinicPodManifestPath),
 	}
 }
@@ -158,6 +160,10 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 	fmt.Println("Waiting for the Pod to be ready...")
 	if err := kubeWaitPodReady(namespace, petclinicPodName, podReadyTimeout); err != nil {
 		result.Reason = "The Pod is not ready"
+		// e.g. an image built for linux/amd64 only, on an arm64 node: grade it on an amd64 one
+		if pod, getErr := kubeGetPod(namespace, petclinicPodName); getErr == nil && pod.waitingReasons() != "" {
+			result.Reason += ": " + pod.waitingReasons()
+		}
 		result.ExecError = err
 		return result
 	}
@@ -171,14 +177,44 @@ func (r K8sJavaPodRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 		result.Completeness += 0.8
 	}
 
-	if strings.Contains(content, team.Name) {
-		result.Completeness += 0.1
+	pod, err := kubeGetPod(namespace, petclinicPodName)
+	if err != nil {
+		result.ExecError = err
+		return result
 	}
-	if team.HasAllMembers(content) {
-		result.Completeness += 0.1
+	extra, missing := javaPodExtras(team, content, pod.Metadata.Labels)
+	result.Completeness += extra
+	if len(missing) > 0 {
+		result.Reason = "Missing: " + strings.Join(missing, ", ")
 	}
 
 	return result
+}
+
+// javaPodExtras scores what the Pod has once its home page answers: the team name on the page
+// (10%), shown since Lab 1 Exercise 6, and the two labels that Exercise 4 asks for (5% each). It
+// also returns what is missing.
+func javaPodExtras(team common.Team, content string, labels map[string]string) (float32, []string) {
+	var (
+		completeness float32
+		missing      []string
+	)
+	if strings.Contains(content, team.Name) {
+		completeness += 0.1
+	} else {
+		missing = append(missing, "the team name on the home page")
+	}
+	for _, label := range []struct{ key, value string }{
+		{"app", "spring-petclinic"},
+		{"team", team.Name},
+	} {
+		if labels[label.key] == label.value {
+			completeness += 0.05
+		} else {
+			missing = append(missing, fmt.Sprintf("the label %s=%s", label.key, label.value))
+		}
+	}
+	return completeness, missing
 }
 
 func kubeApply(manifestPath, namespace string) error {
@@ -238,11 +274,14 @@ var k8sFixBrokenPodRuleSpec = common.RuleSpec{
 	Symbol:   "FBP",
 	Exercice: "6",
 	Name:     "Kubernetes Fix Broken Pod Test",
-	Description: `
-The team is expected to troubleshoot and fix a broken Pod provided by the
-teacher. The Pod is intentionally misconfigured to simulate common issues that
-may arise in a Kubernetes environment. The students need to identify the two
-problems, including the incorrect Docker image and the missing team name in the
-environment variables. After fixing the issues, the Pod should be up and
+	Description: fmt.Sprintf(`
+The team is expected to troubleshoot and fix a broken Pod named %q,
+whose manifest is provided in the Git repository under the path
+%s. The Pod is intentionally misconfigured to
+simulate common issues that may arise in a Kubernetes environment. The students
+need to identify the two problems, a tag of the Docker image that does not
+exist and a missing environment variable, and fix them in that manifest,
+keeping the same image. After fixing the issues, the Pod should be up and
 running.`,
+		teamInfoServerPodName, teamInfoServerPodManifestPath),
 }

@@ -200,27 +200,25 @@ func (g *Grader) GradeL2(team common.Team) []common.RuleEvaluationResult {
 	fmt.Printf("\n=== L2: Grading Team %s ===\n", team.Name)
 	results := make([]common.RuleEvaluationResult, 0)
 
-	if _, ok := g.assignmentsL1[team.Name]; ok {
-		k8sControlPlaneRuleResults := g.k8sControlPlaneRule.Run(team, "")
-		results = append(results, k8sControlPlaneRuleResults)
+	// Every team of the registry: no rule of Lab 2 needs the data of an assignments file. The
+	// custom name of the nginx Pod, from assignments-L3.yaml, is only a fallback of L2_NGY.
+	k8sControlPlaneRuleResults := g.k8sControlPlaneRule.Run(team, "")
+	results = append(results, k8sControlPlaneRuleResults)
 
-		k8sRunNginxPodRuleResults := g.k8sRunNginxPodRule.Run(team, "")
-		results = append(results, k8sRunNginxPodRuleResults)
+	k8sRunNginxPodRuleResults := g.k8sRunNginxPodRule.Run(team, "")
+	results = append(results, k8sRunNginxPodRuleResults)
 
-		k8sNginxPodRuleResults := g.k8sNginxPodRule.Run(team, "")
-		results = append(results, k8sNginxPodRuleResults)
+	k8sNginxPodRuleResults := g.k8sNginxPodRule.Run(team, "")
+	results = append(results, k8sNginxPodRuleResults)
 
-		k8sJavaPodResults := g.k8sJavaPodRule.Run(team, "")
-		results = append(results, k8sJavaPodResults)
+	k8sJavaPodResults := g.k8sJavaPodRule.Run(team, "")
+	results = append(results, k8sJavaPodResults)
 
-		k8sOperateJavaPodRuleResults := g.k8sOperateJavaPodRule.Run(team, "")
-		results = append(results, k8sOperateJavaPodRuleResults)
+	k8sOperateJavaPodRuleResults := g.k8sOperateJavaPodRule.Run(team, "")
+	results = append(results, k8sOperateJavaPodRuleResults)
 
-		k8sFixBrokenPodRuleResults := g.k8sFixBrokenPodRule.Run(team, "")
-		results = append(results, k8sFixBrokenPodRuleResults)
-	} else {
-		fmt.Printf("team %s not found in assignments", team.Name)
-	}
+	k8sFixBrokenPodRuleResults := g.k8sFixBrokenPodRule.Run(team, "")
+	results = append(results, k8sFixBrokenPodRuleResults)
 
 	fmt.Println("Grading done")
 	return results
