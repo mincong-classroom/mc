@@ -20,8 +20,8 @@ go build -o dist/mc     # binary is gitignored under dist/
 ```
 
 CI (`.github/workflows/mincong-classroom.yaml`, runs on every push) does: `go mod tidy`,
-`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/` and `e2e/`
-so far; add `_test.go` files alongside the package under test. The team unit tests use an
+`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/`, `e2e/` and
+`L1_DKF` in `rules/` so far; add `_test.go` files alongside the package under test. The team unit tests use an
 in-memory `github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
 
 The end-to-end tests (`e2e/`) build the real binary and run it with `HOME` pointing at a copy of

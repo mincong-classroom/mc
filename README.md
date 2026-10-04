@@ -185,7 +185,9 @@ L1_JAR: JAR Creation Test (Ex 1)
 L1_DKF: Dockerfile Test (Ex 2)
 
     The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
-    version should be 21+, from the distribution "eclipse-temurin". The port 8080 should be exposed.
+    version should be an LTS version 17+ (17, 21, 25, ...), the minimum of Spring PetClinic, from the
+    distribution "eclipse-temurin", pulled from Docker Hub or a mirror of it. The port 8080 should be
+    exposed.
     Note that the team can expose a container port at runtime even if the port is not specified with
     the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
     purposes and does not control or enforce which ports are exposed at runtime. If the team did not

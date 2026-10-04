@@ -3,6 +3,8 @@ package rules
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/mincong-classroom/mc/common"
@@ -18,7 +20,9 @@ func (r DockerfileRule) Spec() common.RuleSpec {
 		Exercice: "2",
 		Description: `
 The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
-version should be 21+, from the distribution "eclipse-temurin". The port 8080 should be exposed.
+version should be an LTS version 17+ (17, 21, 25, ...), the minimum of Spring PetClinic, from the
+distribution "eclipse-temurin", pulled from Docker Hub or a mirror of it. The port 8080 should be
+exposed.
 Note that the team can expose a container port at runtime even if the port is not specified with
 the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
 purposes and does not control or enforce which ports are exposed at runtime. If the team did not
@@ -44,9 +48,7 @@ func (r DockerfileRule) Run(team common.Team, _ string) common.RuleEvaluationRes
 	}
 
 	content := string(bytes)
-	// note: we encountered an incident from DockerHub, so we switched to ECR public registry
-	if strings.Contains(content, "FROM eclipse-temurin:21") ||
-		strings.Contains(content, "FROM public.ecr.aws/docker/library/eclipse-temurin:21") {
+	if usesTemurinLTS(content) {
 		result.Completeness += 0.8
 	} else {
 		result.Reason += "The Dockerfile does not use the correct Java version or distribution. "
@@ -186,4 +188,27 @@ the groupe name in lowercase. Inspection is done locally to verify the image
 published, runnable, and accessible. It should contain a new veterinarian.
 This is a manual verification. The image tag should be 3.0 which corresponds to
 the Lab Session 3.`,
+}
+
+// temurinFrom matches a FROM instruction on the image "eclipse-temurin", from Docker Hub or a
+// mirror of it, such as "public.ecr.aws/docker/library/" or "mirror.gcr.io/library/" (used during
+// incidents of Docker Hub), and captures the feature release of its tag: "21" in
+// "eclipse-temurin:21-jre-alpine".
+var temurinFrom = regexp.MustCompile(`(?im)^\s*FROM\s+(?:--platform=\S+\s+)?(?:\S+/)?eclipse-temurin:(\d+)`)
+
+// isJavaLTS tells whether a feature release of Java is an LTS that Spring PetClinic runs on: 17 is
+// its minimum, and an LTS comes every four releases since then (17, 21, 25, 29, ...).
+func isJavaLTS(release int) bool {
+	return release >= 17 && (release-17)%4 == 0
+}
+
+// usesTemurinLTS tells whether a Dockerfile builds on an image of "eclipse-temurin" in an LTS
+// version supported by Spring PetClinic.
+func usesTemurinLTS(dockerfile string) bool {
+	for _, match := range temurinFrom.FindAllStringSubmatch(dockerfile, -1) {
+		if release, err := strconv.Atoi(match[1]); err == nil && isJavaLTS(release) {
+			return true
+		}
+	}
+	return false
 }
