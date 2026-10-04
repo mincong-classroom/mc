@@ -89,6 +89,8 @@ Gotcha: `NewGrader()` only reads the **L1–L4** assignment files. `assignmentsL
 so `GradeL5` always reports "team not found in assignments" and grades nothing until an
 `assignments-L5.yaml` load is added. Most assignment structs are also empty placeholders today
 (`TeamAssignmentL2/L4/L5` have no fields); only L1 (`mvn_command`) and L3 (`nginx_pod_name`) carry data.
+Still, `GradeL1` and `GradeL3` skip the teams missing from `assignments-L1.yaml`, and `GradeL4` /
+`GradeL5` those missing from their own file. `GradeL2` grades every team of the registry.
 
 ## Architecture
 

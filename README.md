@@ -251,7 +251,9 @@ L2_JVY: Java YAML Test (Ex 4)
     command. This pod should be reachable using the port 8080 and should be named as
     "spring-petclinic". The manifest should be saved under the path k8s/lab-2/pod-petclinic.yaml
     of the Git repository. The Pod should contain 2 labels, app=spring-petclinic and
-    team=${team}. The Pod must be up and running.
+    team=${team}. The Pod must be up and running. This rule applies the manifest,
+    waits for the Pod, and reads its home page (80%), then checks the team name on
+    the page (10%) and the two labels (5% each).
 
 
 L2_OJP: Kubernetes Operate Java Pod Test (Ex 5)
