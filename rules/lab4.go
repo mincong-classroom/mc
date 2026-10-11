@@ -28,7 +28,7 @@ const (
 	teamInfoLocalPort     = 8090 // local port used for port-forward (avoids 8080 used by petclinic)
 
 	microservicesManifestPath = "k8s/lab-4/microservices.yaml"
-	apiGatewayConfigMapName   = "api-gateway-config"
+	petclinicConfigMapName    = "petclinic-config"
 )
 
 // Exercise 1 — create the "classroom" namespace and list the namespaces. There
@@ -64,15 +64,16 @@ using cross-namespace DNS ("team-info.classroom", or the fully-qualified name
 information. The route belongs to the %q ConfigMap: it matches the predicate
 "Path=/api/about/**" and strips the two prefix segments ("StripPrefix=2") so
 that the request reaches "/" on the Team Info Server. The updated manifest must
-be committed at %q. Validation: opening http://localhost:8080/#!/about displays
+be committed at %q. Validation: opening http://localhost:8080/about displays
 the team, the team members and the source code served by the Team Info Server,
 and "curl http://localhost:8080/api/about/" returns the expected JSON. The
 report is expected to trace the request through the logs: without a matching
 route the API Gateway logs no "Route matched" line and returns 404, whereas a
-matching route pointing at an unreachable backend surfaces as 405 — the circuit
-breaker forwards the GET to the POST-only "/fallback" endpoint. This is a manual
-verification.`,
-		teamInfoServiceName, teamInfoNamespace, apiGatewayConfigMapName,
+matching route pointing at an unreachable backend surfaces as 503 — the circuit
+breaker forwards the request to the "/fallback" endpoint of the gateway. The
+"About" page shows the status and the body of the response in both cases. This
+is a manual verification.`,
+		teamInfoServiceName, teamInfoNamespace, petclinicConfigMapName,
 		microservicesManifestPath),
 }
 

@@ -378,18 +378,19 @@ L4_AGR: API Gateway About Route Test (Ex 3)
     the "classroom" namespace, using cross-namespace DNS ("team-info.classroom",
     or the fully-qualified name "team-info.classroom.svc.cluster.local") rather
     than hard-coding the team information. The route belongs to the
-    "api-gateway-config" ConfigMap: it matches the predicate "Path=/api/about/**"
+    "petclinic-config" ConfigMap: it matches the predicate "Path=/api/about/**"
     and strips the two prefix segments ("StripPrefix=2") so that the request
     reaches "/" on the Team Info Server. The updated manifest must be committed at
     "k8s/lab-4/microservices.yaml". Validation: opening
-    http://localhost:8080/#!/about displays the team, the team members and the
-    source code served by the Team Info Server, and "curl
+    http://localhost:8080/about displays the team, the team members and the source
+    code served by the Team Info Server, and "curl
     http://localhost:8080/api/about/" returns the expected JSON. The report is
     expected to trace the request through the logs: without a matching route the
     API Gateway logs no "Route matched" line and returns 404, whereas a matching
-    route pointing at an unreachable backend surfaces as 405 — the circuit breaker
-    forwards the GET to the POST-only "/fallback" endpoint. This is a manual
-    verification.
+    route pointing at an unreachable backend surfaces as 503 — the circuit breaker
+    forwards the request to the "/fallback" endpoint of the gateway. The "About"
+    page shows the status and the body of the response in both cases. This is a
+    manual verification.
 
 
 L5_SEC: Kubernetes Secret Test (Ex 1)
