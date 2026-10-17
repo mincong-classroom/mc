@@ -22,8 +22,8 @@ The team is expected to create a new ReplicaSet and put the definition under the
 %q of the Git repository. Operations should be assessed
 manually by the teacher. The container should use port 8080 to receive incoming
 traffic. The container name should be "main". The docker image should be the
-one published by the team in the previous lab, i.e.
-"mincongclassroom/spring-petclinic-{team}". The team should use 2 labels:
+one published by the team in Lab 1, with the team name in the footer, i.e.
+"mincongclassroom/spring-petclinic-{team}:1.1.0". The team should use 2 labels:
 app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
 successfully and the Pods should be running. Then, the team should describe how
 they scale the ReplicaSet. Most importantly, they should explain the behavior
