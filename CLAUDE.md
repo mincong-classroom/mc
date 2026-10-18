@@ -60,6 +60,7 @@ mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
 mc git clone|pull|show        # bulk git ops over all team repos, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml`
 mc git pull                   # git pull --ff-only; a rewritten history (force-push) is a warning for that team, never merged
+mc git exec -- log -1 --oneline  # any git command in each team repo; goes on when one fails, exits 1 if any did
 mc k8s create-namespaces      # kubectl create one namespace per team
 ```
 
@@ -130,7 +131,7 @@ The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <
 L3 (`L3_DIF`); `L3_DIC` and `L3_DIV` are still listed by `mc rule` but no longer graded, and an old
 `role:` key in a registry is ignored. All team-derived paths/URLs come from methods on `Team`
 (`GetRepoPath`, `GetKubeNamespace` → `team-<name>`, `GetRepoURL`).
-Prefer these helpers over rebuilding paths inline: `mc git clone|pull|show` and the grading rules
+Prefer these helpers over rebuilding paths inline: `mc git clone|pull|show|exec` and the grading rules
 all find the team repos at `GetRepoPath()`, `$HOME/github/mincong-classroom/k8s-<name>`.
 
 **Rule abstraction** (`common/types.go`) — every grading check implements

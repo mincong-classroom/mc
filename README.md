@@ -38,16 +38,18 @@ mc help
 
 ```
 Mincong Classroom (mc) is a command line interface for grading student
-assignments in the Software Containerization and Orchestration course.
+assignments in the Kubernetes course.
 
 Usage:
   mc [command]
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
+  git         Perform Git operations in bulk
   grade       Grade assignments
   help        Help about any command
   info        Display CLI information
+  k8s         Perform Kubernetes operations
   rule        List grading rules
   team        Manage the teams
 
@@ -168,8 +170,19 @@ Team "purple" provisioned.
 
 ## Git
 
-`mc git clone|pull|show` run a Git command in the repository of every team, cloned under
-`~/github/mincong-classroom/k8s-{team}`.
+The commands `mc git` run git in bulk, in the repository of each team of the registry, cloned
+under `~/github/mincong-classroom/k8s-{team}`.
+
+| Command | What it does |
+|---|---|
+| `mc git clone` | Clones the repository of each team |
+| `mc git pull` | Pulls the latest changes of each team, by fast-forward only: see below |
+| `mc git show <rev>:<path>` | Shows a file of each team, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml` |
+| `mc git exec -- <git arguments>` | Runs any git command for each team, e.g. `mc git exec -- log -1 --oneline` |
+
+`exec` passes the arguments after `--` to git as they are, and prints the name of the team before
+its output. When git fails for a team, it goes on with the next ones, then fails at the end,
+listing these teams.
 
 `mc git pull` only fast-forwards (`git pull --ff-only`): the history of a team is never merged
 into the local one. When a team rewrote the history of its branch, e.g. with a force-push, the
