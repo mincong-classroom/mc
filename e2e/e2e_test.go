@@ -660,13 +660,15 @@ teams: []
 	}
 }
 
-func TestGitShowReadsTheRepoUnderHome(t *testing.T) {
-	e := newEnv(t)
-	repo := filepath.Join(e.home, "github", "mincong-classroom", "k8s-red")
+// initTeamRepo creates the repository of the team where mc git clone clones it, under HOME, with
+// one commit "Init" of a README.
+func (e *env) initTeamRepo(t *testing.T, team string) {
+	t.Helper()
+	repo := filepath.Join(e.home, "github", "mincong-classroom", "k8s-"+team)
 	if err := os.MkdirAll(repo, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("The repository of the team red\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("The repository of the team "+team+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
@@ -680,10 +682,61 @@ func TestGitShowReadsTheRepoUnderHome(t *testing.T) {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
+}
+
+func TestGitShowReadsTheRepoUnderHome(t *testing.T) {
+	e := newEnv(t)
+	e.initTeamRepo(t, "red")
 
 	r := e.run(t, "", "git", "show", "HEAD:README.md")
 
 	if !strings.Contains(r.stdout, "The repository of the team red\n") {
 		t.Errorf("mc git show does not show the README of k8s-red under HOME:\n%s", r.stdout)
+	}
+}
+
+func TestGitExec(t *testing.T) {
+	e := newEnv(t)
+	e.initTeamRepo(t, "red")
+	e.initTeamRepo(t, "green")
+
+	r := e.run(t, "", "git", "exec", "--", "log", "--format=%s")
+
+	// The repositories of blue and Pink-2 are not cloned: git fails for them, but goes on with the
+	// next teams.
+	output := regexp.MustCompile(`(?s)\[team: red\][^\n]* log --format=%s[^\n]*\nInit\n.*\[team: blue\].*\[team: green\][^\n]*\nInit\n.*\[team: Pink-2\]`)
+	if !output.MatchString(r.stdout) {
+		t.Errorf("mc git exec does not run git for each team, in order:\n%s", r.stdout)
+	}
+	wantErr := "git failed for 2 of 4 teams: blue (exit status 128), Pink-2 (exit status 128)"
+	if r.exitCode != 1 || !strings.Contains(r.stderr, wantErr) {
+		t.Errorf("mc git exec with 2 teams not cloned: exit code %d, stderr:\n%s\nwant exit code 1 and %q", r.exitCode, r.stderr, wantErr)
+	}
+}
+
+func TestGitExecSucceedsForEveryTeam(t *testing.T) {
+	e := newEnv(t)
+	e.initTeamRepo(t, "green")
+	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
+	registry := `teams:
+  - name: green
+    members: []
+`
+	if err := os.WriteFile(teamFile, []byte(registry), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := e.run(t, "", "git", "exec", "--team-file", teamFile, "--", "show", "HEAD:README.md")
+
+	if r.exitCode != 0 || r.stderr != "" || !strings.Contains(r.stdout, "[team: green]") || !strings.Contains(r.stdout, "The repository of the team green\n") {
+		t.Errorf("mc git exec: exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
+	}
+}
+
+func TestGitExecWithoutArguments(t *testing.T) {
+	r := newEnv(t).run(t, "", "git", "exec")
+
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "requires at least 1 arg") {
+		t.Errorf("mc git exec without arguments: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
 }
