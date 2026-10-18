@@ -30,6 +30,7 @@ type fakeClient struct {
 	teams       map[string]bool
 	roles       map[string]string // by "team/repo"
 	memberships map[string]string // by "team/user"
+	runErr      error             // Returned by Run, which then records nothing
 	ran         []github.Command
 }
 
@@ -64,6 +65,9 @@ func (f *fakeClient) GetTeamMembershipState(team, user string) (string, error) {
 }
 
 func (f *fakeClient) Run(command github.Command) error {
+	if f.runErr != nil {
+		return f.runErr
+	}
 	f.ran = append(f.ran, command)
 	return nil
 }

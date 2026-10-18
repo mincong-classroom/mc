@@ -72,8 +72,8 @@ this format is a warning; the names are compared ignoring the case and the extra
 
 The optional `students` list holds the students of the year, known before the course. It is
 informational: `mc team ls` lists the students who are not in a team yet, and a member who is not
-among them is a warning, which `provision` asks to confirm. For a member, only the GitHub user
-must be valid.
+among them is a warning, shown by `provision` before its confirmation. For a member, only the
+GitHub user must be valid.
 
 ```yaml
 students:
@@ -96,7 +96,7 @@ test registry before the course. `provision` still acts on the real organization
 
 ```sh
 mc team ls --team-file ~/.mc/test-teams-2026.yaml
-mc team provision --dry-run --team-file ~/.mc/test-teams-2026.yaml
+mc team yellow provision --dry-run --team-file ~/.mc/test-teams-2026.yaml
 ```
 
 Each team gets a private repository `k8s-{team}` in the GitHub organization, generated from the
@@ -109,39 +109,39 @@ see their own repository. The GitHub calls go through the `gh` CLI, logged in wi
 gh auth refresh -s admin:org
 ```
 
-The commands are `mc team <action>`, and `mc team <team> <action>` for the actions on one team
-of the registry: each team is a subcommand. `mc team --help` lists the teams with their members,
-and `mc team red --help` the actions on the team `red`. The names `ls` and `provision` are
-reserved.
+The commands are `mc team ls`, and `mc team <team> <action>` for the actions on one team of the
+registry: each team is a subcommand. `mc team --help` lists the teams with their members, and
+`mc team red --help` the actions on the team `red`. A team that is not in the registry yet has one
+action, `provision`, which registers it. The names `ls` and `provision` are reserved.
 
 | Command | What it does |
 |---|---|
 | `mc team ls [--json]` | Lists the teams with their members, their status on GitHub and their validation problems, then the students not in a team yet |
-| `mc team provision [--dry-run]` | Asks for one team, registered or new, then creates its repository and its GitHub team, grants the team push access, and adds the members, which invites them to the organization |
+| `mc team red provision [--dry-run]` | Shows the members of the team with their GitHub accounts, and once confirmed, creates its repository and its GitHub team, grants the team push access, and adds the members, which invites them to the organization. The team can be new: it is registered |
 | `mc team red validate [--json]` | Errors, which prevent the provisioning: an invalid or reserved name, a name used by another team, a member without a GitHub username or whose GitHub user does not exist. Warnings, confirmed when provisioning: more than 2 members, a member in several teams or not among the students. Prints the display name of each GitHub account, for the students to confirm it |
 | `mc team red status [--json]` | Shows whether the repository and the GitHub team exist, the access of the team to the repository, and whether each member is `active` or `pending` (invitation not accepted yet) |
 
-`provision` is interactive, and provisions one team per run, one step at a time: it describes each
-step with the `gh` command it runs (in dark yellow in a terminal, unless `NO_COLOR` is set), and
-runs it only once confirmed with `y` — "no" is the default, and skips the rest of the team. The
-steps already done are skipped, so a team can be provisioned again. A team with errors is not
-provisioned; with warnings, `provision` asks to confirm them first. ctrl+c stops the command. With
-`--dry-run`, the steps are described and confirmed, but nothing runs.
+`provision` asks one question: it shows the team, each member with the display name of their
+GitHub account, and the warnings of the validation, then asks to confirm with `y` ("no" is the
+default). What it takes to provision the team is not asked: once confirmed, it runs the steps that
+are not done yet, one after the other, so a team can be provisioned again. A team with errors is not
+provisioned, and nothing is asked. ctrl+c stops the command. With `--dry-run`, the same questions
+are asked, and the steps are described with the `gh` command each one would run (in dark yellow in
+a terminal, unless `NO_COLOR` is set), but nothing changes.
 
-The members come from the registry, or are asked on the way:
+The members come from the registry, or are asked first:
 
-- a team that is not in the registry yet is registered, once confirmed;
-- a registered team without members, such as a team created before the course, can get them.
+- a team that is not in the registry yet gets its members, and is registered once confirmed;
+- a registered team without members, such as a team created before the course, gets them too.
 
 The members are picked by number among the students of the registry who are not in a team yet, or
 typed when there is none to pick, each with their GitHub username (checked right away, and its
-display name shown to confirm). The registry is updated, keeping its comments, except with
+display name shown). The registry is updated once confirmed, keeping its comments, except with
 `--dry-run`.
 
 ```
-Teams: red, orange
-Team to provision: purple
-purple is not in the registry. Register it? (y/N): y
+$ mc team purple provision
+The team purple is not in the registry yet.
 Students not in a team yet:
    1. DOE Jane
    2. MARTIN Alex
@@ -150,18 +150,17 @@ GitHub username of DOE Jane: jdoe
   @jdoe: "Jane Doe" on GitHub
 GitHub username of MARTIN Alex: amartin
   @amartin: "Alex Martin" on GitHub
-✓ the team purple saved to ~/.mc/teams-2026.yaml
 
-== Team purple
-[1/5] Create the private repository mincong-classroom/k8s-purple from the template mincong-classroom/containers
-      $ gh repo create mincong-classroom/k8s-purple --private --template mincong-classroom/containers
-      Run it? (y/N): y
-      ✓ done
-...
-[5/5] Add MARTIN Alex (@amartin), "Alex Martin" on GitHub, to the GitHub team purple: GitHub invites them to the organization by email
-      $ gh api -X PUT orgs/mincong-classroom/teams/purple/memberships/amartin -f role=member
-      Run it? (y/N): y
-      ✓ done
+== Team purple: 2 members
+  - DOE Jane (@jdoe): "Jane Doe" on GitHub
+  - MARTIN Alex (@amartin): "Alex Martin" on GitHub
+Provision the team purple? (y/N): y
+✓ the team purple saved to ~/.mc/teams-2026.yaml
+✓ Create the private repository mincong-classroom/k8s-purple from the template mincong-classroom/containers
+✓ Create the secret GitHub team purple
+✓ Grant the GitHub team purple push access to k8s-purple
+✓ Add @jdoe to the GitHub team purple, which invites them to the organization
+✓ Add @amartin to the GitHub team purple, which invites them to the organization
 
 Team "purple" provisioned.
 - repo: https://github.com/mincong-classroom/k8s-purple

@@ -53,7 +53,7 @@ Key commands (all read the team registry, see "External data" below):
 
 ```sh
 mc team ls [--json]           # teams, their GitHub status and validation problems, students not in a team
-mc team provision [--dry-run] # interactive: asks for the team, creates repo + GitHub team, invites the members
+mc team red provision [--dry-run]     # confirms the members once, then creates repo + GitHub team, invites them
 mc team red validate|status [--json]  # the actions on one team of the registry
 mc rule                       # print every grading rule's spec/description
 mc grade                      # grade all teams, all labs (L1-L5)
@@ -81,9 +81,9 @@ assume exists at runtime. Nothing here works without it:
   informational: `mc team ls` lists the students not in a team, and a member not among them is a
   validation **warning**. There is no separate student file.
   `validateTeam()` returns **errors** (block `provision`: team name format/reserved/duplicate, a
-  member's GitHub username missing or not found) and **warnings** (`provision` asks "Provision it
-  anyway?" before the steps: more than 2 members, a member in several teams, without a name, or
-  not among the students). For a member, only the GitHub user is enforced.
+  member's GitHub username missing or not found) and **warnings** (shown by `provision` above its
+  one confirmation: more than 2 members, a member in several teams, without a name, or not among
+  the students). For a member, only the GitHub user is enforced.
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 
@@ -103,28 +103,34 @@ engine), `github/` (the GitHub organization, through the `gh` CLI).
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
 `github.Client` holds the reads (repo/team exist, team role on the repo, membership state, user);
 the changes are `github.Command` values (`CreateRepoCommand`, …) so `provision` can show the exact
-`gh` command before running it, and the tests can record them. `provision` computes the steps
-from `teamStatus()`, skips those already done (idempotent), refuses a team with
-`validateTeam()` errors, asks to confirm its warnings, and asks for each step, one at a time: every prompt is a
-`(y/N)` question (`confirm()`), "no" by default, with no "all" nor "quit" answer — a "no" skips
-the rest of the team, ctrl+c stops the command. `--dry-run` keeps the prompts but runs nothing. `provisioner.run()` provisions **one team
-per run**: it asks for the team by name (an empty answer asks again; ctrl+c, or the end of the
-input in the tests, stops it), then prints `Team "x" provisioned.` with `github.RepoURL`/`TeamURL`.
-The `$ gh …` lines are dark yellow when stdout is a terminal and `NO_COLOR` is unset
-(`provisioner.color`). A registered team without members goes to `completeTeam()` (members saved
-with `common.SetTeamMembers()`); an unknown name
-goes to `registerTeam()`: name checked (`teamNameErrors`), members picked by number among the
-registry's students not in a team (`askMembers`: `pickStudents`, `parsePicks`, or `typeMembers`
-when there is none to pick), GitHub usernames checked on entry, then `common.AddTeam()` appends it to the registry file through the `yaml.Node` API (the
-comments survive; `editRegistry` writes a temp file, then renames it). `LoadRegistry` rejects an
-unknown top-level key (only `students` and `teams`), so that a typo such as `student:` is not
-silently ignored. Not saved with `--dry-run`. The
+`gh` command before running it, and the tests can record them. `mc team <team> provision`
+(`provisioner.run(name, load)`) provisions **one team per run** and asks **one** `(y/N)`
+question (`confirm()`, "no" by default): it prints the team, each member with their GitHub display
+name (and "already a member"/"already invited" from `teamStatus()`), and the `validateTeam()`
+warnings, then asks "Provision the team x?". The steps are internal details, never asked:
+`stepsToRun()` returns those not done yet (idempotent), and `provision()` runs them one after the
+other, stopping at the first failure. A team with `validateTeam()` errors is refused without a
+question; a team already provisioned too. `--dry-run` asks the same questions, then prints each
+step with its `$ gh …` command, dark yellow when stdout is a terminal and `NO_COLOR` is unset
+(`provisioner.color`), and runs nothing. It ends with `Team "x" provisioned.` and
+`github.RepoURL`/`TeamURL`. Before the question, `prepare()` gives members to a team that has none:
+an unknown name or a registered team without members, name checked first (`teamNameErrors`),
+members picked by number among the registry's students not in a team (`askMembers`:
+`pickStudents`, `parsePicks`, or `typeMembers` when there is none to pick), GitHub usernames
+checked on entry. The registry in memory changes at once, for the validation; the file only once
+confirmed (`registryChange`): `common.SetTeamMembers()`, or `common.AddTeam()` for a new team, which
+appends it to the registry file through the `yaml.Node` API (the comments survive; `editRegistry`
+writes a temp file, then renames it). `LoadRegistry` rejects an unknown top-level key (only
+`students` and `teams`), so that a typo such as `student:` is not silently ignored. Not saved with
+`--dry-run`. The
 `cmd/team` unit tests run with a temporary `HOME` (`TestMain`), so they can never write the
 teacher's `~/.mc`. `ls` fetches per team concurrently (`forEach`).
-The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <action>`
-(`validate`, `status`): `AddTeamCommands()` adds one subcommand per registered team, called from
-`cmd.Execute()` before Cobra resolves the args, so the registry is read at startup. `ls` and
-`provision` are reserved team names (`reservedNames`).
+The command tree is `mc team ls` and `mc team <team> <action>` (`provision`, `validate`, `status`):
+`AddTeamCommands(args)` adds one subcommand per registered team, called from `cmd.Execute()` before
+Cobra resolves the args, so the registry is read at startup. For `mc team <team> provision` of a
+team not in the registry yet, `teamToProvision(args)` reads the team ahead, wherever the flags are,
+and it gets a subcommand too. `ls` and `provision` are reserved team names (`reservedNames`); the
+former `mc team provision` returns an error that points to `mc team <team> provision`.
 
 **Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, and an optional
 `CustomRepoName`. There is no role anymore: every team is graded on the same rules, and an old
