@@ -660,28 +660,53 @@ teams: []
 	}
 }
 
+// repoPath returns where mc finds the repository of the team: under HOME.
+func (e *env) repoPath(team string) string {
+	return filepath.Join(e.home, "github", "mincong-classroom", "k8s-"+team)
+}
+
+// git runs git in the directory dir, with the HOME of e and an identity for the commits.
+func (e *env) git(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	args = append([]string{"-C", dir, "-c", "user.name=mc", "-c", "user.email=mc@example.org", "-c", "commit.gpgsign=false"}, args...)
+	git := exec.Command("git", args...)
+	git.Env = append(os.Environ(), "HOME="+e.home)
+	if out, err := git.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+}
+
+// initRepo creates a repository in dir, on the branch main, whose first commit adds a README.md
+// with the content readme.
+func (e *env) initRepo(t *testing.T, dir, readme string) {
+	t.Helper()
+	e.git(t, e.home, "init", "--quiet", "--initial-branch=main", dir)
+	writeREADME(t, dir, readme)
+	e.git(t, dir, "add", "README.md")
+	e.git(t, dir, "commit", "--quiet", "-m", "Init")
+}
+
 // initTeamRepo creates the repository of the team where mc git clone clones it, under HOME, with
 // one commit "Init" of a README.
 func (e *env) initTeamRepo(t *testing.T, team string) {
 	t.Helper()
-	repo := filepath.Join(e.home, "github", "mincong-classroom", "k8s-"+team)
-	if err := os.MkdirAll(repo, 0o755); err != nil {
+	e.initRepo(t, e.repoPath(team), "The repository of the team "+team+"\n")
+}
+
+func writeREADME(t *testing.T, repo, content string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("The repository of the team "+team+"\n"), 0o644); err != nil {
+}
+
+func readREADME(t *testing.T, repo string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(repo, "README.md"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{
-		{"init", "--quiet"},
-		{"add", "README.md"},
-		{"-c", "user.name=mc", "-c", "user.email=mc@example.org", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Init"},
-	} {
-		git := exec.Command("git", append([]string{"-C", repo}, args...)...)
-		git.Env = append(os.Environ(), "HOME="+e.home)
-		if out, err := git.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
+	return string(data)
 }
 
 func TestGitShowReadsTheRepoUnderHome(t *testing.T) {
@@ -692,6 +717,58 @@ func TestGitShowReadsTheRepoUnderHome(t *testing.T) {
 
 	if !strings.Contains(r.stdout, "The repository of the team red\n") {
 		t.Errorf("mc git show does not show the README of k8s-red under HOME:\n%s", r.stdout)
+	}
+}
+
+// cloneRedRepo creates the repository of the team red, with a README.md "v1", and the teacher's
+// clone of it, under HOME. It returns the paths of both.
+func (e *env) cloneRedRepo(t *testing.T) (team, clone string) {
+	t.Helper()
+	team = filepath.Join(t.TempDir(), "k8s-red")
+	clone = e.repoPath("red")
+	e.initRepo(t, team, "v1\n")
+	e.git(t, e.home, "clone", "--quiet", team, clone)
+	return team, clone
+}
+
+func TestGitPullFastForwards(t *testing.T) {
+	e := newEnv(t)
+	team, clone := e.cloneRedRepo(t)
+	writeREADME(t, team, "v2\n")
+	e.git(t, team, "commit", "--quiet", "-am", "Lab 1")
+
+	r := e.run(t, "", "git", "pull")
+
+	if got := readREADME(t, clone); got != "v2\n" {
+		t.Errorf("README.md of the clone after mc git pull = %q, want %q\nstdout:\n%s\nstderr:\n%s", got, "v2\n", r.stdout, r.stderr)
+	}
+	if strings.Contains(r.stdout, "history rewritten") || strings.Contains(r.stderr, "team red") {
+		t.Errorf("mc git pull reports a problem for red:\nstdout:\n%s\nstderr:\n%s", r.stdout, r.stderr)
+	}
+}
+
+func TestGitPullWarnsOfARewrittenHistory(t *testing.T) {
+	e := newEnv(t)
+	team, clone := e.cloneRedRepo(t)
+	// The team rewrites the commit that the teacher already has, as a force-push would.
+	writeREADME(t, team, "v2\n")
+	e.git(t, team, "commit", "--quiet", "--amend", "-am", "Init, rewritten")
+
+	r := e.run(t, "", "git", "pull")
+
+	if got := readREADME(t, clone); got != "v1\n" {
+		t.Errorf("README.md of the clone after mc git pull = %q, want %q: the rewritten history is merged", got, "v1\n")
+	}
+	warning := "[team: red] ⚠ history rewritten: force-push?"
+	if !strings.Contains(r.stdout, warning) {
+		t.Errorf("mc git pull: missing the warning %q in:\n%s", warning, r.stdout)
+	}
+	if strings.Contains(r.stderr, "team red") {
+		t.Errorf("mc git pull reports a rewritten history as a failure:\n%s", r.stderr)
+	}
+	// The next teams are pulled: they have no clone here, so they fail.
+	if !strings.Contains(r.stderr, "Failed to pull latest changes for team blue") {
+		t.Errorf("mc git pull stops after the warning:\nstdout:\n%s\nstderr:\n%s", r.stdout, r.stderr)
 	}
 }
 

@@ -176,13 +176,25 @@ under `~/github/mincong-classroom/k8s-{team}`.
 | Command | What it does |
 |---|---|
 | `mc git clone` | Clones the repository of each team |
-| `mc git pull` | Pulls the latest changes of each team |
+| `mc git pull` | Pulls the latest changes of each team, by fast-forward only: see below |
 | `mc git show <rev>:<path>` | Shows a file of each team, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml` |
 | `mc git exec -- <git arguments>` | Runs any git command for each team, e.g. `mc git exec -- log -1 --oneline` |
 
 `exec` passes the arguments after `--` to git as they are, and prints the name of the team before
 its output. When git fails for a team, it goes on with the next ones, then fails at the end,
 listing these teams.
+
+`mc git pull` only fast-forwards (`git pull --ff-only`): the history of a team is never merged
+into the local one. When a team rewrote the history of its branch, e.g. with a force-push, the
+local branch is no longer an ancestor of the remote one: the repository of that team is not
+pulled, a warning says so, and the other teams are pulled.
+
+```
+[team: red] ⚠ history rewritten: force-push? The local branch is no longer an ancestor of the remote one: not pulled
+```
+
+The local clone keeps the history it had: compare it with the new one
+(`git log main...origin/main`) before resetting it (`git reset --hard origin/main`).
 
 ## Rule
 
