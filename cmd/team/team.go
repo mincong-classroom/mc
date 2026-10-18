@@ -4,12 +4,14 @@ package team
 
 import (
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"sync"
 
 	"github.com/mincong-classroom/mc/common"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -17,7 +19,8 @@ const (
 	teamsGroup   = "teams"
 )
 
-// reservedNames are the actions of "mc team", which cannot be used as a team name.
+// reservedNames are the actions of "mc team", which cannot be used as a team name. "provision" was
+// one, before it moved to "mc team <team> provision".
 var reservedNames = []string{"ls", "provision"}
 
 var TeamCmd = newTeamRootCmd()
@@ -30,17 +33,20 @@ func newTeamRootCmd() *cobra.Command {
 in the GitHub organization. The GitHub calls go through the gh CLI, logged in with the scopes
 "repo" and "admin:org" (gh auth refresh -s admin:org).
 
-The actions are "mc team ls", which lists all the teams, and "mc team provision", which asks
-for the team to provision. Each team of the registry is also a subcommand, holding the actions
-on that team, such as "mc team red status".`,
+The action "mc team ls" lists all the teams. Each team of the registry is also a subcommand,
+holding the actions on that team, such as "mc team red status". A team that is not in the
+registry yet can be provisioned too, which registers it: "mc team purple provision".`,
 		Example: `  mc team ls
-  mc team provision
+  mc team red provision
   mc team red validate
   mc team red status`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()
+			}
+			if args[0] == "provision" {
+				return fmt.Errorf(`"mc team provision" is now "mc team <team> provision", e.g. "mc team red provision"`)
 			}
 			if _, err := common.ListTeams(); err != nil {
 				return fmt.Errorf("failed to list teams: %v", err)
@@ -55,23 +61,43 @@ on that team, such as "mc team red status".`,
 	)
 
 	ls := newLsCmd()
-	provision := newProvisionCmd()
 	ls.GroupID = actionsGroup
-	provision.GroupID = actionsGroup
-	cmd.AddCommand(ls, provision)
+	cmd.AddCommand(ls)
 	return cmd
 }
 
 // AddTeamCommands adds one subcommand per team of the registry, such as "mc team red", holding the
 // actions on that team. Cobra resolves the subcommands before running them, so it is called before
-// running the CLI. When the registry cannot be read, no team is added and "mc team ls" reports the
-// error.
-func AddTeamCommands() {
+// running the CLI, with its arguments: when they are "mc team <team> provision" for a team that is
+// not in the registry yet, that team gets a subcommand too, to be registered. When the registry
+// cannot be read, no team is added and "mc team ls" reports the error.
+func AddTeamCommands(args []string) {
 	teams, err := common.ListTeams()
 	if err != nil {
 		return
 	}
 	addTeamCommands(TeamCmd, teams)
+	if name := teamToProvision(args); name != "" {
+		addTeamCommands(TeamCmd, []common.Team{{Name: name}})
+	}
+}
+
+// teamToProvision returns the team of the arguments "team <team> provision", wherever the flags
+// are, and "" for other arguments.
+func teamToProvision(args []string) string {
+	flags := pflag.NewFlagSet("mc", pflag.ContinueOnError)
+	flags.ParseErrorsWhitelist.UnknownFlags = true
+	flags.SetOutput(io.Discard)
+	flags.String("team-file", "", "")
+	flags.Bool("dry-run", false, "")
+	flags.BoolP("help", "h", false, "")
+	// A wrong flag is reported by Cobra, once it parses the arguments.
+	_ = flags.Parse(args)
+	positional := flags.Args()
+	if len(positional) != 3 || positional[0] != "team" || positional[2] != "provision" {
+		return ""
+	}
+	return positional[1]
 }
 
 func addTeamCommands(parent *cobra.Command, teams []common.Team) {
@@ -104,7 +130,7 @@ func newTeamCmd(team common.Team) *cobra.Command {
 		},
 		SilenceUsage: true,
 	}
-	cmd.AddCommand(newValidateCmd(team.Name), newStatusCmd(team.Name))
+	cmd.AddCommand(newProvisionCmd(team.Name), newValidateCmd(team.Name), newStatusCmd(team.Name))
 	return cmd
 }
 

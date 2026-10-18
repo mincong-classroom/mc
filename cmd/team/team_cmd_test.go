@@ -27,7 +27,7 @@ func TestAddTeamCommands(t *testing.T) {
 	for _, c := range root.Commands() {
 		names = append(names, c.Name())
 	}
-	if want := []string{"ls", "orange", "provision", "red"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"ls", "orange", "red"}; !reflect.DeepEqual(names, want) {
 		t.Errorf("commands = %v, want %v", names, want)
 	}
 
@@ -35,7 +35,7 @@ func TestAddTeamCommands(t *testing.T) {
 	if red.Short != "SMITH John (@jsmith)" {
 		t.Errorf("red.Short = %q", red.Short)
 	}
-	for _, action := range []string{"validate", "status"} {
+	for _, action := range []string{"provision", "validate", "status"} {
 		cmd, _, err := root.Find([]string{"red", action})
 		if err != nil || cmd.CommandPath() != "team red "+action {
 			t.Errorf("Find(red %s) = %q, %v", action, cmd.CommandPath(), err)
@@ -63,6 +63,7 @@ func TestUnknownTeamOrAction(t *testing.T) {
 	}{
 		{[]string{"blue", "status"}, `unknown team or action "blue"`},
 		{[]string{"red", "delete"}, `unknown action "delete" for the team red`},
+		{[]string{"provision"}, `"mc team provision" is now "mc team <team> provision"`},
 	}
 	for _, tt := range tests {
 		root := newTeamRootCmd()
@@ -72,6 +73,29 @@ func TestUnknownTeamOrAction(t *testing.T) {
 
 		if err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("mc team %v: error = %v, want %q", tt.args, err, tt.want)
+		}
+	}
+}
+
+func TestTeamToProvision(t *testing.T) {
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"team", "purple", "provision"}, "purple"},
+		{[]string{"team", "purple", "provision", "--dry-run", "--team-file", "test.yaml"}, "purple"},
+		{[]string{"--team-file", "test.yaml", "team", "purple", "provision"}, "purple"},
+		{[]string{"--team-file=test.yaml", "team", "--dry-run", "purple", "provision"}, "purple"},
+		{[]string{"team", "purple", "provision", "--help"}, "purple"},
+		{[]string{"team", "purple", "status"}, ""},
+		{[]string{"team", "provision"}, ""},
+		{[]string{"team", "purple", "provision", "extra"}, ""},
+		{[]string{"grade", "-t", "red", "-l", "L1"}, ""},
+		{nil, ""},
+	}
+	for _, tt := range tests {
+		if got := teamToProvision(tt.args); got != tt.want {
+			t.Errorf("teamToProvision(%q) = %q, want %q", tt.args, got, tt.want)
 		}
 	}
 }

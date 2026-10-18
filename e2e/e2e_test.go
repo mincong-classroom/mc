@@ -301,7 +301,6 @@ func TestTeamHelpListsTheTeams(t *testing.T) {
 
 	for _, pattern := range []string{
 		`(?m)^  ls +List the teams`,
-		`(?m)^  provision +Provision a team`,
 		`(?m)^  red +SMITH John \(@jsmith\), DOE Jane \(@jdoe\)$`,
 		`(?m)^  green +no members yet$`,
 	} {
@@ -377,7 +376,7 @@ func TestUnknownTeamOrAction(t *testing.T) {
 		want string
 	}{
 		{[]string{"team", "purple", "status"}, `unknown team or action "purple"`},
-		{[]string{"team", "red", "provision"}, `unknown action "provision" for the team red`},
+		{[]string{"team", "provision"}, `"mc team provision" is now "mc team <team> provision"`},
 	}
 	for _, tt := range tests {
 		r := e.run(t, "", tt.args...)
@@ -397,6 +396,7 @@ func TestTeamProvision(t *testing.T) {
 	)
 	tests := []struct {
 		name         string
+		team         string
 		args         []string
 		stdin        string
 		wantExitCode int
@@ -404,11 +404,16 @@ func TestTeamProvision(t *testing.T) {
 		wantOutput   []string
 	}{
 		{
-			name:        "all the steps of a new team",
-			stdin:       "blue\ny\ny\ny\ny\n",
+			name:        "one confirmation, then all the steps",
+			team:        "blue",
+			stdin:       "y\n",
 			wantChanges: []string{createBlueRepo, createBlueTeam, grantBlue, inviteAmartin},
 			wantOutput: []string{
-				"Teams: red, blue, green, Pink-2", "== Team blue", "✓ done",
+				`
+== Team blue: 1 member
+  - MARTIN Alex (@amartin): "Alex Martin" on GitHub
+Provision the team blue? (y/N): ✓ Create the private repository mincong-classroom/k8s-blue from the template mincong-classroom/containers
+`,
 				`
 Team "blue" provisioned.
 - repo: https://github.com/mincong-classroom/k8s-blue
@@ -418,39 +423,41 @@ Team "blue" provisioned.
 		},
 		{
 			name:       "dry run",
+			team:       "blue",
 			args:       []string{"--dry-run"},
-			stdin:      "blue\ny\ny\ny\ny\n",
-			wantOutput: []string{"(dry run) not run", `Dry run: team "blue" not provisioned, nothing changed on GitHub.`},
+			stdin:      "y\n",
+			wantOutput: []string{"(dry run) Create the private repository", `Dry run: team "blue" not provisioned, nothing changed on GitHub.`},
 		},
 		{
-			name:       "the steps already done are skipped",
-			stdin:      "red\n\n",
-			wantOutput: []string{"✓ the repository exists", "✓ already a member", "✓ already invited (pending)"},
+			name:       "no by default",
+			team:       "blue",
+			stdin:      "\n",
+			wantOutput: []string{"Provision the team blue? (y/N): \nTeam \"blue\" not provisioned.\n"},
+		},
+		{
+			name: "a team already provisioned",
+			team: "red",
+			wantOutput: []string{
+				`  - SMITH John (@jsmith): "John Smith" on GitHub, already a member`,
+				"  - DOE Jane (@jdoe): no display name on GitHub, already invited",
+				`Team "red" is already provisioned.`,
+			},
 		},
 		{
 			name:        "the admin access is replaced by push",
-			stdin:       "green\nn\ny\n",
+			team:        "green",
+			stdin:       "\ny\n", // No members picked yet
 			wantChanges: []string{grantGreen},
 		},
 		{
-			name:        "no skips the rest of the team",
-			stdin:       "blue\ny\nn\n\n",
-			wantChanges: []string{createBlueRepo},
-			wantOutput:  []string{"Skipped, with the remaining steps of the team"},
-		},
-		{
-			name:       "a new team is not registered",
-			stdin:      "purple\nn\n\n",
-			wantOutput: []string{"purple is not in the registry. Register it?"},
-		},
-		{
-			name:       "an invalid new team name",
-			stdin:      "Purple\n\n",
-			wantOutput: []string{`✗ invalid name "Purple"`},
+			name:         "an invalid new team name",
+			team:         "Purple",
+			wantExitCode: 1,
+			wantOutput:   []string{`✗ invalid name "Purple"`},
 		},
 		{
 			name:         "an invalid team is not provisioned",
-			stdin:        "Pink-2\n\n",
+			team:         "Pink-2",
 			wantExitCode: 1,
 			wantOutput:   []string{`✗ invalid name "Pink-2"`},
 		},
@@ -459,7 +466,7 @@ Team "blue" provisioned.
 		t.Run(tt.name, func(t *testing.T) {
 			e := newEnv(t)
 
-			r := e.run(t, tt.stdin, append([]string{"team", "provision"}, tt.args...)...)
+			r := e.run(t, tt.stdin, append([]string{"team", tt.team, "provision"}, tt.args...)...)
 
 			if r.exitCode != tt.wantExitCode {
 				t.Errorf("exit code %d, want %d, stderr:\n%s", r.exitCode, tt.wantExitCode, r.stderr)
@@ -510,14 +517,14 @@ func TestTeamFile(t *testing.T) {
 	}
 
 	// NEWCOMER is not among the students: a warning, the team is provisioned once confirmed.
-	r = e.run(t, "yellow\nn\n\n", "team", "provision", "--team-file", teamFile)
+	r = e.run(t, "n\n", "team", "yellow", "provision", "--team-file", teamFile)
 	if got := e.ghChanges(t); got != nil {
-		t.Errorf("changes after declining the warning = %q, want none", got)
+		t.Errorf("changes after declining = %q, want none", got)
 	}
-	if !strings.Contains(r.stdout, "⚠ NEWCOMER Sam is not among the students of the registry\nProvision it anyway?") {
-		t.Errorf("mc team provision does not ask to confirm the warning:\n%s", r.stdout)
+	if !strings.Contains(r.stdout, "⚠ NEWCOMER Sam is not among the students of the registry\nProvision the team yellow?") {
+		t.Errorf("mc team yellow provision does not show the warning before the confirmation:\n%s", r.stdout)
 	}
-	r = e.run(t, "yellow\ny\ny\ny\ny\ny\n", "team", "provision", "--team-file", teamFile)
+	r = e.run(t, "y\n", "team", "yellow", "provision", "--team-file", teamFile)
 	wantChanges := []string{
 		"gh repo create mincong-classroom/k8s-yellow --private --template mincong-classroom/containers",
 		"gh api -X POST orgs/mincong-classroom/teams -f name=yellow -f privacy=secret",
@@ -539,17 +546,18 @@ func TestTeamProvisionRegistersANewTeam(t *testing.T) {
 	registryFile := filepath.Join(e.home, ".mc", "teams-2026.yaml")
 
 	// DURAND is the only student not in a team yet: number 1.
-	r := e.run(t, "purple\ny\n1\ncdurand\ny\ny\ny\ny\n", "team", "provision")
+	r := e.run(t, "1\ncdurand\ny\n", "team", "purple", "provision")
 
 	if r.exitCode != 0 {
 		t.Fatalf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
 	for _, want := range []string{
+		"The team purple is not in the registry yet.\n",
 		`Students not in a team yet:
    1. DURAND Camille
 `,
-		`@cdurand: "Camille Durand" on GitHub`,
-		"✓ the team purple saved to " + registryFile,
+		`  - DURAND Camille (@cdurand): "Camille Durand" on GitHub
+Provision the team purple? (y/N): ✓ the team purple saved to ` + registryFile,
 		"\nTeam \"purple\" provisioned.\n",
 	} {
 		if !strings.Contains(r.stdout, want) {
@@ -597,7 +605,7 @@ func TestTeamProvisionDryRunDoesNotRegister(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r := e.run(t, "purple\ny\n1\ncdurand\ny\ny\ny\ny\n", "team", "provision", "--dry-run")
+	r := e.run(t, "1\ncdurand\ny\n", "team", "purple", "provision", "--dry-run")
 
 	if !strings.Contains(r.stdout, "(dry run) the team purple not saved to the registry") {
 		t.Errorf("output:\n%s", r.stdout)
@@ -610,14 +618,35 @@ func TestTeamProvisionDryRunDoesNotRegister(t *testing.T) {
 	}
 }
 
+func TestTeamProvisionDeclinedDoesNotRegister(t *testing.T) {
+	e := newEnv(t)
+	registryFile := filepath.Join(e.home, ".mc", "teams-2026.yaml")
+	before, err := os.ReadFile(registryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := e.run(t, "1\ncdurand\nn\n", "team", "purple", "provision")
+
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "\nTeam \"purple\" not provisioned.\n") {
+		t.Errorf("exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
+	}
+	if after, _ := os.ReadFile(registryFile); !bytes.Equal(after, before) {
+		t.Errorf("the registry changed although the team was declined:\n%s", after)
+	}
+	if got := e.ghChanges(t); got != nil {
+		t.Errorf("changes after declining = %q", got)
+	}
+}
+
 func TestTeamProvisionAddsTheMembersOfARegisteredTeam(t *testing.T) {
 	e := newEnv(t)
 	registryFile := filepath.Join(e.home, ".mc", "teams-2026.yaml")
 
 	// green is registered without members; DURAND is the only student not in a team yet.
-	r := e.run(t, "green\ny\n1\ncdurand\ny\ny\n", "team", "provision")
+	r := e.run(t, "1\ncdurand\ny\n", "team", "green", "provision")
 
-	if r.exitCode != 0 || !strings.Contains(r.stdout, "green has no members yet. Add them? (y/N): ") {
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "The team green has no members yet.\n") {
 		t.Fatalf("exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
 	}
 	wantChanges := []string{

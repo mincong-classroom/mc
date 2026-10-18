@@ -21,9 +21,10 @@ assignments in the Kubernetes course.`,
 
 func Execute() error {
 	// The team subcommands, such as "mc team red", are built from the registry before Cobra
-	// parses the flags: read the flag --team-file ahead.
+	// parses the flags: read the flag --team-file ahead, and the team of "mc team <team> provision",
+	// which may not be in the registry yet.
 	common.TeamRegistryFile = teamFileFromArgs(os.Args[1:])
-	team.AddTeamCommands()
+	team.AddTeamCommands(os.Args[1:])
 	return RootCmd.Execute()
 }
 

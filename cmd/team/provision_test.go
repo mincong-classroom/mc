@@ -33,179 +33,159 @@ func newTestProvisioner(client github.Client, input string, dryRun bool) (*provi
 	}, out
 }
 
-func TestProvision(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		dryRun  bool
-		wantErr error
-		wantRan []github.Command
-	}{
-		{
-			name:    "yes to every step",
-			input:   "y\ny\ny\nyes\nY\n",
-			wantRan: allRedCommands,
-		},
-		{
-			name:    "unexpected answers are asked again",
-			input:   "maybe\nall\ny\ny\ny\ny\ny\n",
-			wantRan: allRedCommands,
-		},
-		{
-			name:    "no by default",
-			input:   "y\n\n",
-			wantErr: errSkipped,
-			wantRan: allRedCommands[:1],
-		},
-		{
-			name:    "no skips the remaining steps",
-			input:   "y\nn\n",
-			wantErr: errSkipped,
-			wantRan: allRedCommands[:1],
-		},
-		{
-			name:    "no quit answer",
-			input:   "q\n",
-			wantErr: errQuit, // "q" is asked again, then the input is over
-		},
-		{
-			name:    "end of input quits",
-			input:   "y\n",
-			wantErr: errQuit,
-			wantRan: allRedCommands[:1],
-		},
-		{
-			name:   "dry run runs nothing",
-			input:  "y\ny\ny\ny\ny\n",
-			dryRun: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client := newFakeClient()
-			p, _ := newTestProvisioner(client, tt.input, tt.dryRun)
-
-			err := p.provision(redTeam, nil)
-
-			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("error = %v, want %v", err, tt.wantErr)
-			}
-			if !reflect.DeepEqual(client.ran, tt.wantRan) {
-				t.Errorf("ran = %v, want %v", client.ran, tt.wantRan)
-			}
-		})
-	}
-}
-
-func TestProvisionSkipsTheStepsAlreadyDone(t *testing.T) {
-	client := newFakeClient()
-	client.repos["k8s-red"] = true
-	client.teams["red"] = true
-	client.roles["red/k8s-red"] = "write"
-	client.memberships["red/jsmith"] = "pending"
-	p, out := newTestProvisioner(client, "y\n", false)
-
-	if err := p.provision(redTeam, nil); err != nil {
-		t.Fatalf("provision: %v", err)
-	}
-
-	want := []github.Command{github.AddMemberCommand("red", "jdoe")}
-	if !reflect.DeepEqual(client.ran, want) {
-		t.Errorf("ran = %v, want %v", client.ran, want)
-	}
-	if !strings.Contains(out.String(), "✓ already invited (pending)") {
-		t.Errorf("output does not show the pending invitation:\n%s", out)
-	}
-}
-
-func TestProvisionReplacesTheAdminAccess(t *testing.T) {
-	client := newFakeClient()
-	client.repos["k8s-red"] = true
-	client.teams["red"] = true
-	client.roles["red/k8s-red"] = "admin"
-	p, _ := newTestProvisioner(client, "y\n", false)
-
-	if err := p.provision(newTeam("red"), nil); err != nil {
-		t.Fatalf("provision: %v", err)
-	}
-
-	want := []github.Command{github.GrantPushCommand("red", "k8s-red")}
-	if !reflect.DeepEqual(client.ran, want) {
-		t.Errorf("ran = %v, want %v", client.ran, want)
-	}
-}
-
 func TestRun(t *testing.T) {
-	registry := &common.TeamRegistry{
-		Students: []common.Student{{Name: "SMITH John"}}, // DOE Jane is not among them
-		Teams:    []common.Team{redTeam, newTeam("orange"), newTeam("Bad")},
+	newRegistry := func() *common.TeamRegistry {
+		return &common.TeamRegistry{
+			Students: []common.Student{{Name: "SMITH John"}, {Name: "MARTIN Alex"}}, // DOE Jane is not among them
+			Teams: []common.Team{
+				redTeam,
+				newTeam("orange"),
+				newTeam("gray", member("NOBODY Someone", "ghost")), // Not on GitHub
+			},
+		}
 	}
-	load := func() (*common.TeamRegistry, error) {
-		return registry, nil
-	}
-	orangeCommands := []github.Command{
-		github.CreateRepoCommand("k8s-orange"),
-		github.CreateTeamCommand("orange"),
-		github.GrantPushCommand("orange", "k8s-orange"),
+	provisioned := func(client *fakeClient) {
+		client.repos["k8s-red"] = true
+		client.teams["red"] = true
+		client.roles["red/k8s-red"] = "write"
+		client.memberships["red/jsmith"] = "active"
+		client.memberships["red/jdoe"] = "pending"
 	}
 	tests := []struct {
 		name       string
+		team       string
 		input      string
+		dryRun     bool
+		setup      func(client *fakeClient)
 		wantErr    string
 		wantRan    []github.Command
-		wantOutput string
+		wantOutput []string
+		notOutput  string
 	}{
 		{
-			name:    "one team without members, provisioned",
-			input:   "orange\nn\ny\ny\ny\n",
-			wantRan: orangeCommands,
-			wantOutput: `
-Team "orange" provisioned.
-- repo: https://github.com/mincong-classroom/k8s-orange
-- team: https://github.com/orgs/mincong-classroom/teams/orange
+			name:    "one confirmation, then every step",
+			team:    "red",
+			input:   "y\n",
+			wantRan: allRedCommands,
+			wantOutput: []string{
+				`
+== Team red: 2 members
+  - SMITH John (@jsmith): "John Smith" on GitHub
+  - DOE Jane (@jdoe): "Jane Doe" on GitHub
+⚠ DOE Jane is not among the students of the registry
+Provision the team red? (y/N): ✓ Create the private repository mincong-classroom/k8s-red from the template mincong-classroom/containers
 `,
+				`✓ Add @jdoe to the GitHub team red, which invites them to the organization
+
+Team "red" provisioned.
+- repo: https://github.com/mincong-classroom/k8s-red
+- team: https://github.com/orgs/mincong-classroom/teams/red
+`,
+			},
 		},
 		{
-			name:  "end of input quits",
-			input: "",
+			name:       "no by default",
+			team:       "red",
+			input:      "\n",
+			wantOutput: []string{"Provision the team red? (y/N): \nTeam \"red\" not provisioned.\n"},
 		},
 		{
-			name:       "an empty answer asks again",
-			input:      "\n\norange\nn\ny\ny\ny\n",
-			wantRan:    orangeCommands,
-			wantOutput: "Team to provision: Team to provision: Team to provision: ",
+			name:  "no",
+			team:  "red",
+			input: "n\n",
 		},
 		{
-			name:       "a new team not registered, then a registered team",
-			input:      "blue\nn\norange\nn\nn\n",
-			wantOutput: "blue is not in the registry. Register it?",
+			name:       "an unexpected answer is asked again",
+			team:       "red",
+			input:      "all\ny\n",
+			wantRan:    allRedCommands,
+			wantOutput: []string{"Provision the team red? (y/N): Provision the team red? (y/N): ✓ "},
+		},
+		{
+			name:       "end of input",
+			team:       "red",
+			wantOutput: []string{`Team "red" not provisioned.`},
+		},
+		{
+			name:  "the steps already done are skipped",
+			team:  "red",
+			input: "y\n",
+			setup: func(client *fakeClient) {
+				provisioned(client)
+				client.memberships["red/jdoe"] = ""
+			},
+			wantRan:    []github.Command{github.AddMemberCommand("red", "jdoe")},
+			wantOutput: []string{`  - SMITH John (@jsmith): "John Smith" on GitHub, already a member` + "\n"},
+		},
+		{
+			name:  "the admin access is replaced by push",
+			team:  "red",
+			input: "y\n",
+			setup: func(client *fakeClient) {
+				provisioned(client)
+				client.roles["red/k8s-red"] = "admin"
+			},
+			wantRan: []github.Command{github.GrantPushCommand("red", "k8s-red")},
+		},
+		{
+			name:  "a team already provisioned is not asked",
+			team:  "red",
+			setup: provisioned,
+			wantOutput: []string{
+				`  - DOE Jane (@jdoe): "Jane Doe" on GitHub, already invited` + "\n",
+				"\nTeam \"red\" is already provisioned.\n- repo: https://github.com/mincong-classroom/k8s-red\n",
+			},
+			notOutput: "Provision the team",
+		},
+		{
+			name:    "a registered team without members, none added",
+			team:    "orange",
+			input:   "\ny\n",
+			wantRan: []github.Command{github.CreateRepoCommand("k8s-orange"), github.CreateTeamCommand("orange"), github.GrantPushCommand("orange", "k8s-orange")},
+			wantOutput: []string{
+				"The team orange has no members yet.\nStudents not in a team yet:\n   1. MARTIN Alex\n",
+				"\n== Team orange: no members yet\nProvision the team orange? (y/N): ",
+			},
+		},
+		{
+			name:   "a new team, registered once confirmed",
+			team:   "blue",
+			input:  "1\namartin\ny\n",
+			dryRun: true,
+			wantOutput: []string{
+				"The team blue is not in the registry yet.\n",
+				`
+== Team blue: 1 member
+  - MARTIN Alex (@amartin): "Alex Martin" on GitHub
+Provision the team blue? (y/N): (dry run) the team blue not saved to the registry
+(dry run) Create the private repository mincong-classroom/k8s-blue from the template mincong-classroom/containers
+          $ gh repo create mincong-classroom/k8s-blue --private --template mincong-classroom/containers
+`,
+				"\nDry run: team \"blue\" not provisioned, nothing changed on GitHub.\n",
+			},
 		},
 		{
 			name:       "an invalid new team name",
-			input:      "Blue-2\n\n",
-			wantOutput: `✗ invalid name "Blue-2"`,
+			team:       "Blue-2",
+			wantErr:    "the team Blue-2 is not provisioned: fix its name",
+			wantOutput: []string{`✗ invalid name "Blue-2"`},
+			notOutput:  "Students not in a team yet",
 		},
 		{
-			name:       "a warning is confirmed before the steps",
-			input:      "red\ny\ny\ny\ny\ny\ny\n",
-			wantRan:    allRedCommands,
-			wantOutput: "⚠ DOE Jane is not among the students of the registry\nProvision it anyway?",
+			name:       "a team with errors is not asked",
+			team:       "gray",
+			wantErr:    "the team gray is not provisioned: fix the registry",
+			wantOutput: []string{"✗ the GitHub user @ghost does not exist\n⚠ NOBODY Someone is not among the students of the registry\n"},
+			notOutput:  "Provision the team",
 		},
 		{
-			name:  "a warning declined skips the team",
-			input: "red\nn\n\n",
-		},
-		{
-			name:       "a warning is not confirmed by default",
-			input:      "red\n\n",
-			wantOutput: "Provision it anyway? (y/N): \nTeam \"red\" not provisioned.\n",
-		},
-		{
-			name:       "invalid team is not provisioned",
-			input:      "Bad\n\n",
-			wantErr:    "the team Bad is not provisioned: fix the registry",
-			wantOutput: `invalid name "Bad"`,
+			name:       "a failed step stops the provisioning",
+			team:       "red",
+			input:      "y\n",
+			setup:      func(client *fakeClient) { client.runErr = errors.New("HTTP 403") },
+			wantErr:    "the team red is not fully provisioned, provision it again: HTTP 403",
+			wantOutput: []string{"✗ Create the private repository mincong-classroom/k8s-red from the template mincong-classroom/containers: HTTP 403\n"},
+			notOutput:  "Create the secret GitHub team",
 		},
 	}
 	for _, tt := range tests {
@@ -213,9 +193,14 @@ Team "orange" provisioned.
 			client := newFakeClient()
 			client.addUser("jsmith", "John Smith")
 			client.addUser("jdoe", "Jane Doe")
-			p, out := newTestProvisioner(client, tt.input, false)
+			client.addUser("amartin", "Alex Martin")
+			if tt.setup != nil {
+				tt.setup(client)
+			}
+			p, out := newTestProvisioner(client, tt.input, tt.dryRun)
+			load := func() (*common.TeamRegistry, error) { return newRegistry(), nil }
 
-			err := p.run(load)
+			err := p.run(tt.team, load)
 
 			if gotErr := fmt.Sprint(err); (tt.wantErr == "" && err != nil) || !strings.Contains(gotErr, tt.wantErr) {
 				t.Errorf("error = %v, want %q", err, tt.wantErr)
@@ -223,8 +208,13 @@ Team "orange" provisioned.
 			if !reflect.DeepEqual(client.ran, tt.wantRan) {
 				t.Errorf("ran = %v, want %v", client.ran, tt.wantRan)
 			}
-			if !strings.Contains(out.String(), tt.wantOutput) {
-				t.Errorf("output does not contain %q:\n%s", tt.wantOutput, out)
+			for _, want := range tt.wantOutput {
+				if !strings.Contains(out.String(), want) {
+					t.Errorf("output does not contain %q:\n%s", want, out)
+				}
+			}
+			if tt.notOutput != "" && strings.Contains(out.String(), tt.notOutput) {
+				t.Errorf("output contains %q:\n%s", tt.notOutput, out)
 			}
 		})
 	}
@@ -238,25 +228,29 @@ func TestCommandString(t *testing.T) {
 	}
 }
 
-func TestRegisterTeam(t *testing.T) {
+func TestPrepare(t *testing.T) {
 	newRegistry := func() *common.TeamRegistry {
 		return &common.TeamRegistry{
 			Students: []common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}, {Name: "MARTIN Alex"}},
-			Teams:    []common.Team{newTeam("red", member("SMITH John", "jsmith"))},
+			Teams:    []common.Team{newTeam("red", member("SMITH John", "jsmith")), newTeam("green")},
 		}
 	}
 	tests := []struct {
 		name       string
+		team       string
 		input      string
 		registry   *common.TeamRegistry
 		wantErr    error
 		wantTeam   common.Team
+		wantChange string
 		wantOutput []string
 	}{
 		{
-			name:     "two students",
-			input:    "y\n2 1\n@amartin\njdoe\n",
-			wantTeam: newTeam("purple", member("MARTIN Alex", "amartin"), member("DOE Jane", "jdoe")),
+			name:       "a new team, two students",
+			team:       "purple",
+			input:      "2 1\n@amartin\njdoe\n",
+			wantTeam:   newTeam("purple", member("MARTIN Alex", "amartin"), member("DOE Jane", "jdoe")),
+			wantChange: "the team purple",
 			wantOutput: []string{
 				`Students not in a team yet:
    1. DOE Jane
@@ -264,46 +258,55 @@ func TestRegisterTeam(t *testing.T) {
 `,
 				`@jdoe: no display name on GitHub`,
 				`@amartin: "Alex Martin" on GitHub`,
-				"(dry run) the team purple not saved to the registry",
 			},
 		},
 		{
-			name:     "no members yet",
-			input:    "y\n\n",
-			wantTeam: newTeam("purple"),
+			name:       "a new team, no members yet",
+			team:       "purple",
+			input:      "\n",
+			wantTeam:   newTeam("purple"),
+			wantChange: "the team purple",
 		},
 		{
 			name:       "a wrong pick, then a GitHub user not found",
-			input:      "y\n3\n1,1\n1\nnobody\njdoe\n",
+			team:       "purple",
+			input:      "3\n1,1\n1\nnobody\njdoe\n",
 			wantTeam:   newTeam("purple", member("DOE Jane", "jdoe")),
+			wantChange: "the team purple",
 			wantOutput: []string{`✗ "3" is not a number between 1 and 2`, "✗ 1 is picked twice", "✗ the GitHub user @nobody does not exist"},
 		},
 		{
 			name:       "no students to pick: the members are typed",
-			input:      "y\nnewcomer sam\nNEWCOMER Sam\n\njdoe\n",
+			team:       "purple",
+			input:      "newcomer sam\nNEWCOMER Sam\n\njdoe\n",
 			registry:   &common.TeamRegistry{},
 			wantTeam:   newTeam("purple", member("NEWCOMER Sam", "jdoe")),
+			wantChange: "the team purple",
 			wantOutput: []string{"No student to pick in the registry: type the members instead.", `Member 1, "LAST First" (empty when done): `, `✗ "newcomer sam" is not "LAST First"`},
 		},
 		{
-			name:    "declined",
-			input:   "n\n",
-			wantErr: errSkipped,
+			name:       "a registered team without members gets them",
+			team:       "green",
+			input:      "1\njdoe\n",
+			wantTeam:   newTeam("green", member("DOE Jane", "jdoe")),
+			wantChange: "the members of green",
+			wantOutput: []string{"The team green has no members yet.\n"},
 		},
 		{
-			name:    "declined by default",
-			input:   "\n",
-			wantErr: errSkipped,
+			name:     "a registered team without members, none added",
+			team:     "green",
+			input:    "\n",
+			wantTeam: newTeam("green"),
 		},
 		{
-			name:       "an unexpected answer is asked again",
-			input:      "red\ny\n\n",
-			wantTeam:   newTeam("purple"),
-			wantOutput: []string{"Register it? (y/N): purple is not in the registry. Register it? (y/N): "},
+			name:     "a registered team with members is not asked",
+			team:     "red",
+			wantTeam: newTeam("red", member("SMITH John", "jsmith")),
 		},
 		{
 			name:    "end of input",
-			input:   "y\n1\n",
+			team:    "purple",
+			input:   "1\n",
 			wantErr: errQuit,
 		},
 	}
@@ -318,7 +321,7 @@ func TestRegisterTeam(t *testing.T) {
 				registry = newRegistry()
 			}
 
-			team, err := p.registerTeam("purple", registry)
+			team, change, err := p.prepare(tt.team, registry)
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("error = %v, want %v", err, tt.wantErr)
@@ -329,8 +332,11 @@ func TestRegisterTeam(t *testing.T) {
 			if !reflect.DeepEqual(team, tt.wantTeam) {
 				t.Errorf("team = %+v, want %+v", team, tt.wantTeam)
 			}
-			if last := registry.Teams[len(registry.Teams)-1]; last.Name != "purple" {
-				t.Errorf("the team is not added to the registry in memory: %+v", registry.Teams)
+			if got := describeChange(change); got != tt.wantChange {
+				t.Errorf("change = %q, want %q", got, tt.wantChange)
+			}
+			if i := indexOf(registry.Teams, tt.team); i < 0 || !reflect.DeepEqual(registry.Teams[i], tt.wantTeam) {
+				t.Errorf("the registry in memory does not have the team %+v: %+v", tt.wantTeam, registry.Teams)
 			}
 			for _, want := range tt.wantOutput {
 				if !strings.Contains(out.String(), want) {
@@ -341,13 +347,13 @@ func TestRegisterTeam(t *testing.T) {
 	}
 }
 
-func TestRegisterTeamRefusesAnInvalidName(t *testing.T) {
+func TestPrepareRefusesAnInvalidName(t *testing.T) {
 	for _, name := range []string{"Purple", "ls", "red"} {
 		registry := &common.TeamRegistry{Teams: []common.Team{newTeam("red"), newTeam("red")}}
-		p, out := newTestProvisioner(newFakeClient(), "y\n", true)
+		p, out := newTestProvisioner(newFakeClient(), "\n", true)
 
-		if _, err := p.registerTeam(name, registry); !errors.Is(err, errSkipped) || !strings.Contains(out.String(), "✗ ") {
-			t.Errorf("registerTeam(%q): error = %v, output:\n%s", name, err, out)
+		if _, _, err := p.prepare(name, registry); err == nil || !strings.Contains(out.String(), "✗ ") {
+			t.Errorf("prepare(%q): error = %v, output:\n%s", name, err, out)
 		}
 	}
 }
@@ -374,66 +380,31 @@ func TestParsePicks(t *testing.T) {
 	}
 }
 
-func TestCompleteTeam(t *testing.T) {
-	newRegistry := func() *common.TeamRegistry {
-		return &common.TeamRegistry{
-			Students: []common.Student{{Name: "SMITH John"}, {Name: "DOE Jane"}},
-			Teams:    []common.Team{newTeam("green"), newTeam("red", member("DOE Jane", "jdoe"))},
-		}
-	}
-	tests := []struct {
-		name       string
-		index      int
-		input      string
-		wantTeam   common.Team
-		wantOutput string
-	}{
-		{
-			name:       "members added to a team without members",
-			input:      "y\n1\njsmith\n",
-			wantTeam:   newTeam("green", member("SMITH John", "jsmith")),
-			wantOutput: "(dry run) the members of green not saved to the registry",
-		},
-		{
-			name:     "no members added",
-			input:    "n\n",
-			wantTeam: newTeam("green"),
-		},
-		{
-			name:     "a team with members is not asked",
-			index:    1,
-			wantTeam: newTeam("red", member("DOE Jane", "jdoe")),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client := newFakeClient()
-			client.addUser("jsmith", "John Smith")
-			p, out := newTestProvisioner(client, tt.input, true)
-			registry := newRegistry()
+func TestDryRunColorsTheCommands(t *testing.T) {
+	p, out := newTestProvisioner(newFakeClient(), "", true)
+	p.color = true
 
-			team, err := p.completeTeam(tt.index, registry)
+	if err := p.provision(stepsToRun(newTeam("red"), Status{})); err != nil {
+		t.Fatalf("provision: %v", err)
+	}
 
-			if err != nil {
-				t.Fatalf("completeTeam: %v", err)
-			}
-			if !reflect.DeepEqual(team, tt.wantTeam) || !reflect.DeepEqual(registry.Teams[tt.index], tt.wantTeam) {
-				t.Errorf("team = %+v, in the registry %+v, want %+v", team, registry.Teams[tt.index], tt.wantTeam)
-			}
-			if !strings.Contains(out.String(), tt.wantOutput) {
-				t.Errorf("output does not contain %q:\n%s", tt.wantOutput, out)
-			}
-		})
+	if want := "          \033[33m$ gh repo create mincong-classroom/k8s-red"; !strings.Contains(out.String(), want) {
+		t.Errorf("output does not contain the command in dark yellow:\n%q", out)
 	}
 }
 
-func TestProvisionColorsTheCommands(t *testing.T) {
-	p, out := newTestProvisioner(newFakeClient(), "n\n", false)
-	p.color = true
-
-	_ = p.provision(newTeam("red"), nil)
-
-	if want := "      \033[33m$ gh repo create mincong-classroom/k8s-red"; !strings.Contains(out.String(), want) {
-		t.Errorf("output does not contain the command in dark yellow:\n%q", out)
+func describeChange(change *registryChange) string {
+	if change == nil {
+		return ""
 	}
+	return change.what
+}
+
+func indexOf(teams []common.Team, name string) int {
+	for i, team := range teams {
+		if team.Name == name {
+			return i
+		}
+	}
+	return -1
 }
