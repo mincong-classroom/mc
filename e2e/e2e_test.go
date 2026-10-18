@@ -659,3 +659,31 @@ teams: []
 		t.Errorf("exit code %d, stderr:\n%s", r.exitCode, r.stderr)
 	}
 }
+
+func TestGitShowReadsTheRepoUnderHome(t *testing.T) {
+	e := newEnv(t)
+	repo := filepath.Join(e.home, "github", "mincong-classroom", "k8s-red")
+	if err := os.MkdirAll(repo, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "README.md"), []byte("The repository of the team red\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"init", "--quiet"},
+		{"add", "README.md"},
+		{"-c", "user.name=mc", "-c", "user.email=mc@example.org", "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "Init"},
+	} {
+		git := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		git.Env = append(os.Environ(), "HOME="+e.home)
+		if out, err := git.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+
+	r := e.run(t, "", "git", "show", "HEAD:README.md")
+
+	if !strings.Contains(r.stdout, "The repository of the team red\n") {
+		t.Errorf("mc git show does not show the README of k8s-red under HOME:\n%s", r.stdout)
+	}
+}

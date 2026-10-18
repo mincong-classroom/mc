@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -44,8 +45,11 @@ func (t Team) GetMembersAsString() string {
 	return strings.Join(values, ", ")
 }
 
+// GetRepoPath returns the path of the team's local clone, such as
+// "$HOME/github/mincong-classroom/k8s-red": mc git clones the repository there, and the grading
+// rules read it from there.
 func (t Team) GetRepoPath() string {
-	return fmt.Sprintf("%s/github/mincong-classroom/k8s-%s", os.Getenv("HOME"), t.Name)
+	return filepath.Join(os.Getenv("HOME"), "github", "mincong-classroom", t.GetLocalRepoDirName())
 }
 
 // GetRepoName returns the name of the team's repository in the GitHub organization, such as
@@ -61,6 +65,8 @@ func (t Team) GetRepoURL() string {
 	return fmt.Sprintf("git@github.com:mincong-classroom/%s.git", t.GetRepoName())
 }
 
+// GetLocalRepoDirName returns the name of the directory of the team's local clone, such as
+// "k8s-red", even when the repository has a custom name.
 func (t Team) GetLocalRepoDirName() string {
 	return "k8s-" + t.Name
 }
