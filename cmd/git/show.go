@@ -36,7 +36,7 @@ func runShow(cmd *cobra.Command, args []string) {
 
 	fileExpr := args[0]
 	for _, team := range teams {
-		targetDir := fmt.Sprintf("/Users/mincong/github/mincong-classroom/%s", team.GetLocalRepoDirName())
+		targetDir := team.GetRepoPath()
 
 		cmd := exec.Command("git", "--no-pager", "-C", targetDir, "show", fileExpr)
 		cmd.Stdout = os.Stdout

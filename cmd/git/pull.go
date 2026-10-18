@@ -22,7 +22,7 @@ var pullCmd = &cobra.Command{
 func runPull(cmd *cobra.Command, args []string) {
 	teams, _ := common.ListTeams()
 	for _, team := range teams {
-		targetDir := fmt.Sprintf("/Users/mincong/github/mincong-classroom/%s", team.GetLocalRepoDirName())
+		targetDir := team.GetRepoPath()
 
 		cmd := exec.Command("git", "--no-pager", "-C", targetDir, "pull")
 		cmd.Stdout = os.Stdout

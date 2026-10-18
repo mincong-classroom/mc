@@ -41,6 +41,24 @@ func TestTeamRegistryPath(t *testing.T) {
 	TeamRegistryFile = ""
 }
 
+func TestGetRepoPath(t *testing.T) {
+	t.Setenv("HOME", "/home/teacher")
+	customName := "k8s-alpha"
+	tests := []struct {
+		team Team
+		want string
+	}{
+		{Team{Name: "red"}, "/home/teacher/github/mincong-classroom/k8s-red"},
+		// The local clone is named after the team, not after the custom name of its repository.
+		{Team{Name: "blue", CustomRepoName: &customName}, "/home/teacher/github/mincong-classroom/k8s-blue"},
+	}
+	for _, tt := range tests {
+		if got := tt.team.GetRepoPath(); got != tt.want {
+			t.Errorf("GetRepoPath() of team %q = %q, want %q", tt.team.Name, got, tt.want)
+		}
+	}
+}
+
 func TestLoadRegistry(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "teams.yaml")
 	data := `

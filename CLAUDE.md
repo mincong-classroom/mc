@@ -129,9 +129,8 @@ The command tree is `mc team <action>` (`ls`, `provision`) and `mc team <team> <
 L3 (`L3_DIF`); `L3_DIC` and `L3_DIV` are still listed by `mc rule` but no longer graded, and an old
 `role:` key in a registry is ignored. All team-derived paths/URLs come from methods on `Team`
 (`GetRepoPath`, `GetKubeNamespace` → `team-<name>`, `GetRepoURL`).
-Prefer these helpers over rebuilding paths inline. Note an existing inconsistency: `GetRepoPath()`
-uses `$HOME/github/mincong-classroom/k8s-<name>`, while `cmd/git/clone.go` and `show.go` hardcode
-`/Users/mincong/github/mincong-classroom/<name>` — if you touch repo-path logic, reconcile these.
+Prefer these helpers over rebuilding paths inline: `mc git clone|pull|show` and the grading rules
+all find the team repos at `GetRepoPath()`, `$HOME/github/mincong-classroom/k8s-<name>`.
 
 **Rule abstraction** (`common/types.go`) — every grading check implements
 `Rule[T]{ Spec() RuleSpec; Run(team, opts T) RuleEvaluationResult }`. A `RuleSpec` combines
