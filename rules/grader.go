@@ -31,11 +31,8 @@ type Grader struct {
 	k8sFixBrokenPodRule   common.Rule[string]
 
 	// L3
-	k8sNginxReplicaSetRule      common.Rule[string]
-	k8sJavaDeploymentSetRule    common.Rule[string]
-	dockerFrontendImageRule     common.Rule[string]
-	dockerCustomerImageRule     common.Rule[string]
-	dockerVeterinarianImageRule common.Rule[string]
+	k8sNginxReplicaSetRule   common.Rule[string]
+	k8sJavaDeploymentSetRule common.Rule[string]
 
 	// L4
 	k8sNamespaceCreateRule   common.Rule[string]
@@ -116,12 +113,9 @@ func NewGrader() (*Grader, error) {
 		k8sOperateJavaPodRule: ManualRule{ruleSpec: k8sOperateJavaPodRuleSpec},
 		k8sFixBrokenPodRule:   ManualRule{ruleSpec: k8sFixBrokenPodRuleSpec},
 
-		assignmentsL3:               assignmentsL3,
-		k8sNginxReplicaSetRule:      K8sReplicaSetRule{Assignments: assignmentsL4},
-		k8sJavaDeploymentSetRule:    K8sDeploymentRule{Assignments: assignmentsL4},
-		dockerFrontendImageRule:     ManualRule{ruleSpec: dockerFrontendImageRuleSpec},
-		dockerCustomerImageRule:     ManualRule{ruleSpec: dockerCustomerImageRuleSpec},
-		dockerVeterinarianImageRule: ManualRule{ruleSpec: dockerVeterinarianImageRuleSpec},
+		assignmentsL3:            assignmentsL3,
+		k8sNginxReplicaSetRule:   K8sReplicaSetRule{Assignments: assignmentsL4},
+		k8sJavaDeploymentSetRule: K8sDeploymentRule{Assignments: assignmentsL4},
 
 		assignmentsL4:            assignmentsL4,
 		k8sNamespaceCreateRule:   ManualRule{ruleSpec: k8sNamespaceCreateRuleSpec},
@@ -154,9 +148,6 @@ func (g *Grader) ListRuleRepresentations() []string {
 		// L3
 		g.k8sNginxReplicaSetRule.Spec().Representation(),
 		g.k8sJavaDeploymentSetRule.Spec().Representation(),
-		g.dockerFrontendImageRule.Spec().Representation(),
-		g.dockerCustomerImageRule.Spec().Representation(),
-		g.dockerVeterinarianImageRule.Spec().Representation(),
 
 		// L4
 		g.k8sNamespaceCreateRule.Spec().Representation(),
@@ -234,11 +225,6 @@ func (g *Grader) GradeL3(team common.Team) []common.RuleEvaluationResult {
 
 		k8sJavaDeploymentSetResults := g.k8sJavaDeploymentSetRule.Run(team, "")
 		results = append(results, k8sJavaDeploymentSetResults)
-
-		// The teams are no longer specialized: every team builds the frontend image, the only one
-		// showing the team name. The customer and veterinarian image rules are not graded anymore.
-		dockerFrontendImageResults := g.dockerFrontendImageRule.Run(team, "")
-		results = append(results, dockerFrontendImageResults)
 	} else {
 		fmt.Printf("team %s not found in assignments", team.Name)
 	}

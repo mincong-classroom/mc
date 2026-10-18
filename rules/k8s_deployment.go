@@ -22,7 +22,8 @@ The team is expected to create a new Deployment and put the definition under the
 %q of the Git repository. Operations should be assessed
 manually by the teacher. Most of the requirements are similar to the ReplicaSet.
 That is, the container should use port 8080 to receive incoming
-traffic; the container name should be "main"; the team should use 2 labels:
+traffic; the container name should be "main"; the docker image should be
+"mincongclassroom/spring-petclinic-{team}:1.1.0"; the team should use 2 labels:
 app=spring-petclinic and team=<team-name>. Then, they are expected to create a
 environment variable "TEAM" with the value in lowercase and observe the rollout
 history. Finally, they should disrupt the Deployment and observe what happens.`, petclinicDeploymentManifestPath),
