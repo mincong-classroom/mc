@@ -166,6 +166,23 @@ Team "purple" provisioned.
 - team: https://github.com/orgs/mincong-classroom/teams/purple
 ```
 
+## Git
+
+`mc git clone|pull|show` run a Git command in the repository of every team, cloned under
+`~/github/mincong-classroom/k8s-{team}`.
+
+`mc git pull` only fast-forwards (`git pull --ff-only`): the history of a team is never merged
+into the local one. When a team rewrote the history of its branch, e.g. with a force-push, the
+local branch is no longer an ancestor of the remote one: the repository of that team is not
+pulled, a warning says so, and the other teams are pulled.
+
+```
+[team: red] ⚠ history rewritten: force-push? The local branch is no longer an ancestor of the remote one: not pulled
+```
+
+The local clone keeps the history it had: compare it with the new one
+(`git log main...origin/main`) before resetting it (`git reset --hard origin/main`).
+
 ## Rule
 
 These are the rules which are part of the auto-grading. If some rules fail to evaluate, it require manual correction later on.

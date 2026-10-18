@@ -59,6 +59,7 @@ mc rule                       # print every grading rule's spec/description
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
 mc git clone|pull|show        # bulk git ops over all team repos, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml`
+mc git pull                   # git pull --ff-only; a rewritten history (force-push) is a warning for that team, never merged
 mc k8s create-namespaces      # kubectl create one namespace per team
 ```
 
