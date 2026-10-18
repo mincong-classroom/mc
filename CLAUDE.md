@@ -156,8 +156,7 @@ return `[]RuleEvaluationResult`. `cmd/grade.go` loops teams × selected labs and
    manifest paths/ports/consts in `rules/k8s.go`).
 2. Add a field for it on the `Grader` struct and construct it in `NewGrader()`.
 3. Register it in `ListRuleRepresentations()` (so `mc rule` prints it) **and** in the matching
-   `GradeL<n>` method (so `mc grade` runs it). Some rules are effectively dead today: `SqlInitRule`
-   (`sql.go`) is defined but never added to the `Grader`, and
+   `GradeL<n>` method (so `mc grade` runs it). One rule is effectively dead today:
    `MavenJarRule` (`maven.go`) is constructed and listed by `mc rule` but its `.Run` call is
    commented out in `GradeL1`, so it is never actually graded.
 
