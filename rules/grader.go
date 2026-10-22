@@ -18,6 +18,7 @@ type Grader struct {
 	// L1
 	mavenJarRule      common.Rule[string]
 	dockerfileRule    common.Rule[string]
+	dockerRunRule     common.Rule[string]
 	dockerImageRule   common.Rule[string]
 	dockerProcessRule common.Rule[string]
 	dockerTeamRule    common.Rule[string]
@@ -101,6 +102,7 @@ func NewGrader() (*Grader, error) {
 		assignmentsL1:     assignmentsL1,
 		mavenJarRule:      ManualRule{ruleSpec: mavenJarRuleSpec},
 		dockerfileRule:    ManualRule{ruleSpec: dockerfileRuleSpec},
+		dockerRunRule:     ManualRule{ruleSpec: dockerRunRuleSpec},
 		dockerImageRule:   ManualRule{ruleSpec: dockerImageRuleSpec},
 		dockerProcessRule: ManualRule{ruleSpec: dockerProcessRuleSpec},
 		dockerTeamRule:    ManualRule{ruleSpec: dockerTeamRuleSpec},
@@ -134,6 +136,7 @@ func (g *Grader) ListRuleSpecs() []common.RuleSpec {
 		// L1
 		g.mavenJarRule.Spec(),
 		g.dockerfileRule.Spec(),
+		g.dockerRunRule.Spec(),
 		g.dockerImageRule.Spec(),
 		g.dockerProcessRule.Spec(),
 		g.dockerTeamRule.Spec(),
@@ -169,6 +172,7 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 	// need no data of an assignments file.
 	results = append(results, g.mavenJarRule.Run(team, ""))
 	results = append(results, g.dockerfileRule.Run(team, ""))
+	results = append(results, g.dockerRunRule.Run(team, ""))
 	results = append(results, g.dockerImageRule.Run(team, ""))
 	results = append(results, g.dockerProcessRule.Run(team, ""))
 	results = append(results, g.dockerTeamRule.Run(team, ""))
