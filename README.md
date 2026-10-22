@@ -227,8 +227,10 @@ L1_DKF: Dockerfile Test (Ex 2)
 
     The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
     version should be an LTS version 17+ (17, 21, 25, ...), the minimum of Spring PetClinic, from the
-    distribution "eclipse-temurin", pulled from Docker Hub or a mirror of it (80%). The port 8080 should
-    be exposed (20%).
+    distribution "eclipse-temurin", pulled from Docker Hub or a mirror of it (60%). The port 8080 should
+    be exposed (20%). The team is also expected to build a Docker image using one single command (20%).
+    The Docker image should support the platform linux/amd64; a multi-architecture image, built for
+    linux/amd64 and linux/arm64, is accepted too.
     Note that the team can expose a container port at runtime even if the port is not specified with
     the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
     purposes and does not control or enforce which ports are exposed at runtime. If the team did not
@@ -236,17 +238,20 @@ L1_DKF: Dockerfile Test (Ex 2)
     report, we provide 80% of the score for this rule.
 
 
-L1_IMG: Docker Image Test (Ex 2, 3, 4)
+L1_RUN: Docker Run Test (Ex 3)
 
-    The team is expected to build a Docker image using one single command. The
-    Docker image should support the platform linux/amd64; a multi-architecture
-    image, built for linux/amd64 and linux/arm64, is accepted too. The team is
-    also expected to run a container using docker-run, receiving the HTTP requests
-    on the port 8080, and to paste some logs of Spring Boot in the report. The
-    image should be published to Docker Hub under the mincongclassroom namespace,
-    with the version 1.0.0: mincongclassroom/spring-petclinic-{team}:1.0.0, where
-    {team} is the team name in lowercase. Inspection is done locally to verify the
-    image published, runnable, and accessible. This is a manual verification.
+    The team is expected to run a container using docker-run, receiving the HTTP
+    requests on the port 8080, and to paste some logs of Spring Boot in the report.
+    This is a manual verification.
+
+
+L1_IMG: Docker Image Test (Ex 4)
+
+    The team is expected to publish the Docker image to Docker Hub under the
+    mincongclassroom namespace, with the version 1.0.0:
+    mincongclassroom/spring-petclinic-{team}:1.0.0, where {team} is the team name
+    in lowercase. Inspection is done locally to verify the image published,
+    runnable, and accessible. This is a manual verification.
 
 
 L1_DPS: Docker Process Test (Ex 5)
