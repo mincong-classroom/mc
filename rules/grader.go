@@ -99,11 +99,11 @@ func NewGrader() (*Grader, error) {
 
 	return &Grader{
 		assignmentsL1:     assignmentsL1,
-		mavenJarRule:      MavenJarRule{},
-		dockerfileRule:    DockerfileRule{},
-		dockerImageRule:   DockerImageRule{},
-		dockerProcessRule: DockerProcessRule{},
-		dockerTeamRule:    DockerTeamRule{},
+		mavenJarRule:      ManualRule{ruleSpec: mavenJarRuleSpec},
+		dockerfileRule:    ManualRule{ruleSpec: dockerfileRuleSpec},
+		dockerImageRule:   ManualRule{ruleSpec: dockerImageRuleSpec},
+		dockerProcessRule: ManualRule{ruleSpec: dockerProcessRuleSpec},
+		dockerTeamRule:    ManualRule{ruleSpec: dockerTeamRuleSpec},
 
 		assignmentsL2:         assignmentsL2,
 		k8sControlPlaneRule:   ManualRule{ruleSpec: k8sControlPlaneRuleSet},
@@ -128,35 +128,36 @@ func NewGrader() (*Grader, error) {
 	}, nil
 }
 
-func (g *Grader) ListRuleRepresentations() []string {
-	return []string{
+// ListRuleSpecs returns the specification of every rule, ordered by lab and exercise.
+func (g *Grader) ListRuleSpecs() []common.RuleSpec {
+	return []common.RuleSpec{
 		// L1
-		g.mavenJarRule.Spec().Representation(),
-		g.dockerfileRule.Spec().Representation(),
-		g.dockerImageRule.Spec().Representation(),
-		g.dockerProcessRule.Spec().Representation(),
-		g.dockerTeamRule.Spec().Representation(),
+		g.mavenJarRule.Spec(),
+		g.dockerfileRule.Spec(),
+		g.dockerImageRule.Spec(),
+		g.dockerProcessRule.Spec(),
+		g.dockerTeamRule.Spec(),
 
 		// L2
-		g.k8sControlPlaneRule.Spec().Representation(),
-		g.k8sRunNginxPodRule.Spec().Representation(),
-		g.k8sNginxPodRule.Spec().Representation(),
-		g.k8sJavaPodRule.Spec().Representation(),
-		g.k8sOperateJavaPodRule.Spec().Representation(),
-		g.k8sFixBrokenPodRule.Spec().Representation(),
+		g.k8sControlPlaneRule.Spec(),
+		g.k8sRunNginxPodRule.Spec(),
+		g.k8sNginxPodRule.Spec(),
+		g.k8sJavaPodRule.Spec(),
+		g.k8sOperateJavaPodRule.Spec(),
+		g.k8sFixBrokenPodRule.Spec(),
 
 		// L3
-		g.k8sNginxReplicaSetRule.Spec().Representation(),
-		g.k8sJavaDeploymentSetRule.Spec().Representation(),
+		g.k8sNginxReplicaSetRule.Spec(),
+		g.k8sJavaDeploymentSetRule.Spec(),
 
 		// L4
-		g.k8sNamespaceCreateRule.Spec().Representation(),
-		g.k8sTeamInfoServerRule.Spec().Representation(),
-		g.apiGatewayAboutRouteRule.Spec().Representation(),
+		g.k8sNamespaceCreateRule.Spec(),
+		g.k8sTeamInfoServerRule.Spec(),
+		g.apiGatewayAboutRouteRule.Spec(),
 
 		// L5
-		g.k8sSecretRule.Spec().Representation(),
-		g.petclinicGenaiServiceRule.Spec().Representation(),
+		g.k8sSecretRule.Spec(),
+		g.petclinicGenaiServiceRule.Spec(),
 	}
 }
 
@@ -164,24 +165,13 @@ func (g *Grader) GradeL1(team common.Team) []common.RuleEvaluationResult {
 	fmt.Printf("\n=== L1: Grading Team %s ===\n", team.Name)
 	results := make([]common.RuleEvaluationResult, 0)
 
-	if _, ok := g.assignmentsL1[team.Name]; ok {
-		// mavenResult := g.mavenJarRule.Run(team, assignment.MavenCommand)
-		// results = append(results, mavenResult)
-
-		dockerfileResult := g.dockerfileRule.Run(team, "")
-		results = append(results, dockerfileResult)
-
-		dockerImageResult := g.dockerImageRule.Run(team, "")
-		results = append(results, dockerImageResult)
-
-		dockerProcessResult := g.dockerProcessRule.Run(team, "")
-		results = append(results, dockerProcessResult)
-
-		dockerTeamResult := g.dockerTeamRule.Run(team, "")
-		results = append(results, dockerTeamResult)
-	} else {
-		fmt.Printf("team %s not found in assignments", team.Name)
-	}
+	// Every team of the registry: the rules of Lab 1 are graded by reading the work of the team, and
+	// need no data of an assignments file.
+	results = append(results, g.mavenJarRule.Run(team, ""))
+	results = append(results, g.dockerfileRule.Run(team, ""))
+	results = append(results, g.dockerImageRule.Run(team, ""))
+	results = append(results, g.dockerProcessRule.Run(team, ""))
+	results = append(results, g.dockerTeamRule.Run(team, ""))
 
 	fmt.Println("Grading done")
 	return results

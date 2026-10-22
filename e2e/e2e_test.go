@@ -689,6 +689,34 @@ teams: []
 	}
 }
 
+func TestInfoPrintsTheEvaluationSheet(t *testing.T) {
+	e := newEnv(t)
+	r := e.run(t, "", "info")
+	if !strings.Contains(r.stdout, "Registered Teams: 4\nEvaluation Sheet: none\n") {
+		t.Errorf("mc info without an evaluation sheet, stdout:\n%s", r.stdout)
+	}
+
+	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
+	registry := `evaluation_sheet: https://docs.google.com/spreadsheets/d/0123456789/edit
+teams:
+  - name: red
+    members: []
+`
+	if err := os.WriteFile(teamFile, []byte(registry), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r = e.run(t, "", "info", "--team-file", teamFile)
+	if want := "Evaluation Sheet: https://docs.google.com/spreadsheets/d/0123456789/edit\n"; r.exitCode != 0 || !strings.Contains(r.stdout, want) {
+		t.Errorf("mc info: exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
+	}
+	// The other commands accept the key too.
+	r = e.run(t, "", "team", "ls", "--team-file", teamFile)
+	if r.exitCode != 0 {
+		t.Errorf("mc team ls: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
+	}
+}
+
 // repoPath returns where mc finds the repository of the team: under HOME.
 func (e *env) repoPath(team string) string {
 	return filepath.Join(e.home, "github", "mincong-classroom", "k8s-"+team)

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/mincong-classroom/mc/common"
 	"github.com/spf13/cobra"
@@ -22,11 +23,20 @@ var infoCmd = &cobra.Command{
 }
 
 func runInfo(cmd *cobra.Command, args []string) {
-	teams, _ := common.ListTeams()
+	registry, err := common.LoadRegistry()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Team registry: %v\n", err)
+		registry = &common.TeamRegistry{}
+	}
+	sheet := registry.EvaluationSheet
+	if sheet == "" {
+		sheet = "none"
+	}
 	fmt.Printf("CLI Version: %s\n", version)
 	fmt.Printf("Go Version: %s\n", goVersion)
 	fmt.Printf("AI Model: %s\n", aiModel)
 	fmt.Printf("AI Vendor: %s\n", aiVendor)
 	fmt.Printf("Project ID: %s\n", projectID)
-	fmt.Printf("Registered Teams: %d\n", len(teams))
+	fmt.Printf("Registered Teams: %d\n", len(registry.Teams))
+	fmt.Printf("Evaluation Sheet: %s\n", sheet)
 }
