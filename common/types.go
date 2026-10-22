@@ -140,9 +140,7 @@ type RuleEvaluationResult struct {
 	ExecError    error   // Execution error if the rule fails
 }
 
-type TeamAssignmentL1 struct {
-	MavenCommand string `yaml:"mvn_command"`
-}
+type TeamAssignmentL1 struct{}
 
 type TeamAssignmentL2 struct{}
 
