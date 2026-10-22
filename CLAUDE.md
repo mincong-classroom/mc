@@ -155,8 +155,7 @@ is a float in `[0,1]` (a percentage). There are three flavors of rule:
   These require the student repos to be cloned locally and (for k8s rules) a live cluster + kubectl.
 - **`ManualRule`** (`rules/manual.go`): returns 0% / "Manual grading is required" — a placeholder for
   checks graded by reading the work of the team: its report, its files and its Docker images. Every
-  rule of Lab 1 (`rules/lab1.go`), whose description is what to check, and most L2/L3/L4/L5 rules
-  are wired as these.
+  rule of Lab 1 (`rules/lab1.go`) and most L2/L3/L4/L5 rules are wired as these.
 - Some automated rules also short-circuit to "Check the report manually" when they can't self-assess.
 
 **Grader** (`rules/grader.go`) is the hub: one struct holding all assignment maps and every rule
