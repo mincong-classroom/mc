@@ -215,17 +215,20 @@ mc rule -l L1    # the rules of Lab 1 only
 ```
 L1_JAR: JAR Creation Test (Ex 1)
 
-    The team is expected to create a JAR manually using a maven command and the
-    server should start locally under the port 8080. The team is also expected to
-    extract the JAR file to inspect the content of the MANIFEST.MF file.
+    The team is expected to create a JAR manually using a Maven command, either
+    using Maven directly or via a Maven wrapper script. The server should start
+    locally on port 8080. If, for some reason, port 8080 is occupied, the team can
+    also choose another port. The team is also expected to extract the JAR file to
+    inspect the content of the MANIFEST.MF file and paste the content in the
+    report. The lab accepts any LTS from 17, with 25 recommended.
 
 
 L1_DKF: Dockerfile Test (Ex 2)
 
     The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
     version should be an LTS version 17+ (17, 21, 25, ...), the minimum of Spring PetClinic, from the
-    distribution "eclipse-temurin", pulled from Docker Hub or a mirror of it. The port 8080 should be
-    exposed.
+    distribution "eclipse-temurin", pulled from Docker Hub or a mirror of it (80%). The port 8080 should
+    be exposed (20%).
     Note that the team can expose a container port at runtime even if the port is not specified with
     the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
     purposes and does not control or enforce which ports are exposed at runtime. If the team did not
@@ -233,28 +236,32 @@ L1_DKF: Dockerfile Test (Ex 2)
     report, we provide 80% of the score for this rule.
 
 
-L1_IMG: Docker Image Test (Ex 3, 4)
+L1_IMG: Docker Image Test (Ex 2, 3, 4)
 
     The team is expected to build a Docker image using one single command. The
     Docker image should support the platform linux/amd64; a multi-architecture
-    image, built for linux/amd64 and linux/arm64, is accepted too. It should be
-    published to Docker Hub under the mincongclassroom namespace:
-    mincongclassroom/spring-petclinic-{team}, where {team} is the team name in
-    lowercase. Inspection is done locally to verify the image published,
-    runnable, and accessible. This is a manual verification.
+    image, built for linux/amd64 and linux/arm64, is accepted too. The team is
+    also expected to run a container using docker-run, receiving the HTTP requests
+    on the port 8080, and to paste some logs of Spring Boot in the report. The
+    image should be published to Docker Hub under the mincongclassroom namespace,
+    with the version 1.0.0: mincongclassroom/spring-petclinic-{team}:1.0.0, where
+    {team} is the team name in lowercase. Inspection is done locally to verify the
+    image published, runnable, and accessible. This is a manual verification.
 
 
 L1_DPS: Docker Process Test (Ex 5)
 
-    The team is expected to inspect a Docker container using docker-ps. This is a
-    manual verification.
+    The team is expected to inspect a Docker container using docker-ps, and find
+    out its container ID. This is a manual verification.
 
 
 L1_DTM: Docker Team Test (Ex 6)
 
-    The team is expected to update the source code to include their team name and
-    publish a new version of the Docker image under version 1.1.0. This is a manual
-    verification.
+    The team is expected to update the source code to include their team name in
+    the footer of the Spring PetClinic UI, and publish a new version of the Docker
+    image under version 1.1.0: mincongclassroom/spring-petclinic-{team}:1.1.0.
+    Inspection is done locally: the image is run, and the footer shows the team
+    name in the browser. This is a manual verification.
 
 
 L2_CTL: Kubernetes Control Plane Test (Ex 1)
