@@ -66,13 +66,13 @@ func LoadRegistry() (*TeamRegistry, error) {
 	}
 	var unknown []string
 	for key := range keys {
-		if key != "students" && key != "teams" {
+		if key != "students" && key != "teams" && key != "evaluation_sheet" {
 			unknown = append(unknown, key)
 		}
 	}
 	if len(unknown) > 0 {
 		sort.Strings(unknown)
-		return nil, fmt.Errorf("unknown key %q in %s: expected \"students\" or \"teams\"", unknown[0], TeamRegistryPath())
+		return nil, fmt.Errorf("unknown key %q in %s: expected \"students\", \"teams\" or \"evaluation_sheet\"", unknown[0], TeamRegistryPath())
 	}
 	return &data, nil
 }

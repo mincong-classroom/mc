@@ -85,6 +85,9 @@ assume exists at runtime. Nothing here works without it:
   member's GitHub username missing or not found) and **warnings** (shown by `provision` above its
   one confirmation: more than 2 members, a member in several teams, without a name, or not among
   the students). For a member, only the GitHub user is enforced.
+  The optional top-level `evaluation_sheet:` is the URL of the spreadsheet where the teams of the
+  year are evaluated: `mc` never reads the spreadsheet, `mc info` only prints the URL, so that a
+  tool can find it without opening the registry, which holds the names of the students.
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 
@@ -123,7 +126,7 @@ checked on entry. The registry in memory changes at once, for the validation; th
 confirmed (`registryChange`): `common.SetTeamMembers()`, or `common.AddTeam()` for a new team, which
 appends it to the registry file through the `yaml.Node` API (the comments survive; `editRegistry`
 writes a temp file, then renames it). `LoadRegistry` rejects an unknown top-level key (only
-`students` and `teams`), so that a typo such as `student:` is not silently ignored. Not saved with
+`students`, `teams` and `evaluation_sheet`), so that a typo such as `student:` is not silently ignored. Not saved with
 `--dry-run`. The
 `cmd/team` unit tests run with a temporary `HOME` (`TestMain`), so they can never write the
 teacher's `~/.mc`. `ls` fetches per team concurrently (`forEach`).

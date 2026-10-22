@@ -75,7 +75,12 @@ informational: `mc team ls` lists the students who are not in a team yet, and a 
 among them is a warning, shown by `provision` before its confirmation. For a member, only the
 GitHub user must be valid.
 
+The optional `evaluation_sheet` is the URL of the spreadsheet where the teams of the year are
+evaluated. `mc` does not read the spreadsheet: `mc info` prints its URL, so that it can be found
+without opening the registry, which holds the names of the students.
+
 ```yaml
+evaluation_sheet: https://docs.google.com/spreadsheets/d/{id}/edit
 students:
   - name: "SMITH John"        # "LAST First"
   - name: "DOE Jane"

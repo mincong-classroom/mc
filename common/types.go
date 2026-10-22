@@ -13,6 +13,9 @@ type TeamRegistry struct {
 	// only used to list the students not in a team, and to warn about a member not among them.
 	Students []Student
 	Teams    []Team
+	// EvaluationSheet is the URL of the spreadsheet where the teams of the year are evaluated.
+	// Optional: mc only prints it, with mc info.
+	EvaluationSheet string `yaml:"evaluation_sheet"`
 }
 
 // Student is a student of the year. Other keys, such as an email, are ignored.
