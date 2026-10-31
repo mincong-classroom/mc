@@ -50,7 +50,7 @@ Available Commands:
   help        Help about any command
   info        Display CLI information
   k8s         Perform Kubernetes operations
-  rule        List grading rules
+  rule        List, check and render the evaluation rules of the year
   team        Manage the teams
 
 Flags:
@@ -59,6 +59,21 @@ Flags:
 
 Use "mc [command] --help" for more information about a command.
 ```
+
+## Settings
+
+The settings of `mc` on this machine are in `~/.mc/settings.yaml`. The file and each of its keys
+are optional:
+
+```yaml
+year: 2026                                                  # the year of the cohort
+rules: ~/github/my-org/course/{year}/evaluation-rules.yaml  # the evaluation rules of each year
+```
+
+The year selects the files of the cohort, such as the team registry `~/.mc/teams-{year}.yaml`. It
+is the environment variable `MC_YEAR` if set, e.g. `MC_YEAR=2025 mc grade`, then the key `year`,
+then the current year. `rules` is the YAML of the evaluation rules, where `{year}` is the year:
+`mc rule` reads it. An unknown key is an error, so that a typo doesn't go unnoticed.
 
 ## Team
 
@@ -93,8 +108,7 @@ teams:
     members: []               # not taken yet
 ```
 
-The year is the current cohort, 2026. Set the environment variable `MC_YEAR` to use another one,
-e.g. `MC_YEAR=2025 mc grade`.
+The year of the registry is the one of the settings: see "Settings".
 
 The global flag `--team-file` replaces the team registry for any command, e.g. to rehearse with a
 test registry before the course. `provision` still acts on the real organization: add `--dry-run`.
@@ -204,13 +218,17 @@ The local clone keeps the history it had: compare it with the new one
 
 The evaluation rules of a program are in a YAML file with two maps: `labs`, the lab sessions of
 the module with their deadline, and `rules`, one entry per rule keyed by its ID, such as `L1_DKF`.
-`mc` lists the rules of the file, checks it, and renders it as a Markdown page:
+`mc` lists the rules of the year, checks them, and renders them as a Markdown page:
 
 ```sh
-mc rule evaluation-rules.yaml -l L1                          # the rules of Lab 1
-mc rule check evaluation-rules.yaml                          # one problem per line, exit 1 if any
-mc rule render evaluation-rules.yaml -o evaluation-rules.md  # the page, wrapped at 96 characters
+mc rule ls -l L1                       # the rules of Lab 1
+mc rule check                          # one problem per line, exit 1 if any
+mc rule render -o evaluation-rules.md  # the page, wrapped at 96 characters
 ```
+
+The file of the year comes from the key `rules` of the settings, `~/.mc/settings.yaml`, where
+`{year}` is the year (see "Settings"). The flag `--rules-file` replaces it, e.g. with a test file:
+`mc rule ls --rules-file rubric/testdata/evaluation-rules.yaml`.
 
 The check covers the keys, the IDs of the labs and of the rules, the exercises, the coefficients
 (by steps of 0.05, and those of the mandatory rules of a lab add up to 1), the penalties, the
@@ -224,237 +242,6 @@ evaluation-rules.yaml:142: L1_DKF: unknown key "penalty"
 The made-up file of the tests shows the format,
 [`rubric/testdata/evaluation-rules.yaml`](rubric/testdata/evaluation-rules.yaml), and its page,
 [`rubric/testdata/evaluation-rules.md`](rubric/testdata/evaluation-rules.md).
-
-Without a file, `mc rule` prints the rules of 2025 written in the Go code, which `mc grade` runs.
-They are deprecated. `mc grade` runs the automated ones; the others are graded by reading the work
-of the team: its report, the files of its repository and its Docker images.
-
-```sh
-mc rule          # all the rules of 2025
-mc rule -l L1    # the rules of Lab 1 only
-```
-
-```
-L1_JAR: JAR Creation Test (Ex 1)
-
-    The team is expected to create a JAR manually using a Maven command, either
-    using Maven directly or via a Maven wrapper script. The server should start
-    locally on port 8080. If, for some reason, port 8080 is occupied, the team can
-    also choose another port. The team is also expected to extract the JAR file to
-    inspect the content of the MANIFEST.MF file and paste the content in the
-    report. The lab accepts any LTS from 17, with 25 recommended.
-
-
-L1_DKF: Dockerfile Test (Ex 2)
-
-    The team is expected to create a Dockerfile on the path "apps/spring-petclinic/Dockerfile". The Java
-    version should be an LTS version 17+ (17, 21, 25, ...), the minimum of Spring PetClinic, from the
-    distribution "eclipse-temurin", pulled from Docker Hub or a mirror of it (60%). The port 8080 should
-    be exposed (20%). The team is also expected to build a Docker image using one single command (20%).
-    The Docker image should support the platform linux/amd64; a multi-architecture image, built for
-    linux/amd64 and linux/arm64, is accepted too.
-    Note that the team can expose a container port at runtime even if the port is not specified with
-    the EXPOSE instruction in the Dockerfile. The EXPOSE instruction is primarily for documentation
-    purposes and does not control or enforce which ports are exposed at runtime. If the team did not
-    commit the content of the Dockerfile, but provided a correct Dockerfile implementation in the
-    report, we provide 80% of the score for this rule.
-
-
-L1_RUN: Docker Run Test (Ex 3)
-
-    The team is expected to run a container using docker-run, receiving the HTTP
-    requests on the port 8080, and to paste some logs of Spring Boot in the report.
-    This is a manual verification.
-
-
-L1_IMG: Docker Image Test (Ex 4)
-
-    The team is expected to publish the Docker image to Docker Hub under the
-    mincongclassroom namespace, with the version 1.0.0:
-    mincongclassroom/spring-petclinic-{team}:1.0.0, where {team} is the team name
-    in lowercase. Inspection is done locally to verify the image published,
-    runnable, and accessible. This is a manual verification.
-
-
-L1_DPS: Docker Process Test (Ex 5)
-
-    The team is expected to inspect a Docker container using docker-ps, and find
-    out its container ID. This is a manual verification.
-
-
-L1_DTM: Docker Team Test (Ex 6)
-
-    The team is expected to update the source code to include their team name in
-    the footer of the Spring PetClinic UI, and publish a new version of the Docker
-    image under version 1.1.0: mincongclassroom/spring-petclinic-{team}:1.1.0.
-    Inspection is done locally: the image is run, and the footer shows the team
-    name in the browser. This is a manual verification.
-
-
-L2_CTL: Kubernetes Control Plane Test (Ex 1)
-
-    The team is expected to list all the Pods running in all namespaces in
-    Kubernetes. Then, list all the nodes available in the cluster. It allows the
-    students to get familiar with the Kubernetes and ensure that the command line
-    tool kubectl is properly installed on their local machines.
-
-
-L2_RUN: Kubernetes Run Nginx Pod Test (Ex 2)
-
-    The team is expected to create a new Pod using the command kubectl-run. The Pod
-    needs to be running and accessible. The students should provide evidence of the
-    HTTP response from the Pod, such as a screenshot or the command output. A list
-    of fields are expected to be filled in the report for describing the
-    characteristics of the Pod. Also, the resource should be deleted after the
-    test.
-
-
-L2_NGY: Nginx YAML Test (Ex 3)
-
-    The team is expected to create a new Pod running with Nginx using a kubectl-apply
-    command. This Pod should be reachable using the port 80 and should be named as
-    "nginx". The manifest should be saved under the path k8s/lab-2/pod-nginx.yaml
-    of the Git repository. Also, a team label should be added to the Pod definition.
-
-
-L2_JVY: Java YAML Test (Ex 4)
-
-    The team is expected to create a new pod running with Java using a kubectl-apply
-    command. This pod should be reachable using the port 8080 and should be named as
-    "spring-petclinic". The manifest should be saved under the path k8s/lab-2/pod-petclinic.yaml
-    of the Git repository. The Pod should contain 2 labels, app=spring-petclinic and
-    team=${team}. The Pod must be up and running. This rule applies the manifest,
-    waits for the Pod, and reads its home page (80%), then checks the team name on
-    the page (10%) and the two labels (5% each).
-
-
-L2_OJP: Kubernetes Operate Java Pod Test (Ex 5)
-
-    The team is expected to perform basic operations on the Java Pod they created.
-    These operations include executing a command inside the Pod to get the process
-    ID (PID) of the Java application, retrieving logs from the Pod, and finding the
-    Pod using kubectl-get with label selectors. The students should provide evidence
-    of each operation, such as command outputs or screenshots.
-
-
-L2_FBP: Kubernetes Fix Broken Pod Test (Ex 6)
-
-    The team is expected to troubleshoot and fix a broken Pod named "team-info-server",
-    whose manifest is provided in the Git repository under the path
-    k8s/lab-2/pod-team-info-server.yaml. The Pod is intentionally misconfigured to
-    simulate common issues that may arise in a Kubernetes environment. The students
-    need to identify the two problems, a tag of the Docker image that does not
-    exist and a missing environment variable, and fix them in that manifest,
-    keeping the same image. After fixing the issues, the Pod should be up and
-    running.
-
-
-L3_RST: ReplicaSet Test (Ex 1)
-
-    The team is expected to create a new ReplicaSet and put the definition under the path
-    "k8s/lab-3/replicaset-petclinic.yaml" of the Git repository. Operations should be assessed
-    manually by the teacher. The container should use port 8080 to receive incoming
-    traffic. The container name should be "main". The docker image should be the
-    one published by the team in Lab 1, with the team name in the footer, i.e.
-    "mincongclassroom/spring-petclinic-{team}:1.1.0". The team should use 2 labels:
-    app=spring-petclinic and team=<team-name>. The ReplicaSet should be created
-    successfully and the Pods should be running. Then, the team should describe how
-    they scale the ReplicaSet. Most importantly, they should explain the behavior
-    of the system when they delete a Pod managed by the ReplicaSet.
-
-
-L3_DPL: Deployment Test (Ex 2)
-
-    The team is expected to create a new Deployment and put the definition under the path
-    "k8s/lab-3/deployment-petclinic.yaml" of the Git repository. Operations should be assessed
-    manually by the teacher. Most of the requirements are similar to the ReplicaSet.
-    That is, the container should use port 8080 to receive incoming
-    traffic; the container name should be "main"; the docker image should be
-    "mincongclassroom/spring-petclinic-{team}:1.1.0"; the team should use 2 labels:
-    app=spring-petclinic and team=<team-name>. Then, they are expected to create a
-    environment variable "TEAM" with the value in lowercase and observe the rollout
-    history. Finally, they should disrupt the Deployment and observe what happens.
-
-
-L4_NSC: Namespace Creation Test (Ex 1)
-
-    The team is expected to create a new namespace called "classroom" and list all
-    the existing namespaces in the cluster. The namespace can be created either
-    imperatively with "kubectl create namespace" or declaratively via a YAML
-    manifest applied with "kubectl apply". This is a manual verification based on the
-    evidence provided in the report.
-
-
-L4_TIS: Team Info Server Deployment Test (Ex 2)
-
-    The team is expected to deploy and expose the classroom application
-    "team-info-server" (image mincongclassroom/team-info-server) in the
-    "classroom" namespace. They must create a Deployment named "team-info" with 1
-    replica and a ClusterIP Service named "team-info" exposing port 80 and
-    targeting the container port 8090, stored in a single manifest committed at
-    "k8s/lab-4/app-team-info.yaml". The web server fails to start until the
-    required TEAM_ID environment variable is set (the same style of fix as Lab
-    Session 1); the optional TEAM_MEMBERS variable lists the members shown on the
-    About page. The report must also cover the two validation scenarios: querying
-    the Service from a temporary Pod with the current context set to the
-    "classroom" namespace, then with the context set to "default". It is expected
-    to explain how the namespace is switched, how the resources of that namespace
-    are verified, how the temporary Pod is created, which URL is used for the HTTP
-    request and what it means for the DNS, and how the response is analysed — in
-    particular that the short name "team-info" only resolves from within
-    "classroom", while "team-info.classroom" or the fully-qualified name
-    "team-info.classroom.svc.cluster.local" is required from "default". This rule
-    applies the manifest, waits for the Pod, and queries the Service: it checks
-    that the manifest is committed (0.2), the Service is reachable (0.3), TEAM_ID
-    matches the team name (0.3), and the team members are listed (0.2). The
-    cross-namespace DNS write-up is reviewed manually.
-
-
-L4_AGR: API Gateway About Route Test (Ex 3)
-
-    The team is expected to make the PetClinic "About" page work by configuring
-    Kubernetes networking only (no frontend or Java code). They must route
-    requests for "/api/about" from the API Gateway to the "team-info" Service in
-    the "classroom" namespace, using cross-namespace DNS ("team-info.classroom",
-    or the fully-qualified name "team-info.classroom.svc.cluster.local") rather
-    than hard-coding the team information. The route belongs to the
-    "petclinic-config" ConfigMap: it matches the predicate "Path=/api/about/**"
-    and strips the two prefix segments ("StripPrefix=2") so that the request
-    reaches "/" on the Team Info Server. The updated manifest must be committed at
-    "k8s/lab-4/microservices.yaml". Validation: opening
-    http://localhost:8080/about displays the team, the team members and the source
-    code served by the Team Info Server, and "curl
-    http://localhost:8080/api/about/" returns the expected JSON. The report is
-    expected to trace the request through the logs: without a matching route the
-    API Gateway logs no "Route matched" line and returns 404, whereas a matching
-    route pointing at an unreachable backend surfaces as 503 — the circuit breaker
-    forwards the request to the "/fallback" endpoint of the gateway. The "About"
-    page shows the status and the body of the response in both cases. This is a
-    manual verification.
-
-
-L5_SEC: Kubernetes Secret Test (Ex 1)
-
-    The team is expected to create a Kubernetes Secret to an API key as sensitive
-    data in the cluster. The secret must be named as "openai" and data entry should
-    be "api-key". The value should be encoded in base64 format. And the resource
-    should be applied to the "dev" namespace. The team should verify the result by
-    putting the analysis in the report. A -30% penalty will be applied if the team
-    exposes the API key in the report. This is not acceptable: they have been
-    warned during the lecture; and in the description of the lab exercise. This is
-    a manual verification.
-
-
-L5_GAI: PetClinic GenAI Service Test (Ex 2)
-
-    The team is expected to integrate the GenAI service to the existing
-    microservice stack. This includes the configuration of the Service, Deployment,
-    the API routes in the API Gateway, the API key stored in the Secret, and the
-    related troubleshooting to ensure that the entire solution works. This is a
-    manual verification.
-
-
-```
 
 ## Key Components
 
