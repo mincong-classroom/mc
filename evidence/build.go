@@ -462,6 +462,9 @@ func plural(n int, word string) string {
 	if n == 1 {
 		return "1 " + word
 	}
+	if strings.HasSuffix(word, "sh") || strings.HasSuffix(word, "s") {
+		return strconv.Itoa(n) + " " + word + "es" // 2 pushes, not 2 pushs.
+	}
 	return strconv.Itoa(n) + " " + word + "s"
 }
 

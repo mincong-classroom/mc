@@ -442,3 +442,20 @@ func TestReadMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestPlural(t *testing.T) {
+	for _, c := range []struct {
+		n    int
+		word string
+		want string
+	}{
+		{n: 1, word: "push", want: "1 push"},
+		{n: 8, word: "push", want: "8 pushes"},
+		{n: 2, word: "force push", want: "2 force pushes"},
+		{n: 0, word: "line", want: "0 lines"},
+	} {
+		if got := plural(c.n, c.word); got != c.want {
+			t.Errorf("plural(%d, %q) = %q, want %q", c.n, c.word, got, c.want)
+		}
+	}
+}
