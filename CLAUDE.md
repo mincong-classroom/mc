@@ -110,7 +110,8 @@ team of the registry.
 
 Six packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
 of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `rules/` (the
-grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI).
+grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
+diagram when a package is added, or imports another.
 
 **Evaluation rules** (`rubric/`) — the YAML of a program has two maps: `labs` (title, report,
 reference, deadline with its offset, intro) and `rules`, keyed by ID, each with its `lab`. `Parse`
