@@ -290,6 +290,34 @@ flag `--force` gathers the evidence again anyway, e.g. after a new image on Dock
 version of the generated report. A local build of `mc` with changes never skips a team, since its
 commit doesn't tell which code ran.
 
+## Annotate
+
+`mc annotate` puts numbered boxes on a screenshot, around what the evaluator found: a green box
+validates something, and a red box is a flag. The text next to the image refers to each box by
+its number. It takes 2 steps: `find` reads the screenshot with
+[tesseract](https://github.com/tesseract-ocr/tesseract) and prints the box of each line that
+contains a text, then `draw` copies the screenshot with the boxes:
+
+```sh
+brew install tesseract   # for mc annotate find only
+
+mc annotate find build.png "BUILD SUCCESS"
+# 120,40,300,22	[INFO] BUILD SUCCESS
+mc annotate find build.png --all   # every line, to choose another text
+mc annotate draw build.png build-boxed.png 120,40,300,22,green,1 40,90,210,22,red,2
+```
+
+A box is written `x,y,w,h,COLOR,LABEL`: the box that `find` prints, `green` or `red`, and its
+number. The border is thick, with a padding around the text and no fill, and the number is in a
+circle of its color, on the right side of the box: the image is widened when a box ends too close
+to its right edge. The search of `find` ignores the case, the spaces and the kind of dash, since
+tesseract often splits a word in two and reads a long dash as a hyphen.
+
+By default, a gray band at the bottom of the copy says that the screenshot is the team's, and
+that the evaluator added the boxes. The flag `--evaluator` leaves it out, for a screenshot of the
+evaluator, which carries its own watermark. The flag `--padding` sets the space between a text and
+its box, e.g. `--padding 1` when the box crosses the lines around it.
+
 ## Key Components
 
 The `cmd` directory contains all the commands exposed in the command line interface. Each command is registered in the `root.go`.
@@ -299,6 +327,9 @@ page from the template `rubric/page.md.tmpl`.
 
 The `evidence` directory gathers the evidence of a lab for a team, on the local branch `teacher`
 of its clone.
+
+The `annotate` directory finds a text in a screenshot with tesseract, and draws numbered boxes on
+it.
 
 The `rules` directory contains the rules of 2025 for the auto-grading, which are deprecated.
 
