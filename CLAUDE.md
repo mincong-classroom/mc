@@ -59,6 +59,7 @@ mc rule evaluation-rules.yaml [-l L1]  # the rules of a YAML file, or those of o
 mc rule check evaluation-rules.yaml    # one problem per line, with its line; exit 1 if any
 mc rule render evaluation-rules.yaml -o evaluation-rules.md  # the Markdown page of the rules
 mc rule [-l L1]               # deprecated: the rules of 2025 in the Go code (rules/)
+mc evidence evaluation-rules.yaml -l L1 [-t red] [--late] [--template DIR]  # the evidence report of each team
 mc info                       # the CLI and the registry: number of teams, URL of the evaluation sheet
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -104,9 +105,9 @@ team of the registry.
 
 ## Architecture
 
-Five packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
-of the evaluation rules), `rules/` (the grading engine of 2025, deprecated), `github/` (the GitHub
-organization, through the `gh` CLI).
+Six packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
+of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `rules/` (the
+grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI).
 
 **Evaluation rules** (`rubric/`) — the YAML of a program has two maps: `labs` (title, report,
 reference, deadline with its offset, intro) and `rules`, keyed by ID, each with its `lab`. `Parse`
@@ -116,6 +117,23 @@ their lines (`lines`). `Check` returns the problems of the content, sorted by li
 the embedded `page.md.tmpl` with texts that Go wraps at 96 characters (`wrapper`): a wrapped line
 never starts with a marker of Markdown. The tests use the made-up `rubric/testdata/`, never real
 rules: update the golden page with `go test ./rubric -update`, then review its diff.
+
+**Evidence** (`evidence/`) — `Gather(team, opts)` writes `docs/lab-{n}.evidence.md` for one team
+and one lab: facts, never a score. The commit is the last push to main before the deadline
+(`github.CLI.MainPushes`, the activity of the repository, not its events), `origin/main` with
+`Late`, or `Rev`. The report goes to the local branch `teacher` (`Branch`) of the clone, checked
+out in a worktree of `opts.Dir` (`~/.mc/{year}/teacher/<repo>`): the branch starts from the
+commit, the next pass merges the new one (never a reset, never a push), and `commitReport`
+commits a change only. `build` reads the tree of the commit with git, not the worktree: the section
+of the exercise (`findSection`, `blocks`), without the lines of the statement, which are those of
+every version of the report in the template (`LoadTemplate`, or the first commit of the team
+without `--template`); the files of the rule and those the report links to (`fileReader`: a short
+file is imported, a file of the template shows its smallest diff with one of its versions, a long
+one is linked, so that the evaluator quotes its key lines); the files of the evaluator in
+`docs/lab-{n}.evidence/` of the worktree (`{ID}.md`, `{lab}-{xyz}-*`); and the images of the rule
+on Docker Hub (`DockerHub`, with the later patches of a tag). `markdown()` writes the report. The
+test builds a template and a team repository with git in a temporary `HOME` with fixed dates, so
+the commits and the golden report `evidence/testdata/lab-1.evidence.md` are the same at each run.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.

@@ -456,12 +456,42 @@ L5_GAI: PetClinic GenAI Service Test (Ex 2)
 
 ```
 
+## Evidence
+
+`mc evidence` gathers the evidence of each rule of a lab, for each team, in a report for the
+teacher. The report holds facts, not a score, of 3 kinds:
+
+1. What the team wrote in its report for the exercise of the rule, without the lines of the
+   statement.
+2. The files of the repository: those of the rule, and those the report links to. A short file
+   is imported, a file of the template shows its changes, and a long one is linked.
+3. What the evaluator made: its notes and its files, such as screenshots and logs, next to the
+   report, and the tags of the images of the rule on Docker Hub, with their push dates.
+
+```sh
+mc evidence evaluation-rules.yaml -l L1 --template ~/github/mincong-classroom/containers
+mc evidence evaluation-rules.yaml -l L1 -t red --late   # origin/main, for a late pass
+```
+
+The commit evaluated is the head of `main` at the deadline of the lab, from the activity of the
+repository on GitHub. The report of `docs/lab-1.md` is `docs/lab-1.evidence.md`, and the files of
+the evaluator go to `docs/lab-1.evidence/`: its notes for a rule are `L1_DKF.md`, and its files
+`l1-dkf-*`, such as `l1-dkf-build.log`. Run the command again once they are there.
+
+The report goes to the local branch `teacher` of the clone of the team, checked out in a worktree
+under `~/.mc/{year}/teacher/`, one directory per team: open it in an editor to read the reports
+next to the files of the team. The branch starts from the commit evaluated, the next pass merges
+the new one into it, and each change of a report is committed. `mc` never pushes it.
+
 ## Key Components
 
 The `cmd` directory contains all the commands exposed in the command line interface. Each command is registered in the `root.go`.
 
 The `rubric` directory reads the YAML of the evaluation rules: it checks the file, and renders its
 page from the template `rubric/page.md.tmpl`.
+
+The `evidence` directory gathers the evidence of a lab for a team, on the local branch `teacher`
+of its clone.
 
 The `rules` directory contains the rules of 2025 for the auto-grading, which are deprecated.
 
