@@ -48,11 +48,17 @@ classDiagram
         Template
         DockerHub
     }
+    class annotate {
+        Mark
+        Read(ctx, img) []Line
+        Draw(img, marks, opts) RGBA
+    }
     cmd ..> cmd_git
     cmd ..> cmd_team
     cmd ..> rules
     cmd ..> common
     cmd ..> evidence
+    cmd ..> annotate
     cmd ..> github
     cmd ..> rubric
     cmd_git ..> common
@@ -71,6 +77,7 @@ What each package does, in the order of the diagram:
 | `cmd/git` | The commands on the clones of the teams: `mc git clone`, `pull`, `show` and `exec`. |
 | `cmd/team` | The commands on the teams: `mc team ls`, `mc team <team> provision`, etc. The only package that changes GitHub. |
 | `evidence` | Gathers the evidence of a lab for a team: the rules of the lab from `rubric`, the pushes from `github`, the files of the clone with `git`, and the tags on Docker Hub. It takes the rules and the team as arguments, so it doesn't import `common`. |
+| `annotate` | Finds a text in a screenshot with `tesseract`, and draws numbered boxes around what the evaluator found. It imports no package of `mc`. |
 | `rules` | The grading engine of 2025, which `mc grade` runs. Deprecated. |
 | `common` | What every command shares: the settings of `~/.mc/settings.yaml`, the year, the commit of `mc` that runs, the team registry and the paths of the clones. It imports no package of `mc`. |
 | `github` | Runs the CLI `gh` on the organization: the repositories, the teams and their members, and the pushes to `main`. |

@@ -59,6 +59,8 @@ mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~
 mc rule check                 # one problem per line, with its line; exit 1 if any
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
+mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
+mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
 mc info                       # the CLI, its commit and the registry: number of teams, URL of the evaluation sheet
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -108,8 +110,9 @@ team of the registry.
 
 ## Architecture
 
-Six packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
-of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `rules/` (the
+Seven packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
+of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `annotate/` (the
+numbered boxes on a screenshot), `rules/` (the
 grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
 diagram when a package is added, or imports another.
 
@@ -144,6 +147,13 @@ from it, `docs/lab-{n}.generated.md`, copies the front matter: when it equals th
 `--force` and for a revision that isn't stable (`common.StableRevision`). The
 test builds a template and a team repository with git in a temporary `HOME` with fixed dates, so
 the commits and the golden report `evidence/testdata/lab-1.evidence.md` are the same at each run.
+
+**Annotate** (`annotate/`) — `Read(ctx, img)` runs `tesseract --psm 11` on the image enlarged twice
+(the filter Mitchell, as ImageMagick does), then groups its words in lines (`groupLines`): by row,
+split at a large gap. `Line.Find` matches a text without the case, the spaces and the kind of
+dash. `Draw(img, marks, opts)` draws the boxes in pure Go, with the font Go Bold of
+`golang.org/x/image`: no ImageMagick. The tests parse a made-up TSV of tesseract; `TestRead` runs
+tesseract only when it is installed, so the CI skips it.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
