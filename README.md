@@ -202,13 +202,35 @@ The local clone keeps the history it had: compare it with the new one
 
 ## Rule
 
-These are the grading rules. `mc grade` runs the automated ones; the others are graded by reading
-the work of the team: its report, the files of its repository and its Docker images. All the rules
-of Lab 1 are graded this way. If some rules fail to evaluate, it requires manual correction later
-on.
+The evaluation rules of a program are in a YAML file with two maps: `labs`, the lab sessions of
+the module with their deadline, and `rules`, one entry per rule keyed by its ID, such as `L1_DKF`.
+`mc` lists the rules of the file, checks it, and renders it as a Markdown page:
 
 ```sh
-mc rule          # all the rules
+mc rule evaluation-rules.yaml -l L1                          # the rules of Lab 1
+mc rule check evaluation-rules.yaml                          # one problem per line, exit 1 if any
+mc rule render evaluation-rules.yaml -o evaluation-rules.md  # the page, wrapped at 96 characters
+```
+
+The check covers the keys, the IDs of the labs and of the rules, the exercises, the coefficients
+(by steps of 0.05, and those of the mandatory rules of a lab add up to 1), the penalties, the
+levels of analysis, the kinds of evidence, the dependencies, the deadlines, the paths, and the
+width of the lines: 120 characters at most. A problem gives the line of the file:
+
+```
+evaluation-rules.yaml:142: L1_DKF: unknown key "penalty"
+```
+
+The made-up file of the tests shows the format,
+[`rubric/testdata/evaluation-rules.yaml`](rubric/testdata/evaluation-rules.yaml), and its page,
+[`rubric/testdata/evaluation-rules.md`](rubric/testdata/evaluation-rules.md).
+
+Without a file, `mc rule` prints the rules of 2025 written in the Go code, which `mc grade` runs.
+They are deprecated. `mc grade` runs the automated ones; the others are graded by reading the work
+of the team: its report, the files of its repository and its Docker images.
+
+```sh
+mc rule          # all the rules of 2025
 mc rule -l L1    # the rules of Lab 1 only
 ```
 
@@ -438,7 +460,10 @@ L5_GAI: PetClinic GenAI Service Test (Ex 2)
 
 The `cmd` directory contains all the commands exposed in the command line interface. Each command is registered in the `root.go`.
 
-The `rules` directory contains all the rules for the auto-grading.
+The `rubric` directory reads the YAML of the evaluation rules: it checks the file, and renders its
+page from the template `rubric/page.md.tmpl`.
+
+The `rules` directory contains the rules of 2025 for the auto-grading, which are deprecated.
 
 The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
 

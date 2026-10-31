@@ -1,0 +1,67 @@
+{{- /* The page of the rules. The texts are wrapped by Go; tidy() keeps one blank line between the blocks. */ -}}
+# {{.Title}}
+
+{{.Notice}}
+
+{{.Intro}}
+
+## Labs
+
+| Lab | Title | Deadline | Rules |
+|---|---|---|---|
+{{range .Labs -}}
+| [{{.ID}}](#{{.Anchor}}) | {{.Title}} | {{.Deadline}} | {{.RuleCount}} |
+{{end}}
+## How the Score Works
+
+{{.ScoringText}}
+
+{{.Late}}
+{{if .Penalties}}
+The penalties of every rule, which remove a share of its points whatever the completeness:
+
+{{range .Penalties}}{{.}}
+{{end}}{{end}}
+## Evidence and Analysis
+{{if .Kinds}}
+The kinds of evidence:
+
+{{range .Kinds}}{{.}}
+{{end}}{{end}}
+{{.Origin}}
+{{if .Origins}}
+{{range .Origins}}{{.}}
+{{end}}{{end}}{{if .Levels}}
+The levels of analysis:
+
+{{range .Levels}}{{.}}
+{{end}}{{end}}
+## Observations
+
+{{.Environment}}
+{{if .EnvItems}}
+{{range .EnvItems}}{{.}}
+{{end}}{{end}}
+{{.Hygiene}}
+{{range .Labs}}
+## {{.Heading}}
+
+{{.Facts}}
+
+{{.Intro}}
+
+| Rule | Exercise | Name | Coefficient | Points |
+|---|---|---|---|---|
+{{range .Rows -}}
+| `{{.ID}}` | {{.Exercise}} | {{.Name}} | {{.Coefficient}} | {{.Points}} |
+{{end}}{{range .Rules}}
+### {{.Heading}}
+
+{{.Coefficient}}
+
+{{.Description}}
+
+{{.Notes}}
+{{if .Items}}
+{{range .Items}}{{.}}
+{{end}}{{end}}{{end}}{{end}}

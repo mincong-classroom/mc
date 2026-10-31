@@ -1,0 +1,138 @@
+# Made-up rules of a made-up course, for the tests of the package rubric.
+title: Evaluation Rules
+intro: >-
+  The rules of the labs of a sample course: what a team delivers for each exercise, and how much it counts.
+labs:
+
+  L1:
+    title: Build an Image
+    report: docs/lab-1.md
+    reference: answers/lab-1.md
+    deadline: "2030-03-04T08:30:00+01:00"
+    intro: Exercise 1 builds the image, and Exercise 2 publishes it.
+
+  L2:
+    title: Run a Pod
+    report: docs/lab-2.md
+    reference: answers/lab-2.md
+    deadline: "2030-03-11T08:30:00+01:00"
+    intro: >-
+      One exercise, and a bonus.
+scoring:
+  text: |-
+    The score of a rule is its coefficient times 20, times the completeness of the work.
+
+    1. **Commands count less than an analysis.**
+    2. **A bonus adds to the 20 points.**
+  late_penalty:
+    min: 0.1
+    max: 0.2
+    how: Work pushed after the deadline loses a share of its points.
+  penalties:
+    secret:
+      remove: 0.3
+      when: The repository exposes a token.
+      how: Once per rule.
+evidence:
+  kinds:
+    command: The command that the team ran.
+    output: What a command printed.
+    file: A file of the repository.
+    image: A Docker image.
+  origin: Who produced the evidence.
+  origins:
+    human: The team, at its terminal.
+    ai: An AI.
+analysis_levels:
+  none: Commands only.
+  short: A few sentences.
+observations:
+  environment:
+    about: The machine of the team.
+    os: Windows, macOS or Linux.
+    arch: amd64 or arm64.
+    cluster: The local cluster.
+  hygiene: The files that don't belong in the repository, such as a `.DS_Store`.
+rules:
+
+  L1_BLD:
+    lab: L1
+    name: Build Test
+    exercise: "1"
+    requirement: mandatory
+    coefficient: 0.6
+    coefficient_reason: The main concept of the lab.
+    description: >-
+      The team is expected to write a Dockerfile on the path `app/Dockerfile`, from a base image of Java 21 (60%). The
+      port 8080 should be exposed (20%). The team builds the image with one command (20%).
+
+      A second paragraph: a long line that the page wraps again, whose words would put a marker of a list - at the
+      start of a line.
+    notes: The weights follow the statement.
+    penalties:
+      - remove: 0.2
+        when: the Dockerfile is only in the report
+    analysis:
+      level: none
+    evidence:
+      asked:
+        - file: the Dockerfile
+        - command: the command docker build
+      extra:
+        - output: the output of the build
+    files:
+      team:
+        - app/Dockerfile
+      teacher:
+        - answers/Dockerfile
+
+  L1_TAG:
+    lab: L1
+    name: Publish Test
+    exercise: "2"
+    requirement: mandatory
+    depends_on: [L1_BLD]
+    coefficient: 0.4
+    description: The team is expected to publish the image `sample/app-{team}:1.0.0`.
+    analysis:
+      level: short
+      about: why a tag is immutable
+    evidence:
+      asked:
+        - image: the image 1.0.0
+      extra: []
+    images:
+      - sample/app-{team}:1.0.0
+
+  L2_POD:
+    lab: L2
+    name: Pod Test
+    exercise: "1"
+    requirement: mandatory
+    depends_on: [L1_TAG]
+    coefficient: 1
+    description: The team is expected to run the image of Lab 1 in a Pod.
+    analysis:
+      level: none
+    evidence:
+      asked:
+        - output: the logs of the Pod
+      extra: []
+    files:
+      team:
+        - k8s/lab-2/pod.yaml
+
+  L2_LOG:
+    lab: L2
+    name: Logs Test
+    exercise: "2.1"
+    requirement: optional
+    coefficient: 0.1
+    description: >-
+      The team is expected to follow the logs of the Pod. This rule is a bonus.
+    analysis:
+      level: short
+    evidence:
+      asked:
+        - output: the logs
+      extra: []

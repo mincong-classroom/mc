@@ -55,7 +55,10 @@ Key commands (all read the team registry, see "External data" below):
 mc team ls [--json]           # teams, their GitHub status and validation problems, students not in a team
 mc team red provision [--dry-run]     # confirms the members once, then creates repo + GitHub team, invites them
 mc team red validate|status [--json]  # the actions on one team of the registry
-mc rule [-l L1]               # print every grading rule's spec/description, or those of one lab
+mc rule evaluation-rules.yaml [-l L1]  # the rules of a YAML file, or those of one lab
+mc rule check evaluation-rules.yaml    # one problem per line, with its line; exit 1 if any
+mc rule render evaluation-rules.yaml -o evaluation-rules.md  # the Markdown page of the rules
+mc rule [-l L1]               # deprecated: the rules of 2025 in the Go code (rules/)
 mc info                       # the CLI and the registry: number of teams, URL of the evaluation sheet
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -101,8 +104,18 @@ team of the registry.
 
 ## Architecture
 
-Four packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rules/` (grading
-engine), `github/` (the GitHub organization, through the `gh` CLI).
+Five packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
+of the evaluation rules), `rules/` (the grading engine of 2025, deprecated), `github/` (the GitHub
+organization, through the `gh` CLI).
+
+**Evaluation rules** (`rubric/`) — the YAML of a program has two maps: `labs` (title, report,
+reference, deadline with its offset, intro) and `rules`, keyed by ID, each with its `lab`. `Parse`
+decodes it twice: with `KnownFields(true)` into Go maps, so that a key with a typo is an error with
+its line (`Problems`), and as a `yaml.Node`, for the order of the keys (a Go map has none) and
+their lines (`lines`). `Check` returns the problems of the content, sorted by line; `Render` fills
+the embedded `page.md.tmpl` with texts that Go wraps at 96 characters (`wrapper`): a wrapped line
+never starts with a marker of Markdown. The tests use the made-up `rubric/testdata/`, never real
+rules: update the golden page with `go test ./rubric -update`, then review its diff.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
