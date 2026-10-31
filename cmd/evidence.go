@@ -23,6 +23,7 @@ var (
 	evidenceRev      string
 	evidenceTemplate string
 	evidenceDir      string
+	evidenceForce    bool
 )
 
 var evidenceCmd = &cobra.Command{
@@ -42,11 +43,17 @@ activity of the repository on GitHub, or origin/main with --late.
 The report, such as docs/lab-1.evidence.md, goes to the local branch teacher of the clone of the
 team, checked out in a worktree of --dir: the branch starts from the commit evaluated, the next
 pass merges the new one into it, and a change of the report is committed. The branch is never
-pushed. Run it again once the evaluator adds its files.`,
+pushed. Run it again once the evaluator adds its files.
+
+The front matter of the report holds the commit evaluated and the commit of mc. The evaluator
+copies it into the report that it generates from the evidence, such as docs/lab-1.generated.md.
+While both commits stay the same, the generated report is up to date: the team is skipped,
+unless --force is given, or mc is a local build with changes.`,
 	Args: cobra.NoArgs,
 	RunE: runEvidence,
 	Example: `  mc evidence -l L1 --template ~/github/mincong-classroom/containers
-  mc evidence -l L1 -t red --late`,
+  mc evidence -l L1 -t red --late
+  mc evidence -l L1 -t red --force`,
 	SilenceUsage: true,
 }
 
@@ -58,6 +65,7 @@ func init() {
 	evidenceCmd.Flags().StringVar(&evidenceRev, "rev", "", "Evaluate this commit instead, for one team")
 	evidenceCmd.Flags().StringVar(&evidenceTemplate, "template", "", "The clone of the template of the team repositories, to tell what a team wrote (default: the first commit of each repository)")
 	evidenceCmd.Flags().StringVar(&evidenceDir, "dir", "", "The directory of the worktrees, one per team (default: ~/.mc/{year}/teacher)")
+	evidenceCmd.Flags().BoolVar(&evidenceForce, "force", false, "Gather the evidence again, even when the generated report is up to date")
 	_ = evidenceCmd.MarkFlagRequired("lab") // The flag exists: it is defined above.
 	RootCmd.AddCommand(evidenceCmd)
 }
@@ -94,6 +102,7 @@ func runEvidence(cmd *cobra.Command, _ []string) error {
 	if dir == "" {
 		dir = filepath.Join(common.ConfigDir(), strconv.Itoa(common.Year()), "teacher")
 	}
+	revision := common.Revision()
 	opts := evidence.Options{
 		Rubric:   r,
 		Lab:      labID,
@@ -102,6 +111,9 @@ func runEvidence(cmd *cobra.Command, _ []string) error {
 		Rev:      evidenceRev,
 		Pushes:   github.CLI{},
 		Registry: evidence.DockerHub{},
+		Revision: revision,
+		// A local build with changes doesn't tell which code ran: its reports are never up to date.
+		Force: evidenceForce || !common.StableRevision(revision),
 	}
 	if evidenceTemplate != "" {
 		if opts.Template, err = evidence.LoadTemplate(evidenceTemplate); err != nil {
@@ -116,6 +128,10 @@ func runEvidence(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			failed++
 			fmt.Fprintf(cmd.ErrOrStderr(), "[team: %s] %v\n", team.Name, err)
+			continue
+		}
+		if result.UpToDate {
+			fmt.Fprintf(out, "[team: %s] %s, %s: %s, up to date with mc %s (--force to gather again)\n", team.Name, result.Commit[:7], result.How, result.Report, revision)
 			continue
 		}
 		change := "unchanged"

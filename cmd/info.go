@@ -33,6 +33,7 @@ func runInfo(cmd *cobra.Command, args []string) {
 		sheet = "none"
 	}
 	fmt.Printf("CLI Version: %s\n", version)
+	fmt.Printf("CLI Commit: %s\n", common.Revision())
 	fmt.Printf("Go Version: %s\n", goVersion)
 	fmt.Printf("AI Model: %s\n", aiModel)
 	fmt.Printf("AI Vendor: %s\n", aiVendor)

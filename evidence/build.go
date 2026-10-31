@@ -35,6 +35,7 @@ type report struct {
 	otherByEval  []evaluatorFile
 	evidencePath string // The report of the evidence, e.g. docs/lab-1.evidence.md.
 	evidenceDir  string // The directory of the evaluator, e.g. docs/lab-1.evidence.
+	revision     string // The commit of mc, "unknown" when not given.
 }
 
 // ruleEvidence is the evidence of a rule.
@@ -104,10 +105,14 @@ type buildInput struct {
 	worktree string
 	template *Template
 	registry Registry
+	revision string
 }
 
 func build(in buildInput) (*report, error) {
-	r := &report{lab: in.lab, deadline: in.deadline, team: in.team.Name, commit: in.commit}
+	r := &report{lab: in.lab, deadline: in.deadline, team: in.team.Name, commit: in.commit, revision: in.revision}
+	if r.revision == "" {
+		r.revision = "unknown"
+	}
 	r.evidencePath, r.evidenceDir = evidencePaths(in.lab.Report)
 	tree, err := in.clone.tree(in.commit.hash)
 	if err != nil {
@@ -456,6 +461,9 @@ func language(p string) string {
 func plural(n int, word string) string {
 	if n == 1 {
 		return "1 " + word
+	}
+	if strings.HasSuffix(word, "sh") || strings.HasSuffix(word, "s") {
+		return strconv.Itoa(n) + " " + word + "es" // 2 pushes, not 2 pushs.
 	}
 	return strconv.Itoa(n) + " " + word + "s"
 }

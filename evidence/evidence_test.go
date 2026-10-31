@@ -126,6 +126,7 @@ func TestGather(t *testing.T) {
 		"app/Dockerfile":     "# TODO: write the Dockerfile\n",
 		"app/index.html":     page + "<footer>Team</footer>\n" + page,
 		"k8s/lab-2/pod.yaml": "# TODO\n",
+		".gitignore":         "*.log\n",
 	}
 
 	template := filepath.Join(root, "template")
@@ -173,6 +174,7 @@ func TestGather(t *testing.T) {
 			{Name: "1.0.1", LastPushed: deadline.Add(2 * time.Hour), Digest: "sha256:1a2b3c4d5e6f7a8b", Images: []TagImage{{OS: "linux", Architecture: "amd64"}}},
 			{Name: "2.0.0", LastPushed: deadline.Add(3 * time.Hour), Digest: "sha256:ffff"},
 		}},
+		Revision: "0a1b2c3d4e5f",
 	}
 	reportPath := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.evidence.md")
 
@@ -196,6 +198,9 @@ func TestGather(t *testing.T) {
 	if result, err = Gather(team, opts); err != nil || !result.Committed {
 		t.Fatalf("Gather() with the files of the evaluator = %+v, %v, want them committed", result, err)
 	}
+	if out := run(t, filepath.Join(root, "teacher", "k8s-red"), "ls-files", "docs/lab-1.evidence/l1-bld-run.log"); out == "" {
+		t.Errorf("the log of the evaluator is not committed: the .gitignore of the team ignores *.log")
+	}
 	content := readFile(t, reportPath)
 	for _, want := range []string{
 		"The image 1.0.0 runs, and the home page answers on port 8080.",
@@ -210,6 +215,29 @@ func TestGather(t *testing.T) {
 	// Nothing changed: nothing to commit.
 	if result, err = Gather(team, opts); err != nil || result.Committed {
 		t.Errorf("Gather() again = %+v, %v, want nothing committed", result, err)
+	}
+
+	// The evaluator generates its report from the evidence, with its front matter: the next pass
+	// skips the team, unless it is forced, or mc changed.
+	generated := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.generated.md")
+	writeFiles(t, filepath.Dir(generated), map[string]string{
+		"lab-1.generated.md": "---\ncommit: " + before + "\nmc: 0a1b2c3d4e5f\n---\n\n# Lab 1, Team Red\n",
+	})
+	if !strings.HasPrefix(readFile(t, reportPath), "---\ncommit: "+before+"\nmc: 0a1b2c3d4e5f\n---\n") {
+		t.Errorf("the report of the evidence lacks the front matter of the generated report")
+	}
+	if result, err = Gather(team, opts); err != nil || !result.UpToDate || result.Report != generated {
+		t.Errorf("Gather() with a generated report up to date = %+v, %v, want it up to date", result, err)
+	}
+	forced := opts
+	forced.Force = true
+	if result, err = Gather(team, forced); err != nil || result.UpToDate {
+		t.Errorf("Gather() forced = %+v, %v, want the evidence gathered", result, err)
+	}
+	newMC := opts
+	newMC.Revision = "9f8e7d6c5b4a"
+	if result, err = Gather(team, newMC); err != nil || result.UpToDate || !result.Committed {
+		t.Errorf("Gather() with another mc = %+v, %v, want the evidence gathered and committed", result, err)
 	}
 
 	// A late pass merges origin/main into the branch.
@@ -373,5 +401,61 @@ func assertGolden(t *testing.T, p, name string) {
 	}
 	if got != string(want) {
 		t.Errorf("the report differs from %s: run go test ./evidence -update, then review the diff.\ngot:\n%s", golden, got)
+	}
+}
+
+func TestReadMetadata(t *testing.T) {
+	dir := t.TempDir()
+	for _, c := range []struct {
+		name    string
+		content string // None when empty.
+		want    metadata
+		wantOK  bool
+	}{
+		{name: "no file"},
+		{name: "no front matter", content: "# Lab 1\n"},
+		{name: "one key only", content: "---\ncommit: c028aea\n---\n# Lab 1\n"},
+		{
+			name:    "both keys",
+			content: "---\ncommit: c028aea\nmc: 0a1b2c3d4e5f\n---\n\n# Lab 1\n",
+			want:    metadata{Commit: "c028aea", MC: "0a1b2c3d4e5f"},
+			wantOK:  true,
+		},
+		{
+			name:    "Windows line endings",
+			content: "---\r\ncommit: c028aea\r\nmc: 0a1b2c3d4e5f\r\n---\r\n# Lab 1\r\n",
+			want:    metadata{Commit: "c028aea", MC: "0a1b2c3d4e5f"},
+			wantOK:  true,
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			p := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".md")
+			if c.content != "" {
+				if err := os.WriteFile(p, []byte(c.content), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, ok, err := readMetadata(p)
+			if err != nil || ok != c.wantOK || got != c.want {
+				t.Errorf("readMetadata() = %+v, %v, %v, want %+v, %v", got, ok, err, c.want, c.wantOK)
+			}
+		})
+	}
+}
+
+func TestPlural(t *testing.T) {
+	for _, c := range []struct {
+		n    int
+		word string
+		want string
+	}{
+		{n: 1, word: "push", want: "1 push"},
+		{n: 8, word: "push", want: "8 pushes"},
+		{n: 2, word: "force push", want: "2 force pushes"},
+		{n: 0, word: "line", want: "0 lines"},
+	} {
+		if got := plural(c.n, c.word); got != c.want {
+			t.Errorf("plural(%d, %q) = %q, want %q", c.n, c.word, got, c.want)
+		}
 	}
 }
