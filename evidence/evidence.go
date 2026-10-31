@@ -262,7 +262,9 @@ func commitReport(wt git, r *report, lab rubric.Lab) (bool, error) {
 	if _, err := os.Stat(filepath.Join(wt.dir, filepath.FromSlash(r.evidenceDir))); err == nil {
 		paths = append(paths, r.evidenceDir)
 	}
-	if _, err := wt.run(append([]string{"add", "--all", "--"}, paths...)...); err != nil {
+	// --force: these paths are the evaluator's, even when the .gitignore of the team ignores some of
+	// their files, such as *.log.
+	if _, err := wt.run(append([]string{"add", "--all", "--force", "--"}, paths...)...); err != nil {
 		return false, err
 	}
 	if wt.ok("diff", "--cached", "--quiet") {

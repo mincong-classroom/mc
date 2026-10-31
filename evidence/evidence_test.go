@@ -126,6 +126,7 @@ func TestGather(t *testing.T) {
 		"app/Dockerfile":     "# TODO: write the Dockerfile\n",
 		"app/index.html":     page + "<footer>Team</footer>\n" + page,
 		"k8s/lab-2/pod.yaml": "# TODO\n",
+		".gitignore":         "*.log\n",
 	}
 
 	template := filepath.Join(root, "template")
@@ -196,6 +197,9 @@ func TestGather(t *testing.T) {
 	})
 	if result, err = Gather(team, opts); err != nil || !result.Committed {
 		t.Fatalf("Gather() with the files of the evaluator = %+v, %v, want them committed", result, err)
+	}
+	if out := run(t, filepath.Join(root, "teacher", "k8s-red"), "ls-files", "docs/lab-1.evidence/l1-bld-run.log"); out == "" {
+		t.Errorf("the log of the evaluator is not committed: the .gitignore of the team ignores *.log")
 	}
 	content := readFile(t, reportPath)
 	for _, want := range []string{
