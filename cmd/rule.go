@@ -5,38 +5,53 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
+	"github.com/mincong-classroom/mc/common"
 	"github.com/mincong-classroom/mc/rubric"
-	"github.com/mincong-classroom/mc/rules"
 	"github.com/spf13/cobra"
 )
 
-var ruleLab string
+// rulesFileUsage is the usage of the flag --rules-file, which replaces the rules of the year.
+const rulesFileUsage = "The YAML of the evaluation rules, e.g. a test file (default: the key rules of ~/.mc/settings.yaml, for the year)"
+
+var ruleFile string
 
 var ruleCmd = &cobra.Command{
-	Use:   "rule [file]",
-	Short: "List, check and render the evaluation rules of a YAML file",
-	Long: `List the evaluation rules of a YAML file, e.g. evaluation-rules.yaml: one line per rule, with
-its exercise, its coefficient and its name.
+	Use:   "rule",
+	Short: "List, check and render the evaluation rules of the year",
+	Long: `List, check and render the evaluation rules of the year, in a YAML file. The file is the key
+rules of ~/.mc/settings.yaml, where {year} is the year of the cohort:
 
-Without a file, list the rules of 2025 written in the Go code of mc, which are deprecated.`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runRule,
-	Example: `  mc rule evaluation-rules.yaml -l L1
-  mc rule check evaluation-rules.yaml
-  mc rule render evaluation-rules.yaml -o evaluation-rules.md`,
+  year: 2026
+  rules: ~/github/my-org/course/{year}/evaluation-rules.yaml
+
+The flag --rules-file replaces it, e.g. with a test file.`,
+	Example: `  mc rule ls -l L1
+  mc rule check
+  mc rule render -o evaluation-rules.md`,
+}
+
+var ruleLsLab string
+
+var ruleLsCmd = &cobra.Command{
+	Use:   "ls",
+	Short: "List the evaluation rules of the year",
+	Long: `List the evaluation rules of the year: one line per rule, with its exercise, its coefficient
+and its name.`,
+	Args:         cobra.NoArgs,
+	RunE:         runRuleLs,
+	SilenceUsage: true,
 }
 
 var ruleCheckRoot string
 
 var ruleCheckCmd = &cobra.Command{
-	Use:   "check <file>",
+	Use:   "check",
 	Short: "Check the YAML of the evaluation rules, and exit with 1 on a problem",
 	Long: `Check the YAML of the evaluation rules: the keys, the IDs of the labs and the rules, the
 exercises, the coefficients (by steps of 0.05, those of the mandatory rules of a lab add up to 1),
@@ -44,7 +59,7 @@ the penalties, the levels of analysis, the kinds of evidence, the dependencies, 
 paths, and the width of the lines (120 characters at most).
 
 Print one problem per line, with the line of the file, and exit with 1 if there is any.`,
-	Args:         cobra.ExactArgs(1),
+	Args:         cobra.NoArgs,
 	RunE:         runRuleCheck,
 	SilenceUsage: true,
 }
@@ -55,12 +70,12 @@ var (
 )
 
 var ruleRenderCmd = &cobra.Command{
-	Use:   "render <file>",
+	Use:   "render",
 	Short: "Render the evaluation rules of the YAML as a Markdown page",
 	Long: `Check the YAML of the evaluation rules, then render it as a Markdown page: the labs, how the
 score works, the evidence, the observations, then each lab with the table of its rules and each
 rule. The texts are wrapped at 96 characters.`,
-	Args:         cobra.ExactArgs(1),
+	Args:         cobra.NoArgs,
 	RunE:         runRuleRender,
 	SilenceUsage: true,
 }
@@ -72,27 +87,27 @@ const maxRuleLineWidth = 120
 const rootFlagUsage = "The repository of the rules, against which the paths of the teacher are checked (default: the Git repository of the file)"
 
 func init() {
-	ruleCmd.Flags().StringVarP(&ruleLab, "lab", "l", "", "List the rules of one lab session only, e.g. L1 or 1")
+	ruleCmd.PersistentFlags().StringVar(&ruleFile, "rules-file", "", rulesFileUsage)
+	ruleLsCmd.Flags().StringVarP(&ruleLsLab, "lab", "l", "", "List the rules of one lab session only, e.g. L1 or 1")
 	ruleCheckCmd.Flags().StringVar(&ruleCheckRoot, "root", "", rootFlagUsage)
 	ruleRenderCmd.Flags().StringVarP(&ruleRenderOutput, "output", "o", "", "The Markdown file to write (default: the standard output)")
 	ruleRenderCmd.Flags().StringVar(&ruleRenderRoot, "root", "", rootFlagUsage)
-	ruleCmd.AddCommand(ruleCheckCmd, ruleRenderCmd)
+	ruleCmd.AddCommand(ruleLsCmd, ruleCheckCmd, ruleRenderCmd)
 }
 
-func runRule(cmd *cobra.Command, args []string) error {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "Deprecated: these are the rules of 2025. Pass the YAML of the rules, e.g. mc rule evaluation-rules.yaml.")
-		printDeprecatedRules()
-		return nil
-	}
-	r, err := rubric.Load(args[0])
+func runRuleLs(cmd *cobra.Command, _ []string) error {
+	path, err := common.RulesPath(ruleFile)
 	if err != nil {
 		return err
 	}
-	labID := rubric.LabID(ruleLab)
+	r, err := rubric.Load(path)
+	if err != nil {
+		return err
+	}
+	labID := rubric.LabID(ruleLsLab)
 	if labID != "" {
 		if _, ok := r.Lab(labID); !ok {
-			return fmt.Errorf("no lab %q in %s", ruleLab, args[0])
+			return fmt.Errorf("no lab %q in %s", ruleLsLab, path)
 		}
 	}
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
@@ -110,33 +125,20 @@ func runRule(cmd *cobra.Command, args []string) error {
 	return w.Flush()
 }
 
-func printDeprecatedRules() {
-	grader, err := rules.NewGrader()
+func runRuleCheck(cmd *cobra.Command, _ []string) error {
+	path, err := common.RulesPath(ruleFile)
 	if err != nil {
-		log.Fatalf("Failed to create grader: %v", err)
+		return err
 	}
-	labID := rubric.LabID(ruleLab)
-	found := false
-	for _, spec := range grader.ListRuleSpecs() {
-		if labID != "" && spec.LabId != labID {
-			continue
-		}
-		found = true
-		fmt.Println(spec.Representation())
-		fmt.Println()
-	}
-	if !found {
-		log.Fatalf("No rule for the lab %q: use L1 to L5", ruleLab)
-	}
-}
-
-func runRuleCheck(cmd *cobra.Command, args []string) error {
-	_, err := loadAndCheck(args[0], ruleCheckRoot, cmd.ErrOrStderr())
+	_, err = loadAndCheck(path, ruleCheckRoot, cmd.ErrOrStderr())
 	return err
 }
 
-func runRuleRender(cmd *cobra.Command, args []string) error {
-	path := args[0]
+func runRuleRender(cmd *cobra.Command, _ []string) error {
+	path, err := common.RulesPath(ruleFile)
+	if err != nil {
+		return err
+	}
 	r, err := loadAndCheck(path, ruleRenderRoot, cmd.ErrOrStderr())
 	if err != nil {
 		return err

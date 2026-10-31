@@ -55,11 +55,10 @@ Key commands (all read the team registry, see "External data" below):
 mc team ls [--json]           # teams, their GitHub status and validation problems, students not in a team
 mc team red provision [--dry-run]     # confirms the members once, then creates repo + GitHub team, invites them
 mc team red validate|status [--json]  # the actions on one team of the registry
-mc rule evaluation-rules.yaml [-l L1]  # the rules of a YAML file, or those of one lab
-mc rule check evaluation-rules.yaml    # one problem per line, with its line; exit 1 if any
-mc rule render evaluation-rules.yaml -o evaluation-rules.md  # the Markdown page of the rules
-mc rule [-l L1]               # deprecated: the rules of 2025 in the Go code (rules/)
-mc evidence evaluation-rules.yaml -l L1 [-t red] [--late] [--template DIR]  # the evidence report of each team
+mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~/.mc/settings.yaml), or --rules-file
+mc rule check                 # one problem per line, with its line; exit 1 if any
+mc rule render -o evaluation-rules.md  # the Markdown page of the rules
+mc evidence -l L1 [-t red] [--late] [--template DIR]  # the evidence report of each team, from the rules of the year
 mc info                       # the CLI and the registry: number of teams, URL of the evaluation sheet
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -74,9 +73,13 @@ mc k8s create-namespaces      # kubectl create one namespace per team
 Grading input lives **outside the repo** in a private, git-ignored `~/.mc/` directory that you must
 assume exists at runtime. Nothing here works without it:
 
-- `~/.mc/teams-{year}.yaml` — the team registry (`TeamRegistry`). The year is `common.Year()`:
-  the `defaultYear` const in `common/team.go` (bump it for a new cohort), overridden by the
-  environment variable `MC_YEAR`. Unknown keys (e.g. an old `role`) are ignored when read.
+- `~/.mc/settings.yaml` — the settings (`common.Settings`), optional: `year`, and `rules`, the
+  YAML of the evaluation rules with `{year}` in it (`common.RulesPath`, replaced by the flag
+  `--rules-file`). Read once per run (`sync.OnceValues`), strictly: `cmd.Execute()` stops on an
+  unknown key (`CheckSettings`). The year is `common.Year()`: the environment variable `MC_YEAR`,
+  then the key `year`, then the current year.
+- `~/.mc/teams-{year}.yaml` — the team registry (`TeamRegistry`). Unknown keys (e.g. an old
+  `role`) are ignored when read.
   The global flag `--team-file` replaces it for any command (`common.TeamRegistryFile`, a leading
   `~/` is expanded). Since the `mc team <team>` subcommands are built before Cobra parses the
   flags, `cmd.Execute()` reads `--team-file` ahead from `os.Args` (`teamFileFromArgs`).

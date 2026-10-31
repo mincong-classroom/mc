@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -20,6 +21,11 @@ assignments in the Kubernetes course.`,
 }
 
 func Execute() error {
+	// Cobra prints the errors of the commands only: print this one before any command runs.
+	if err := common.CheckSettings(); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		return err
+	}
 	// The team subcommands, such as "mc team red", are built from the registry before Cobra
 	// parses the flags: read the flag --team-file ahead, and the team of "mc team <team> provision",
 	// which may not be in the registry yet.

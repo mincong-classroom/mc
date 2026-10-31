@@ -7,22 +7,9 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strconv"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
-
-const defaultYear = 2026
-
-// Year returns the year of the cohort, which selects the files read in ~/.mc. It can be
-// overridden with the environment variable MC_YEAR, e.g. MC_YEAR=2025.
-func Year() int {
-	if year, err := strconv.Atoi(os.Getenv("MC_YEAR")); err == nil {
-		return year
-	}
-	return defaultYear
-}
 
 // ConfigDir returns the directory holding the private data of the classroom, i.e. ~/.mc.
 func ConfigDir() string {
@@ -39,11 +26,7 @@ func TeamRegistryPath() string {
 	if TeamRegistryFile == "" {
 		return filepath.Join(ConfigDir(), fmt.Sprintf("teams-%d.yaml", Year()))
 	}
-	// The shell does not expand the "~" of --team-file=~/...
-	if rest, ok := strings.CutPrefix(TeamRegistryFile, "~/"); ok {
-		return filepath.Join(os.Getenv("HOME"), rest)
-	}
-	return TeamRegistryFile
+	return ExpandHome(TeamRegistryFile)
 }
 
 // LoadRegistry reads the team registry.
