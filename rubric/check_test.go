@@ -97,7 +97,7 @@ func TestCheck(t *testing.T) {
 
 	for _, c := range []struct {
 		name     string
-		old, new string // The change of the file; old is empty for the valid file.
+		old, new string   // The change of the file; old is empty for the valid file.
 		want     []string // The problems, none for the valid file.
 	}{
 		{name: "valid"},
