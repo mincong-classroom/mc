@@ -50,6 +50,7 @@ var readFixtures sync.Once
 type env struct {
 	home  string
 	ghLog string
+	vars  []string // More environment variables, which replace those of run, e.g. "MC_YEAR=".
 }
 
 func newEnv(t *testing.T) *env {
@@ -109,6 +110,7 @@ func (e *env) run(t *testing.T, stdin string, args ...string) result {
 		"FAKE_GH_DATA="+filepath.Join(testdata, "github"),
 		"FAKE_GH_LOG="+e.ghLog,
 	)
+	cmd.Env = append(cmd.Env, e.vars...) // The last value of a variable wins.
 	cmd.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -872,5 +874,69 @@ func TestGitExecWithoutArguments(t *testing.T) {
 
 	if r.exitCode != 1 || !strings.Contains(r.stderr, "requires at least 1 arg") {
 		t.Errorf("mc git exec without arguments: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
+	}
+}
+
+// writeFile writes a file in the HOME of the env, creating its directory.
+func (e *env) writeFile(t *testing.T, name, content string) {
+	t.Helper()
+	path := filepath.Join(e.home, filepath.FromSlash(name))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// testRules are the made-up rules of the tests of the package rubric.
+func testRules(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile("../rubric/testdata/evaluation-rules.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func TestRuleLsReadsTheRulesOfTheYearOfTheSettings(t *testing.T) {
+	e := newEnv(t)
+	e.writeFile(t, ".mc/settings.yaml", "year: 2030\nrules: ~/course/{year}/evaluation-rules.yaml\n")
+	e.writeFile(t, "course/2030/evaluation-rules.yaml", testRules(t))
+	e.vars = []string{"MC_YEAR="} // No year from the environment: the one of the settings.
+
+	r := e.run(t, "", "rule", "ls", "-l", "L1")
+	want := "RULE    EXERCISE  COEFFICIENT  NAME\nL1_BLD  1         0.6          Build Test\nL1_TAG  2         0.4          Publish Test\n"
+	if r.exitCode != 0 || r.stdout != want {
+		t.Errorf("mc rule ls -l L1 = %d, %q, stderr %q, want 0, %q", r.exitCode, r.stdout, r.stderr, want)
+	}
+}
+
+func TestRuleLsReadsTheRulesFile(t *testing.T) {
+	e := newEnv(t)
+	e.writeFile(t, "rules.yaml", testRules(t))
+
+	r := e.run(t, "", "rule", "ls", "--rules-file", filepath.Join(e.home, "rules.yaml"), "-l", "2")
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "L2_LOG  2.1       0.1          Logs Test, bonus") {
+		t.Errorf("mc rule ls --rules-file = %d, %q, stderr %q, want the rules of L2", r.exitCode, r.stdout, r.stderr)
+	}
+}
+
+func TestRuleLsWithoutRules(t *testing.T) {
+	e := newEnv(t)
+
+	r := e.run(t, "", "rule", "ls")
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "no evaluation rules: set the key rules in "+filepath.Join(e.home, ".mc", "settings.yaml")) {
+		t.Errorf("mc rule ls without settings = %d, stderr %q, want 1 and the key to set", r.exitCode, r.stderr)
+	}
+}
+
+func TestBrokenSettingsStopEveryCommand(t *testing.T) {
+	e := newEnv(t)
+	e.writeFile(t, ".mc/settings.yaml", "yaer: 2030\n")
+
+	r := e.run(t, "", "info")
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "field yaer not found") || r.stdout != "" {
+		t.Errorf("mc info with a typo in the settings = %d, %q, stderr %q, want 1 and the typo", r.exitCode, r.stdout, r.stderr)
 	}
 }

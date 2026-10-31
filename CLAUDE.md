@@ -55,7 +55,9 @@ Key commands (all read the team registry, see "External data" below):
 mc team ls [--json]           # teams, their GitHub status and validation problems, students not in a team
 mc team red provision [--dry-run]     # confirms the members once, then creates repo + GitHub team, invites them
 mc team red validate|status [--json]  # the actions on one team of the registry
-mc rule [-l L1]               # print every grading rule's spec/description, or those of one lab
+mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~/.mc/settings.yaml), or --rules-file
+mc rule check                 # one problem per line, with its line; exit 1 if any
+mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc info                       # the CLI and the registry: number of teams, URL of the evaluation sheet
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -70,9 +72,13 @@ mc k8s create-namespaces      # kubectl create one namespace per team
 Grading input lives **outside the repo** in a private, git-ignored `~/.mc/` directory that you must
 assume exists at runtime. Nothing here works without it:
 
-- `~/.mc/teams-{year}.yaml` — the team registry (`TeamRegistry`). The year is `common.Year()`:
-  the `defaultYear` const in `common/team.go` (bump it for a new cohort), overridden by the
-  environment variable `MC_YEAR`. Unknown keys (e.g. an old `role`) are ignored when read.
+- `~/.mc/settings.yaml` — the settings (`common.Settings`), optional: `year`, and `rules`, the
+  YAML of the evaluation rules with `{year}` in it (`common.RulesPath`, replaced by the flag
+  `--rules-file`). Read once per run (`sync.OnceValues`), strictly: `cmd.Execute()` stops on an
+  unknown key (`CheckSettings`). The year is `common.Year()`: the environment variable `MC_YEAR`,
+  then the key `year`, then the current year.
+- `~/.mc/teams-{year}.yaml` — the team registry (`TeamRegistry`). Unknown keys (e.g. an old
+  `role`) are ignored when read.
   The global flag `--team-file` replaces it for any command (`common.TeamRegistryFile`, a leading
   `~/` is expanded). Since the `mc team <team>` subcommands are built before Cobra parses the
   flags, `cmd.Execute()` reads `--team-file` ahead from `os.Args` (`teamFileFromArgs`).
@@ -101,8 +107,19 @@ team of the registry.
 
 ## Architecture
 
-Four packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rules/` (grading
-engine), `github/` (the GitHub organization, through the `gh` CLI).
+Five packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
+of the evaluation rules), `rules/` (the grading engine of 2025, deprecated), `github/` (the GitHub
+organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
+diagram when a package is added, or imports another.
+
+**Evaluation rules** (`rubric/`) — the YAML of a program has two maps: `labs` (title, report,
+reference, deadline with its offset, intro) and `rules`, keyed by ID, each with its `lab`. `Parse`
+decodes it twice: with `KnownFields(true)` into Go maps, so that a key with a typo is an error with
+its line (`Problems`), and as a `yaml.Node`, for the order of the keys (a Go map has none) and
+their lines (`lines`). `Check` returns the problems of the content, sorted by line; `Render` fills
+the embedded `page.md.tmpl` with texts that Go wraps at 96 characters (`wrapper`): a wrapped line
+never starts with a marker of Markdown. The tests use the made-up `rubric/testdata/`, never real
+rules: update the golden page with `go test ./rubric -update`, then review its diff.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
