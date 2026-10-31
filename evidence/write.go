@@ -21,6 +21,7 @@ func (r *report) markdown() string {
 	evalDir := path.Base(r.evidenceDir)
 	at := func(t time.Time) string { return t.In(r.deadline.Location()).Format(timeLayout) }
 
+	b.WriteString(metadata{Commit: r.commit.hash, MC: r.revision}.frontMatter())
 	fmt.Fprintf(&b, "# Lab %s: %s, Team %s\n\n", r.lab.Number(), r.lab.Title, r.team)
 	fmt.Fprintf(&b, "The evidence of each rule, for the teacher: what the team wrote in its report, the files of its repository, and what the evaluator made. It gathers facts, not a score. `mc evidence` generates this file: the evaluator writes in [`%s/`](%s/), and `mc evidence` runs again.\n\n", evalDir, evalDir)
 
@@ -33,6 +34,7 @@ func (r *report) markdown() string {
 		commit += fmt.Sprintf(", pushed on %s", at(c.pushedAt))
 	}
 	b.WriteString(commit + "\n")
+	fmt.Fprintf(&b, "- Gathered by `mc` at `%s`\n", r.revision)
 	if len(c.later) > 0 {
 		last := c.later[len(c.later)-1]
 		verb := "not in this evaluation"

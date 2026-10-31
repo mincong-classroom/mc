@@ -58,8 +58,8 @@ mc team red validate|status [--json]  # the actions on one team of the registry
 mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~/.mc/settings.yaml), or --rules-file
 mc rule check                 # one problem per line, with its line; exit 1 if any
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
-mc evidence -l L1 [-t red] [--late] [--template DIR]  # the evidence report of each team, from the rules of the year
-mc info                       # the CLI and the registry: number of teams, URL of the evaluation sheet
+mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
+mc info                       # the CLI, its commit and the registry: number of teams, URL of the evaluation sheet
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
 mc git clone|show             # bulk git ops over all team repos, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml`
@@ -135,7 +135,13 @@ without `--template`); the files of the rule and those the report links to (`fil
 file is imported, a file of the template shows its smallest diff with one of its versions, a long
 one is linked, so that the evaluator quotes its key lines); the files of the evaluator in
 `docs/lab-{n}.evidence/` of the worktree (`{ID}.md`, `{lab}-{xyz}-*`); and the images of the rule
-on Docker Hub (`DockerHub`, with the later patches of a tag). `markdown()` writes the report. The
+on Docker Hub (`DockerHub`, with the later patches of a tag). `markdown()` writes the report,
+with a front matter (`metadata`): the commit evaluated and the commit of mc (`opts.Revision`, from
+`common.Revision`, which reads the build info: the pseudo-version of `go run ...@{commit}`, or
+`vcs.revision` of a local build, `-dirty` with changes). The report that the evaluator generates
+from it, `docs/lab-{n}.generated.md`, copies the front matter: when it equals the one of now,
+`Gather` returns `UpToDate` and gathers nothing, unless `opts.Force`, which the command sets for
+`--force` and for a revision that isn't stable (`common.StableRevision`). The
 test builds a template and a team repository with git in a temporary `HOME` with fixed dates, so
 the commits and the golden report `evidence/testdata/lab-1.evidence.md` are the same at each run.
 

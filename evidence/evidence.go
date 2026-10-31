@@ -5,6 +5,10 @@
 // The report goes to the local branch "teacher" of the clone of the team, checked out in a
 // worktree: the branch starts from the commit evaluated, and the next pass merges the new commit
 // into it. It is never pushed.
+//
+// The front matter of the report holds the commit evaluated and the commit of mc. An evaluator
+// that generates a report from the evidence, such as docs/lab-1.generated.md, copies it: while
+// both commits stay the same, the generated report is up to date, and a new pass skips the team.
 package evidence
 
 import (
@@ -52,6 +56,11 @@ type Options struct {
 	Rev      string // Evaluate this commit instead.
 	Pushes   Pushes // When nil, the commit at the deadline is found from the dates of the commits.
 	Registry Registry
+	// Revision is the commit of mc that runs, written in the front matter of the report. When
+	// empty, the generated report is never up to date.
+	Revision string
+	// Force gathers the evidence again even when the generated report is up to date.
+	Force bool
 }
 
 // Result is what Gather did for a team.
@@ -60,6 +69,9 @@ type Result struct {
 	How       string // How the commit was chosen, e.g. "the head of main at the deadline".
 	Report    string // The file of the report, in the worktree.
 	Committed bool   // Whether the report changed, and was committed to the branch teacher.
+	// UpToDate tells that the generated report is at the commit evaluated, from the same commit
+	// of mc: nothing was gathered, and Report is the generated report.
+	UpToDate bool
 }
 
 // Gather writes the report of the evidence of the lab for the team, and commits it to the local
@@ -80,6 +92,16 @@ func Gather(team Team, opts Options) (Result, error) {
 	commit, err := resolveCommit(clone, team, opts, deadline)
 	if err != nil {
 		return Result{}, err
+	}
+	if !opts.Force && opts.Revision != "" {
+		generated := filepath.Join(opts.Dir, team.Repo, filepath.FromSlash(generatedPath(lab.Report)))
+		m, ok, err := readMetadata(generated)
+		if err != nil {
+			return Result{}, err
+		}
+		if ok && m == (metadata{Commit: commit.hash, MC: opts.Revision}) {
+			return Result{Commit: commit.hash, How: commit.how, Report: generated, UpToDate: true}, nil
+		}
 	}
 	worktree, err := prepareWorktree(clone, filepath.Join(opts.Dir, team.Repo), commit.hash)
 	if err != nil {
@@ -107,6 +129,7 @@ func Gather(team Team, opts Options) (Result, error) {
 		worktree: worktree.dir,
 		template: template,
 		registry: opts.Registry,
+		revision: opts.Revision,
 	})
 	if err != nil {
 		return Result{}, err

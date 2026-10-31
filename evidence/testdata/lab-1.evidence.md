@@ -1,8 +1,14 @@
+---
+commit: c028aea876b2754fb24541d0ea89f90a06eda946
+mc: 0a1b2c3d4e5f
+---
+
 # Lab 1: Build an Image, Team red
 
 The evidence of each rule, for the teacher: what the team wrote in its report, the files of its repository, and what the evaluator made. It gathers facts, not a score. `mc evidence` generates this file: the evaluator writes in [`lab-1.evidence/`](lab-1.evidence/), and `mc evidence` runs again.
 
 - Commit evaluated: `c028aea`, the head of main at the deadline (Mon 4 Mar 2030, 08:30 (UTC+01:00)), pushed on Mon 4 Mar 2030, 07:30 (UTC+01:00)
+- Gathered by `mc` at `0a1b2c3d4e5f`
 - Pushed after the deadline: 1 push, the last one on Mon 4 Mar 2030, 09:30 (UTC+01:00), up to `f5a806e`: not in this evaluation
 - Report of the team: [`docs/lab-1.md`](lab-1.md), 3 lines of the team
 

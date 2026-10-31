@@ -258,6 +258,7 @@ teacher. The report holds facts, not a score, of 3 kinds:
 ```sh
 mc evidence -l L1 --template ~/github/mincong-classroom/containers
 mc evidence -l L1 -t red --late   # origin/main, for a late pass
+mc evidence -l L1 -t red --force  # gather again, even when the generated report is up to date
 ```
 
 The rules are those of the year, from the settings, or the file of the flag `--rules-file`. The
@@ -270,6 +271,24 @@ The report goes to the local branch `teacher` of the clone of the team, checked 
 under `~/.mc/{year}/teacher/`, one directory per team: open it in an editor to read the reports
 next to the files of the team. The branch starts from the commit evaluated, the next pass merges
 the new one into it, and each change of a report is committed. `mc` never pushes it.
+
+The evaluator can generate a report of its own from the evidence, such as a report for the
+teacher, in `docs/lab-1.generated.md`. The front matter of the evidence holds 2 commits: the
+commit of the team evaluated, and the commit of `mc` that gathered the evidence. `mc info` prints
+the second one:
+
+```yaml
+---
+commit: c028aea876b2754fb24541d0ea89f90a06eda946
+mc: 949d7aa740ab
+---
+```
+
+The generated report copies this front matter. While both commits stay the same, nothing changed
+since it was written: `mc evidence` skips the team, and says that its report is up to date. The
+flag `--force` gathers the evidence again anyway, e.g. after a new image on Docker Hub, or a new
+version of the generated report. A local build of `mc` with changes never skips a team, since its
+commit doesn't tell which code ran.
 
 ## Key Components
 
