@@ -102,13 +102,19 @@ func Gather(team Team, opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	// Before the check too: an image pushed again, without a commit, makes a new pass.
+	images := lookUpImages(opts.Registry, opts.Rubric.LabRules(lab.ID), team.Name, deadline)
 	if !opts.Force && opts.Revision != "" {
 		report := filepath.Join(opts.Dir, team.Repo, filepath.FromSlash(reportPath(lab.Report)))
 		m, ok, err := readMetadata(report)
 		if err != nil {
 			return Result{}, err
 		}
-		if ok && m == (metadata{Commit: commit.hash, MC: opts.Revision}) {
+		cells := make(map[string]string, len(images))
+		for id, ie := range images {
+			cells[id] = imagesCell(ie)
+		}
+		if ok && m.upToDate(commit.hash, opts.Revision, cells) {
 			return Result{Commit: commit.hash, How: commit.how, File: report, UpToDate: true, Renamed: renamed}, nil
 		}
 	}
@@ -137,7 +143,7 @@ func Gather(team Team, opts Options) (Result, error) {
 		clone:    clone,
 		worktree: worktree.dir,
 		template: template,
-		registry: opts.Registry,
+		images:   images,
 		revision: opts.Revision,
 	})
 	if err != nil {

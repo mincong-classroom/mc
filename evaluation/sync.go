@@ -24,6 +24,8 @@ const (
 	headerScore        = "Score"
 	headerToCheck      = "TA To Check"
 	headerCommit       = "TA Commit"
+	headerImages       = "TA Docker Images"
+	headerScreenshots  = "TA Screenshots"
 	headerAnalysis     = "TA Analysis"
 	headerWritingStyle = "TA Writing Style"
 	headerTimeSpent    = "TA Time Spent"
@@ -50,8 +52,8 @@ var sheetColumns = map[string]string{
 	"J": "Troubleshooting Instructions",
 	"K": headerToCheck,
 	"L": headerCommit,
-	"M": "TA Docker Images",
-	"N": "TA Screenshots",
+	"M": headerImages,
+	"N": headerScreenshots,
 	"O": headerAnalysis,
 	"P": headerWritingStyle,
 	"Q": headerTimeSpent,
@@ -111,6 +113,20 @@ type SyncOptions struct {
 	// Pending is what waited to be written, nil if nothing. Its rows of the lab and the teams of
 	// Files are replaced, and the others wait still.
 	Pending *sheet.File
+	// Facts are the facts of mc for the columns that the evaluator doesn't write, by team, then by
+	// the ID of the rule. A team or a rule without facts leaves these columns alone.
+	Facts map[string]map[string]RuleFacts
+}
+
+// RuleFacts are the facts of mc for a rule of a team, at the commit of its evaluation.
+type RuleFacts struct {
+	// Images are the tags of the images of the rule on Docker Hub, with the start of their digests,
+	// such as "1.0.0 b80767bd1a2c, 1.0.1 0f3e5d6c7b8a", or "none": TA Docker Images. Empty when the
+	// rule has no image.
+	Images string
+	// Screenshots is the number of screenshots of the team for the exercise of the rule: TA
+	// Screenshots.
+	Screenshots int
 }
 
 // SyncResult is what Sync computed.
@@ -158,6 +174,7 @@ type Added struct {
 //     A completeness that mc didn't write, such as one of the teacher, is kept.
 //   - The other TA columns follow the evaluation, but a cell is never cleared. A cell that mc
 //     didn't write, and that the evaluation changes, waits with a check for the teacher.
+//   - TA Docker Images and TA Screenshots follow the facts of mc, the same way.
 //   - A penalty becomes the formula of TA Penalty, and its reason goes to the TA Comment.
 func Sync(opts SyncOptions) (*SyncResult, error) {
 	if opts.Read == nil {
@@ -168,6 +185,7 @@ func Sync(opts SyncOptions) (*SyncResult, error) {
 	}
 	s := syncer{
 		lab:      opts.Lab,
+		facts:    opts.Facts,
 		read:     rowsByKey(opts.Read),
 		readAt:   map[int]sheet.Row{},
 		exported: map[string]sheet.Row{},
@@ -249,11 +267,12 @@ func (l layout) check(what string, f *sheet.File, all bool) error {
 // syncer computes the rows of a sync.
 type syncer struct {
 	lab      string
-	read     map[string]sheet.Row // The rows of the tab, by their keys.
-	readAt   map[int]sheet.Row    // The rows of the tab, by their numbers.
-	exported map[string]sheet.Row // The rows of the last export, by their keys.
-	reuse    map[string]int       // The numbers of the new rows of the sync that waited, by their keys.
-	last     int                  // The last row of the tab, or of what waits.
+	facts    map[string]map[string]RuleFacts // The facts of mc, by team, then by rule.
+	read     map[string]sheet.Row            // The rows of the tab, by their keys.
+	readAt   map[int]sheet.Row               // The rows of the tab, by their numbers.
+	exported map[string]sheet.Row            // The rows of the last export, by their keys.
+	reuse    map[string]int                  // The numbers of the new rows of the sync that waited, by their keys.
+	last     int                             // The last row of the tab, or of what waits.
 	result   *SyncResult
 }
 
@@ -293,6 +312,7 @@ func (s *syncer) keepWaiting(pending *sheet.File, teams map[string]bool) error {
 // write.
 func (s *syncer) sync(f *File, rule Rule) error {
 	r := rowSync{file: f, rule: rule, result: s.result}
+	r.facts, r.hasFacts = s.facts[f.Team][rule.ID]
 	k := key3(f.Team, s.lab, rule.ID)
 	if read, ok := s.read[k]; ok {
 		r.row = sheet.Row{Number: read.Number, Cells: map[string]any{}}
@@ -336,6 +356,8 @@ func (s *syncer) addRow(team string, number int) {
 type rowSync struct {
 	file     *File
 	rule     Rule
+	facts    RuleFacts // The facts of mc for the rule, when hasFacts.
+	hasFacts bool
 	result   *SyncResult
 	row      sheet.Row // The cells to write.
 	read     sheet.Row // The row of the tab, empty for a new row.
@@ -404,6 +426,12 @@ func (r *rowSync) taCells() error {
 		if err := r.setText(t.header, t.value); err != nil {
 			return err
 		}
+	}
+	if r.hasFacts {
+		if err := r.setText(headerImages, r.facts.Images); err != nil {
+			return err
+		}
+		r.set(headerScreenshots, json.Number(strconv.Itoa(r.facts.Screenshots)))
 	}
 	if p := r.rule.Penalty; p != nil {
 		n := strconv.Itoa(r.row.Number)

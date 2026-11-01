@@ -42,10 +42,11 @@ checked out in a worktree of --dir: the branch starts from the commit evaluated,
 merges the new one into it, and a change of the facts is committed. The branch is never pushed.
 Run it again once the evaluator adds its files.
 
-The front matter of the facts holds the commit evaluated and the commit of mc. The evaluator
-copies it into the report that it writes from the facts, such as docs/lab-1.report.md. While both
-commits stay the same, the report is up to date: the team is skipped, unless --force is given, or
-mc is a local build with changes.
+The front matter of the facts holds the commit evaluated and the commit of mc, then the images of
+each rule on Docker Hub and the number of screenshots of the team, which mc eval sync writes in the
+evaluation sheet. The evaluator copies it into the report that it writes from the facts, such as
+docs/lab-1.report.md. While both commits and the images stay the same, the report is up to date:
+the team is skipped, unless --force is given, or mc is a local build with changes.
 
 The files of the former names, docs/lab-1.evidence.md for the facts and docs/lab-1.generated.md
 for the report, are renamed with git mv at the next pass, and the renames are committed.`,

@@ -59,9 +59,12 @@ flowchart LR
 ## When a Team Is Skipped
 
 The front matter of the facts holds 2 commits: the commit of the team evaluated, and the commit of
-`mc` that gathered the facts. The report of the evaluator copies it. When both commits of the
-report are those of now, nothing changed since it was written: `Gather` skips the team, and
-`Result.UpToDate` says so. A local build of `mc` with changes never skips a team, since its commit
+`mc` that gathered the facts. Then come the facts of each rule for the evaluation sheet: the tags of
+its images, with the start of their digests, and the number of screenshots of the team. The report
+of the evaluator copies it. When both commits of the report, and its images, are those of now,
+nothing changed since it was written: `Gather` skips the team, and `Result.UpToDate` says so. So
+`Gather` reads Docker Hub before it decides: an image pushed again without a commit makes a new
+pass. A local build of `mc` with changes never skips a team, since its commit
 doesn't tell which code ran.
 
 The facts were `docs/lab-2.evidence.md` before, and the report `docs/lab-2.generated.md`. Before
@@ -70,8 +73,9 @@ keep their history, fixes the link of the report to the facts, and commits the r
 it, the check wouldn't find the report, and every team would be gathered again. `Result.Renamed`
 lists what a pass renamed.
 
-`ReadFacts` reads the same front matter for another command: `mc eval run` checks that an
-evaluation is about the commit of the facts.
+`ReadFacts` reads the same front matter for other commands: `mc eval run` checks that an evaluation
+is about the commit of the facts, and `mc eval sync` writes the images and the screenshots of each
+rule in the columns TA Docker Images and TA Screenshots.
 
 ## Code
 

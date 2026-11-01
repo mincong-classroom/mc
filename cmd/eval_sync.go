@@ -15,6 +15,7 @@ import (
 
 	"github.com/mincong-classroom/mc/common"
 	"github.com/mincong-classroom/mc/evaluation"
+	"github.com/mincong-classroom/mc/evidence"
 	"github.com/mincong-classroom/mc/rubric"
 	"github.com/mincong-classroom/mc/sheet"
 )
@@ -47,6 +48,8 @@ The sync follows the rules of a pass:
     TA To Check says why.
   - The other TA columns follow the evaluation, but a cell is never cleared. A cell that mc didn't
     write, and that the evaluation changes, waits in a block to check first.
+  - TA Docker Images and TA Screenshots follow the facts of mc eval gather-facts, the same way:
+    the tags of the images of the rule, and the number of screenshots of the team.
   - A penalty becomes the formula of TA Penalty, such as =-0.1*G80*F80, and its reason goes to
     the TA Comment.
 
@@ -110,7 +113,13 @@ func runEvalSync(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	result, err := evaluation.Sync(evaluation.SyncOptions{Lab: lab.ID, Files: files, Read: read, Exported: exported, Pending: pending})
+	facts, err := readFacts(lab, names)
+	if err != nil {
+		return err
+	}
+	result, err := evaluation.Sync(evaluation.SyncOptions{
+		Lab: lab.ID, Files: files, Read: read, Exported: exported, Pending: pending, Facts: facts,
+	})
 	if err != nil {
 		return err
 	}
@@ -118,6 +127,32 @@ func runEvalSync(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	return printSync(cmd.OutOrStdout(), syncReport{lab: lab, teams: len(files), tab: tab, result: result})
+}
+
+// readFacts returns the facts of mc for the columns that the evaluator doesn't write, by team, then
+// by rule. The checks of the files ensure that the facts are at the commit of each evaluation.
+func readFacts(lab rubric.Lab, names []string) (map[string]map[string]evaluation.RuleFacts, error) {
+	teams, err := common.ListTeams()
+	if err != nil {
+		return nil, err
+	}
+	facts := make(map[string]map[string]evaluation.RuleFacts, len(names))
+	for _, name := range names {
+		team, _ := teamOf(teams, name) // The checks report a team that the registry doesn't have.
+		f, ok, err := evidence.ReadFacts(factsOf(teacherDir(), team, lab))
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			continue
+		}
+		rules := make(map[string]evaluation.RuleFacts, len(f.Rules))
+		for id, rf := range f.Rules {
+			rules[id] = evaluation.RuleFacts{Images: rf.Images, Screenshots: rf.Screenshots}
+		}
+		facts[name] = rules
+	}
+	return facts, nil
 }
 
 // readSinceExport returns the tab as read since the last export. Without such a read, it writes the

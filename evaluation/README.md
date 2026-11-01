@@ -132,6 +132,9 @@ The rules of a pass decide each cell:
   A lower one keeps the former value, and so does a completeness that `mc` didn't write: TA To
   Check says why.
 - The other TA columns follow the evaluation, but a cell is never cleared.
+- TA Docker Images and TA Screenshots follow the facts of `mc eval gather-facts`, which `cmd` reads
+  and passes in `SyncOptions.Facts`: the tags of the images of the rule, and the number of
+  screenshots of the team. A rule without images leaves TA Docker Images alone.
 - TA Comment says "Done well: ... To improve: ...", and the reason of a penalty, if any. The
   penalty itself becomes the formula of TA Penalty, such as `=-0.1*G80*F80`.
 - A text that starts with `=` is an error, since Sheets would read it as a formula.

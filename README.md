@@ -316,19 +316,28 @@ one into it, and each change of the facts is committed. `mc` never pushes it.
 
 The evaluator writes a report from the facts, such as a report for the teacher in
 `docs/lab-1.report.md`. The front matter of the facts holds 2 commits: the commit of the team
-evaluated, and the commit of `mc` that gathered the facts. `mc info` prints the second one:
+evaluated, and the commit of `mc` that gathered the facts, which `mc info` prints. Then come the
+facts of each rule that the evaluation sheet shows: the tags of its images on Docker Hub, each with
+the first 12 characters of its digest, and the number of screenshots of the team in the section of
+its exercise:
 
 ```yaml
 ---
 commit: c028aea876b2754fb24541d0ea89f90a06eda946
 mc: 949d7aa740ab
+rules:
+  L1_DKF:
+    screenshots: 2
+  L1_IMG:
+    images: "1.0.0 b80767bd1a2c, 1.1.0 0f3e5d6c7b8a"   # "none" when Docker Hub has none of them
+    screenshots: 1
 ---
 ```
 
-The report copies this front matter. While both commits stay the same, nothing changed since it
-was written: `mc eval gather-facts` skips the team, and says that its report is up to date. The
-flag `--force` gathers the facts again anyway, e.g. after a new image on Docker Hub, or a new
-version of the report. A local build of `mc` with changes never skips a team, since its commit
+The report copies this front matter. While both commits and the images stay the same, nothing
+changed since it was written: `mc eval gather-facts` skips the team, and says that its report is up
+to date. An image pushed again, without a new commit, makes a new pass. The flag `--force` gathers
+the facts again anyway, e.g. after a new version of the report. A local build of `mc` with changes never skips a team, since its commit
 doesn't tell which code ran.
 
 The files had other names before: `docs/lab-1.evidence.md` for the facts, and
@@ -463,6 +472,8 @@ A sync follows the rules of a pass:
   the teacher. TA To Check says why
 - the other TA columns follow the files, but a cell is never cleared. A cell that `mc` didn't
   write, and that the files change, waits in a block of its own, to check first
+- TA Docker Images and TA Screenshots follow the facts of `mc eval gather-facts` the same way: the
+  tags of the images of the rule, and the number of screenshots of the team for its exercise
 - a penalty becomes the formula of TA Penalty, such as `=-0.1*G80*F80`, and its reason goes to the
   TA Comment
 

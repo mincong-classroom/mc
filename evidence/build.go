@@ -47,6 +47,9 @@ type ruleEvidence struct {
 	byEval   []evaluatorFile
 	images   []imageEvidence
 	notesRel string // The path of the notes, relative to the report.
+	// screenshots is the number of screenshots of the team in the section of the exercise, among
+	// the files of its repository.
+	screenshots int
 }
 
 type sectionEvidence struct {
@@ -104,7 +107,7 @@ type buildInput struct {
 	clone    git
 	worktree string
 	template *Template
-	registry Registry
+	images   map[string][]imageEvidence // The images of each rule on Docker Hub, by its ID.
 	revision string
 }
 
@@ -144,7 +147,6 @@ func build(in buildInput) (*labFacts, error) {
 	}
 	used := map[string]bool{}
 	attributed := map[string]bool{in.lab.Report: true}
-	tags := map[string][]Tag{}
 	for _, rule := range in.rubric.LabRules(in.lab.ID) {
 		re := ruleEvidence{rule: rule, notesRel: path.Join(path.Base(r.evidenceDir), rule.ID+".md")}
 		var links []string
@@ -159,7 +161,9 @@ func build(in buildInput) (*labFacts, error) {
 			images, linked := targets(se.blocks, in.lab.Report)
 			for _, image := range images {
 				attributed[image] = true
-				if _, ok := tree[image]; !ok {
+				if _, ok := tree[image]; ok {
+					re.screenshots++
+				} else {
 					se.missingImages = append(se.missingImages, image)
 				}
 			}
@@ -195,9 +199,7 @@ func build(in buildInput) (*labFacts, error) {
 				used[f.name] = true
 			}
 		}
-		for _, image := range rule.Images {
-			re.images = append(re.images, lookUpImage(in.registry, tags, strings.ReplaceAll(image, "{team}", in.team.Name), in.deadline))
-		}
+		re.images = in.images[rule.ID]
 		r.rules = append(r.rules, re)
 	}
 
@@ -354,6 +356,52 @@ func evaluatorFiles(worktree, dir string) ([]evaluatorFile, error) {
 }
 
 var semverPattern = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)$`)
+
+// lookUpImages reads the images of each rule on Docker Hub, by the ID of the rule, where {team} is
+// the name of the team. A repository is read once.
+func lookUpImages(registry Registry, rules []rubric.Rule, team string, deadline time.Time) map[string][]imageEvidence {
+	tags := map[string][]Tag{}
+	byRule := map[string][]imageEvidence{}
+	for _, rule := range rules {
+		for _, image := range rule.Images {
+			byRule[rule.ID] = append(byRule[rule.ID], lookUpImage(registry, tags, strings.ReplaceAll(image, "{team}", team), deadline))
+		}
+	}
+	return byRule
+}
+
+// imagesCell returns the images of a rule for the evaluation sheet, as RuleFacts.Images says.
+func imagesCell(images []imageEvidence) string {
+	if len(images) == 0 {
+		return ""
+	}
+	var tags []string
+	for _, ie := range images {
+		if ie.err != "" {
+			return ""
+		}
+		for _, te := range ie.tags {
+			digest := strings.TrimPrefix(te.tag.Digest, "sha256:")
+			tags = append(tags, te.tag.Name+" "+digest[:min(len(digest), 12)])
+		}
+	}
+	if len(tags) == 0 {
+		return noImages
+	}
+	return strings.Join(tags, ", ")
+}
+
+// ruleFacts returns the facts of each rule for the evaluation sheet, by its ID, and the IDs in the
+// order of the rules.
+func (r *labFacts) ruleFacts() (map[string]RuleFacts, []string) {
+	facts := make(map[string]RuleFacts, len(r.rules))
+	order := make([]string, len(r.rules))
+	for i, re := range r.rules {
+		facts[re.rule.ID] = RuleFacts{Images: imagesCell(re.images), Screenshots: re.screenshots}
+		order[i] = re.rule.ID
+	}
+	return facts, order
+}
 
 // lookUpImage reads the tag of the image on Docker Hub, and its later patches, such as 1.1.1 for
 // 1.1.0, which count for it.

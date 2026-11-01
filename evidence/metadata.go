@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -20,11 +21,62 @@ import (
 type metadata struct {
 	Commit string `yaml:"commit"` // The commit of the team evaluated, in full.
 	MC     string `yaml:"mc"`     // The commit of mc that gathered the facts.
+	// Rules are the facts of each rule that the evaluation sheet shows, by the ID of the rule.
+	Rules map[string]RuleFacts `yaml:"rules,omitempty"`
 }
 
-// frontMatter returns the metadata as the front matter of a Markdown file.
-func (m metadata) frontMatter() string {
-	return fmt.Sprintf("---\ncommit: %s\nmc: %s\n---\n\n", m.Commit, m.MC)
+// RuleFacts are the facts of a rule that the evaluation sheet shows, in the columns TA Docker
+// Images and TA Screenshots.
+type RuleFacts struct {
+	// Images are the tags of the images of the rule on Docker Hub, the tag of the rule and its later
+	// patches, each with the first 12 characters of its digest: "1.0.0 b80767bd1a2c, 1.0.1
+	// 0f3e5d6c7b8a". It is "none" when Docker Hub has none of them, and empty when the rule has no
+	// image, or when Docker Hub couldn't be read.
+	Images string `yaml:"images,omitempty"`
+	// Screenshots is the number of screenshots of the team in the section of the exercise of the
+	// rule, among the files of its repository.
+	Screenshots int `yaml:"screenshots"`
+}
+
+// noImages is the images of a rule whose tags Docker Hub doesn't have.
+const noImages = "none"
+
+// frontMatter returns the metadata as the front matter of a Markdown file, with the rules in the
+// order given.
+func (m metadata) frontMatter(order []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "---\ncommit: %s\nmc: %s\n", m.Commit, m.MC)
+	if len(m.Rules) > 0 {
+		b.WriteString("rules:\n")
+	}
+	for _, id := range order {
+		rf, ok := m.Rules[id]
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(&b, "  %s:\n", id)
+		if rf.Images != "" {
+			fmt.Fprintf(&b, "    images: %s\n", strconv.Quote(rf.Images))
+		}
+		fmt.Fprintf(&b, "    screenshots: %d\n", rf.Screenshots)
+	}
+	b.WriteString("---\n\n")
+	return b.String()
+}
+
+// upToDate reports whether a report with these metadata is up to date: the same commits as now,
+// and the same images on Docker Hub, by rule. An image that Docker Hub couldn't give now, an
+// empty one, doesn't count.
+func (m metadata) upToDate(commit, revision string, images map[string]string) bool {
+	if m.Commit != commit || m.MC != revision {
+		return false
+	}
+	for id, now := range images {
+		if now != "" && m.Rules[id].Images != now {
+			return false
+		}
+	}
+	return true
 }
 
 // readMetadata reads the metadata in the front matter of the facts or of a report. It reports false
@@ -57,8 +109,9 @@ func readMetadata(p string) (metadata, bool, error) {
 
 // Facts are what the front matter of the facts tells of their pass.
 type Facts struct {
-	Commit string // The commit of the team evaluated, in full.
-	MC     string // The commit of mc that gathered the facts.
+	Commit string               // The commit of the team evaluated, in full.
+	MC     string               // The commit of mc that gathered the facts.
+	Rules  map[string]RuleFacts // The facts of each rule for the evaluation sheet, by its ID.
 }
 
 // FactsPath returns the facts of a lab in the worktree of a team, such as

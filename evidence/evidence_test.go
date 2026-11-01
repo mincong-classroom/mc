@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -221,14 +222,26 @@ func TestGather(t *testing.T) {
 	// The evaluator writes its report from the facts, with their front matter: the next pass
 	// skips the team, unless it is forced, or mc changed.
 	report := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.report.md")
-	writeFiles(t, filepath.Dir(report), map[string]string{
-		"lab-1.report.md": "---\ncommit: " + before + "\nmc: 0a1b2c3d4e5f\n---\n\n# Lab 1, Team Red\n",
-	})
-	if !strings.HasPrefix(readFile(t, facts), "---\ncommit: "+before+"\nmc: 0a1b2c3d4e5f\n---\n") {
-		t.Errorf("the facts lack the front matter of the report")
+	writeFiles(t, filepath.Dir(report), map[string]string{"lab-1.report.md": frontMatterOf(t, facts) + "# Lab 1, Team Red\n"})
+	if want := "---\ncommit: " + before + "\nmc: 0a1b2c3d4e5f\nrules:\n"; !strings.HasPrefix(readFile(t, facts), want) {
+		t.Errorf("the facts don't start with the front matter %q", want)
 	}
 	if result, err = Gather(team, opts); err != nil || !result.UpToDate || result.File != report {
 		t.Errorf("Gather() with a report up to date = %+v, %v, want it up to date", result, err)
+	}
+	// An image pushed again, without a new commit of the team, makes a new pass.
+	repushed := opts
+	repushed.Registry = fakeRegistry{"sample/app-red": {
+		{Name: "1.0.0", LastPushed: deadline.Add(4 * time.Hour), Digest: "sha256:9a8b7c6d5e4f3a2b", Images: []TagImage{{OS: "linux", Architecture: "amd64"}}},
+	}}
+	if result, err = Gather(team, repushed); err != nil || result.UpToDate || !result.Committed {
+		t.Errorf("Gather() with an image pushed again = %+v, %v, want the facts gathered and committed", result, err)
+	}
+	if want := "  L1_TAG:\n    images: \"1.0.0 9a8b7c6d5e4f\"\n    screenshots: 0\n"; !strings.Contains(readFile(t, facts), want) {
+		t.Errorf("the facts after the image pushed again lack %q:\n%s", want, frontMatterOf(t, facts))
+	}
+	if result, err = Gather(team, opts); err != nil || !result.UpToDate {
+		t.Errorf("Gather() back to the images of the report = %+v, %v, want it up to date again", result, err)
 	}
 	forced := opts
 	forced.Force = true
@@ -287,9 +300,10 @@ func TestGatherRenamesTheFormerFiles(t *testing.T) {
 	// Given the files of a former version of mc, committed to the branch teacher: the facts, and the
 	// report that links to them.
 	worktree := filepath.Join(root, "teacher", "k8s-red")
+	front := frontMatterOf(t, filepath.Join(worktree, "docs", "lab-1.facts.md"))
 	run(t, worktree, "mv", "docs/lab-1.facts.md", "docs/lab-1.evidence.md")
 	writeFiles(t, worktree, map[string]string{
-		"docs/lab-1.generated.md": "---\ncommit: " + commit + "\nmc: 0a1b2c3d4e5f\n---\n\n# Lab 1, Team Red\n\n" +
+		"docs/lab-1.generated.md": front + "# Lab 1, Team Red\n\n" +
 			"From the facts: [`lab-1.evidence.md`](lab-1.evidence.md), and the evidence of [`lab-1.evidence/`](lab-1.evidence/).\n",
 	})
 	run(t, worktree, "add", "--all")
@@ -461,6 +475,17 @@ func run(t *testing.T, dir string, args ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
+// frontMatterOf returns the front matter of a file, as a report copies it from the facts.
+func frontMatterOf(t *testing.T, p string) string {
+	t.Helper()
+	content := readFile(t, p)
+	i := strings.Index(content, "\n---\n\n")
+	if !strings.HasPrefix(content, "---\n") || i < 0 {
+		t.Fatalf("%s has no front matter:\n%s", p, content)
+	}
+	return content[:i+len("\n---\n\n")]
+}
+
 func readFile(t *testing.T, p string) string {
 	t.Helper()
 	content, err := os.ReadFile(p)
@@ -514,6 +539,18 @@ func TestReadMetadata(t *testing.T) {
 			want:    metadata{Commit: "c028aea", MC: "0a1b2c3d4e5f"},
 			wantOK:  true,
 		},
+		{
+			name: "the facts of the rules",
+			content: metadata{Commit: "c028aea", MC: "0a1b2c3d4e5f", Rules: map[string]RuleFacts{
+				"L1_TAG": {Images: "1.0.0 0f3e5d6c7b8a, 1.0.1 1a2b3c4d5e6f", Screenshots: 2},
+				"L1_BLD": {Screenshots: 0},
+			}}.frontMatter([]string{"L1_BLD", "L1_TAG", "L1_RUN"}) + "# Lab 1\n",
+			want: metadata{Commit: "c028aea", MC: "0a1b2c3d4e5f", Rules: map[string]RuleFacts{
+				"L1_TAG": {Images: "1.0.0 0f3e5d6c7b8a, 1.0.1 1a2b3c4d5e6f", Screenshots: 2},
+				"L1_BLD": {Screenshots: 0},
+			}},
+			wantOK: true,
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			p := filepath.Join(dir, strings.ReplaceAll(c.name, " ", "-")+".md")
@@ -523,7 +560,7 @@ func TestReadMetadata(t *testing.T) {
 				}
 			}
 			got, ok, err := readMetadata(p)
-			if err != nil || ok != c.wantOK || got != c.want {
+			if err != nil || ok != c.wantOK || !reflect.DeepEqual(got, c.want) {
 				t.Errorf("readMetadata() = %+v, %v, %v, want %+v, %v", got, ok, err, c.want, c.wantOK)
 			}
 		})
@@ -545,6 +582,10 @@ func TestReadFacts(t *testing.T) {
 	content := `---
 commit: 0a1b2c3d4e5f60718293a4b5c6d7e8f901234567
 mc: 949d7aa740ab
+rules:
+  L2_POD:
+    images: "1.1.0 b80767bd1a2c"
+    screenshots: 3
 ---
 
 # Lab 2
@@ -555,8 +596,12 @@ mc: 949d7aa740ab
 	if err := os.WriteFile(report, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	want := Facts{Commit: "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567", MC: "949d7aa740ab"}
-	if got, ok, err := ReadFacts(report); err != nil || !ok || got != want {
+	want := Facts{
+		Commit: "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567",
+		MC:     "949d7aa740ab",
+		Rules:  map[string]RuleFacts{"L2_POD": {Images: "1.1.0 b80767bd1a2c", Screenshots: 3}},
+	}
+	if got, ok, err := ReadFacts(report); err != nil || !ok || !reflect.DeepEqual(got, want) {
 		t.Errorf("ReadFacts() = %+v, %v, %v, want %+v, true", got, ok, err, want)
 	}
 }
