@@ -185,8 +185,8 @@ func runEvalLs(cmd *cobra.Command, _ []string) error {
 				return err
 			}
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%s\n", lab.ID, name, shortCommit(f.Commit), evaluatedRules(f, r.LabRules(lab.ID)),
-				count(f.Rules, func(rule evaluation.Rule) bool { return rule.ToCheck != "" }),
-				count(f.Rules, func(rule evaluation.Rule) bool { return rule.Penalty != nil }),
+				countRules(f.Rules, func(rule evaluation.Rule) bool { return rule.ToCheck != "" }),
+				countRules(f.Rules, func(rule evaluation.Rule) bool { return rule.Penalty != nil }),
 				orDash(f.ActionItems))
 		}
 	}
@@ -227,8 +227,8 @@ func evaluatedRules(f *evaluation.File, rules []rubric.Rule) string {
 	return s
 }
 
-// count returns the number of rules for which keep is true.
-func count(rules []evaluation.Rule, keep func(evaluation.Rule) bool) int {
+// countRules returns the number of rules for which keep is true.
+func countRules(rules []evaluation.Rule, keep func(evaluation.Rule) bool) int {
 	n := 0
 	for _, rule := range rules {
 		if keep(rule) {
