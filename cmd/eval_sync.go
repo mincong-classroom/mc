@@ -98,7 +98,7 @@ func runEvalSync(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	read, err := readSinceExport(cmd.OutOrStdout(), tab, lab)
+	read, err := readSinceExport(cmd.OutOrStdout(), tab, evaluation.SheetFile(), "mc eval sync -l "+lab.ID)
 	if err != nil {
 		return err
 	}
@@ -121,8 +121,9 @@ func runEvalSync(cmd *cobra.Command, _ []string) error {
 }
 
 // readSinceExport returns the tab as read since the last export. Without such a read, it writes the
-// script that reads the tab, says how to run it, and returns errNoRead.
-func readSinceExport(w io.Writer, tab tabFiles, lab rubric.Lab) (*sheet.File, error) {
+// script that reads the columns of the layout, says how to run it, then the command to run again,
+// and returns errNoRead.
+func readSinceExport(w io.Writer, tab tabFiles, layout *sheet.File, again string) (*sheet.File, error) {
 	info, err := os.Stat(tab.read)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
@@ -149,20 +150,20 @@ func readSinceExport(w io.Writer, tab tabFiles, lab rubric.Lab) (*sheet.File, er
 	if err != nil {
 		return nil, err
 	}
-	if err := sheet.Snippet(f, evaluation.SheetFile(), sheet.SnippetOptions{Sheet: url, Path: tab.read}); err != nil {
+	if err := sheet.Snippet(f, layout, sheet.SnippetOptions{Sheet: url, Path: tab.read}); err != nil {
 		_ = f.Close() // The error of the script says more.
 		return nil, err
 	}
 	if err := f.Close(); err != nil {
 		return nil, err
 	}
-	fmt.Fprintf(w, `No read of the tab Evaluation since the last export, in %s. To read it, run the script
+	fmt.Fprintf(w, `No read of the tab %s since the last export, in %s. To read it, run the script
   %s
 in the page of the spreadsheet, with an agent in the browser such as Claude in Chrome, or in the
 console of its DevTools. It copies the rows to the clipboard: save them in %s, such as with
   pbpaste > %s
-then run mc eval sync -l %s again.
-`, tab.read, script, tab.read, tab.read, lab.ID)
+then run %s again.
+`, layout.Tab, tab.read, script, tab.read, tab.read, again)
 	return nil, errNoRead
 }
 
@@ -189,25 +190,8 @@ type syncReport struct {
 func printSync(w io.Writer, s syncReport) error {
 	result := s.result
 	fmt.Fprintf(w, "Synced %s of %s with the tab Evaluation, as read in %s.\n", plural(s.teams, "evaluation"), s.lab.ID, s.tab.read)
-	if len(result.Changes) > 0 {
-		fmt.Fprintln(w)
-		tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(tw, "CELL\tROW\tCOLUMN\tCHANGE")
-		for _, c := range result.Changes {
-			change := cellValue(c.From) + " -> " + cellValue(c.To)
-			switch {
-			case c.Kept != "" && c.To == nil:
-				change = "kept " + cellValue(c.From) + ": " + c.Kept
-			case c.Kept != "":
-				change = "kept " + cellValue(c.From) + ", not " + cellValue(c.To) + ": " + c.Kept
-			case c.Check != "":
-				change += ", check first: " + c.Check
-			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", c.Cell, c.Row, c.Header, change)
-		}
-		if err := tw.Flush(); err != nil {
-			return err
-		}
+	if err := printChanges(w, "ROW", result.Changes); err != nil {
+		return err
 	}
 	if len(result.Added) > 0 {
 		fmt.Fprintln(w)
@@ -226,16 +210,57 @@ func printSync(w io.Writer, s syncReport) error {
 		fmt.Fprintf(w, "\nNothing to write: the tab holds the evaluations already.\n")
 		return nil
 	}
-	fmt.Fprintf(w, "\n%s %s in %s. Next, in the page of the spreadsheet:\n\n", plural(len(result.Pending.Rows), "row"),
-		verb(len(result.Pending.Rows), "waits", "wait"), s.tab.pending)
-	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(tw, "  mc sheet blocks evaluation\tlist the blocks to paste")
-	fmt.Fprintln(tw, "  mc sheet copy evaluation 1\tcopy a block, then paste it at its range, block after block")
+	var fill string
 	if result.LastNewRow > 0 && result.FillFrom > 0 {
-		fmt.Fprintf(tw, "  fill down B%d:C%d\tthe columns B and C of the new rows: type the range in the Name Box, then Cmd+D\n", result.FillFrom, result.LastNewRow)
+		fill = fmt.Sprintf("B%d:C%d", result.FillFrom, result.LastNewRow)
 	}
-	fmt.Fprintln(tw, "  mc sheet pasted evaluation\trecord the blocks pasted, such as 1 2 3, or every block")
-	fmt.Fprintln(tw, "  mc sheet verify evaluation\tafter a new read of the tab, compare it with what was written")
+	return printNextSteps(w, nextSteps{name: "evaluation", rows: len(result.Pending.Rows), pending: s.tab.pending, fill: fill})
+}
+
+// printChanges prints the cells that a sync writes and keeps, if any, one per line, after a blank
+// line. row is the header of the column that names the row of each cell.
+func printChanges(w io.Writer, row string, changes []evaluation.Change) error {
+	if len(changes) == 0 {
+		return nil
+	}
+	fmt.Fprintln(w)
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	fmt.Fprintf(tw, "CELL\t%s\tCOLUMN\tCHANGE\n", row)
+	for _, c := range changes {
+		change := cellValue(c.From) + " -> " + cellValue(c.To)
+		switch {
+		case c.Kept != "" && c.To == nil:
+			change = "kept " + cellValue(c.From) + ": " + c.Kept
+		case c.Kept != "":
+			change = "kept " + cellValue(c.From) + ", not " + cellValue(c.To) + ": " + c.Kept
+		case c.Check != "":
+			change += ", check first: " + c.Check
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", c.Cell, c.Row, c.Header, change)
+	}
+	return tw.Flush()
+}
+
+// nextSteps are the rows that wait in the file of a tab, and how to write them.
+type nextSteps struct {
+	name    string // The name of the files of the tab, such as evaluation.
+	rows    int    // The number of rows that wait.
+	pending string // The file of what waits.
+	fill    string // The range to fill down after the paste, such as B3:C4, if any.
+}
+
+// printNextSteps prints the rows that wait, and the commands that write them in the tab through the
+// page of the spreadsheet.
+func printNextSteps(w io.Writer, s nextSteps) error {
+	fmt.Fprintf(w, "\n%s %s in %s. Next, in the page of the spreadsheet:\n\n", plural(s.rows, "row"), verb(s.rows, "waits", "wait"), s.pending)
+	tw := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
+	fmt.Fprintf(tw, "  mc sheet blocks %s\tlist the blocks to paste\n", s.name)
+	fmt.Fprintf(tw, "  mc sheet copy %s 1\tcopy a block, then paste it at its range, block after block\n", s.name)
+	if s.fill != "" {
+		fmt.Fprintf(tw, "  fill down %s\tthe columns B and C of the new rows: type the range in the Name Box, then Cmd+D\n", s.fill)
+	}
+	fmt.Fprintf(tw, "  mc sheet pasted %s\trecord the blocks pasted, such as 1 2 3, or every block\n", s.name)
+	fmt.Fprintf(tw, "  mc sheet verify %s\tafter a new read of the tab, compare it with what was written\n", s.name)
 	return tw.Flush()
 }
 

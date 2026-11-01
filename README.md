@@ -49,7 +49,7 @@ Available Commands:
   help        Help about any command
   info        Display CLI information
   k8s         Perform Kubernetes operations
-  rule        List, check and render the evaluation rules of the year
+  rule        List, check, render and sync the evaluation rules of the year
   team        Manage the teams
 
 Flags:
@@ -221,12 +221,14 @@ The local clone keeps the history it had: compare it with the new one
 
 The evaluation rules of a program are in a YAML file with two maps: `labs`, the lab sessions of
 the module with their deadline, and `rules`, one entry per rule keyed by its ID, such as `L1_DKF`.
-`mc` lists the rules of the year, checks them, and renders them as a Markdown page:
+`mc` lists the rules of the year, checks them, renders them as a Markdown page, and writes them to
+the evaluation sheet:
 
 ```sh
 mc rule ls -l L1                       # the rules of Lab 1
 mc rule check                          # one problem per line, exit 1 if any
 mc rule render -o evaluation-rules.md  # the page, wrapped at 96 characters
+mc rule sync                           # the cells of the tab Rules, in ~/.mc/{year}/sheet/rules.json
 ```
 
 The file of the year comes from the key `rules` of the settings, `~/.mc/settings.yaml`, where
@@ -245,6 +247,37 @@ evaluation-rules.yaml:142: L1_DKF: unknown key "penalty"
 The made-up file of the tests shows the format,
 [`rubric/testdata/evaluation-rules.yaml`](rubric/testdata/evaluation-rules.yaml), and its page,
 [`rubric/testdata/evaluation-rules.md`](rubric/testdata/evaluation-rules.md).
+
+`mc rule sync` computes the cells that write the rules in the tab "Rules" of the evaluation sheet,
+where the tab "Evaluation" looks up the score of each rule. It works as `mc eval sync` (see
+"Evaluation"): without a read of the tab since the last export, it writes the script that reads
+the tab, `rules.read.js`, and stops. With a read, it saves the cells to write in `rules.json`, for
+`mc sheet` (see "Sheet"). Here is a sync of the made-up rules of the tests, with a tab that has
+another coefficient for `L2_POD`, misses `L1_BLD` and `L2_LOG`, and still has a rule `L2_OLD`:
+
+```
+$ mc rule sync --rules-file rubric/testdata/evaluation-rules.yaml
+Synced 4 rules of rubric/testdata/evaluation-rules.yaml with the tab Rules, as read in /Users/me/.mc/2026/sheet/rules.read.json.
+
+CELL      RULE    COLUMN       CHANGE
+Rules!E3  L2_POD  Coefficient  0.5 -> 1, check first: the tab has "0.5", which mc didn't write
+
+New 2 rows: L1_BLD (row 5), L2_LOG (row 6).
+
+In the tab, not in the rules: L2_OLD (row 4). mc never deletes a row: delete it by hand if the rule is gone.
+
+3 rows wait in /Users/me/.mc/2026/sheet/rules.json. Next, in the page of the spreadsheet:
+
+  mc sheet blocks rules  list the blocks to paste
+  mc sheet copy rules 1  copy a block, then paste it at its range, block after block
+  mc sheet pasted rules  record the blocks pasted, such as 1 2 3, or every block
+  mc sheet verify rules  after a new read of the tab, compare it with what was written
+```
+
+A row is found by its Lab Session and its Rule, the end of the Rule ID. A new rule gets a new row,
+with the formulas of the tab. A cell that `mc` didn't write, such as a coefficient tuned in the tab,
+waits in a block to check first, and a row whose rule is gone is listed, never deleted. The
+[README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives the columns.
 
 ## Evidence
 

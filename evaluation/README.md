@@ -5,9 +5,10 @@ checks it against the evaluation rules. The evaluator is an AI agent that `mc ev
 the teacher. The checks catch its mistakes before the evaluation goes any further: a rule
 forgotten, a completeness of 0.85, a penalty that the rules don't give, or another commit than the
 one of the facts. Then the package computes the cells that write the evaluations in the evaluation
-spreadsheet. The commands are `mc eval ls`, `mc eval run` and `mc eval sync`, described in the
-section [Evaluation](../README.md#evaluation) of the README: this page explains the package behind
-them.
+spreadsheet, and those that write the rules of the year. The commands are `mc eval ls`,
+`mc eval run` and `mc eval sync`, described in the section [Evaluation](../README.md#evaluation)
+of the README, and `mc rule sync`, in the section [Rule](../README.md#rule): this page explains the
+package behind them.
 
 ## One File per Team and Lab
 
@@ -135,6 +136,34 @@ The rules of a pass decide each cell:
   penalty itself becomes the formula of TA Penalty, such as `=-0.1*G80*F80`.
 - A text that starts with `=` is an error, since Sheets would read it as a formula.
 
+## From the Rules to the Sheet
+
+`SyncRules` turns the rules of the YAML into the cells of the tab Rules, where the Rule Score of
+the tab Evaluation looks up the score of each rule. It works as `Sync`, from the tab as read and
+what `mc` wrote last, and computes `rules.json`. Here are the columns of the tab:
+
+| Column | Header | From the YAML |
+|---|---|---|
+| A | Lab Session | The lab of the rule, `L2` |
+| B | Rule | The end of the Rule ID, `FBP` |
+| C | Rule ID | A formula, `=CONCAT(A2, CONCAT("_", B2))`: `L2_FBP` |
+| D | Rule Name | `name` |
+| E | Coefficient | `coefficient`, `0.3` |
+| F | Score | A formula, `=20*E2`: `6` |
+| G | Exercise | `exercise`, `6` or `4.1`, as a number |
+| H | Exercise ID | A formula, `=CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2))`: `L2_EX6` |
+| I | Rule Description | `description`, on one line |
+
+The column J, Troubleshooting Instructions, belongs to the teacher: `mc` never reads it.
+
+- A row is found by A and B, whose values the YAML gives, rather than by C, which is a formula. A
+  rule that the tab doesn't have gets a new row after the last one, with the formulas of C, F and H.
+- D, E, G and I follow the YAML. A cell that `mc` didn't write, such as a coefficient tuned in the
+  tab, gets a `_check`, and waits in a block to check first.
+- A formula whose value is not the one that it gives from its row, such as a Rule ID typed over it,
+  is written again with a `_check`.
+- A row whose rule the YAML no longer has is listed in the result, `Extra`, and never deleted.
+
 ## Code
 
 The files of the package:
@@ -144,5 +173,6 @@ The files of the package:
 | `evaluation.go` | `File`, `Rule` and `Penalty`; `Load`, with the line of each key; `LabDir`, `Path` and `Teams` |
 | `check.go` | `Check` and `CheckOptions`: the problems of a file against the rules and the commit of the facts |
 | `sync.go` | `Sync`, its options and its result: the cells of the tab Evaluation, and `SheetFile`, its columns |
+| `rules.go` | `SyncRules`, its options and its result: the cells of the tab Rules, and `RulesSheetFile`, its columns |
 
-The package imports `rubric` and `sheet` only, and its tests use made-up teams.
+The package imports `rubric` and `sheet` only, and its tests use made-up teams and rules.

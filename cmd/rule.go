@@ -23,9 +23,9 @@ var ruleFile string
 
 var ruleCmd = &cobra.Command{
 	Use:   "rule",
-	Short: "List, check and render the evaluation rules of the year",
-	Long: `List, check and render the evaluation rules of the year, in a YAML file. The file is the key
-rules of ~/.mc/settings.yaml, where {year} is the year of the cohort:
+	Short: "List, check, render and sync the evaluation rules of the year",
+	Long: `List, check, render and sync the evaluation rules of the year, in a YAML file. The file is
+the key rules of ~/.mc/settings.yaml, where {year} is the year of the cohort:
 
   year: 2026
   rules: ~/github/my-org/course/{year}/evaluation-rules.yaml
@@ -33,7 +33,8 @@ rules of ~/.mc/settings.yaml, where {year} is the year of the cohort:
 The flag --rules-file replaces it, e.g. with a test file.`,
 	Example: `  mc rule ls -l L1
   mc rule check
-  mc rule render -o evaluation-rules.md`,
+  mc rule render -o evaluation-rules.md
+  mc rule sync`,
 }
 
 var ruleLsLab string

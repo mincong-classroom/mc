@@ -58,6 +58,7 @@ mc team red validate|status [--json]  # the actions on one team of the registry
 mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~/.mc/settings.yaml), or --rules-file
 mc rule check                 # one problem per line, with its line; exit 1 if any
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
+mc rule sync [--sheet-dir DIR]  # the checks, then the cells of the rules in ~/.mc/{year}/sheet/rules.json for mc sheet; without a read of the tab Rules since the last export, writes rules.read.js and exits 1
 mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
 mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
 mc eval run -l L2 [-t teal] [--check-only] [--dir DIR]  # the agent of agents.eval_run (sh, in the repo of the rules), then the checks of its files: one problem per line, exit 1 if any
