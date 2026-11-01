@@ -294,8 +294,8 @@ commit doesn't tell which code ran.
 
 The evaluator writes what it found for each team in a YAML file, one per team and lab, so that
 several evaluators can work at once: `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml`. `mc eval
-check` checks these files against the evaluation rules, before they become the rows of the
-evaluation sheet. Here is the file of a made-up team, `teal`, in Lab 2:
+ls` lists these files, and `mc eval run` checks them against the evaluation rules, before they
+become the rows of the evaluation sheet. Here is the file of a made-up team, `teal`, in Lab 2:
 
 ```yaml
 team: teal
@@ -314,12 +314,32 @@ rules:
 ```
 
 The comment of the sheet joins `done_well` and `to_improve`, so that it always says what the team
-did well and what it can improve: the check asks for both. To check the files of a lab:
+did well and what it can improve: the check asks for both. To list the files, one line per team
+and lab:
 
 ```sh
-mc eval check -l L2             # every file of ~/.mc/{year}/evaluations/lab-2/
-mc eval check -l 2 -t teal      # one team
-mc eval check -l 2 --dir DIR    # the files of DIR/lab-2/
+mc eval ls                      # every lab, in the order of the rules
+mc eval ls -l L2                # one lab
+mc eval ls --dir DIR            # the files of DIR/lab-{n}/
+```
+
+Each line gives the commit evaluated, the mandatory rules evaluated out of those of the lab (and
+the optional ones after a `+`), the rules that the teacher should check, the penalties and the
+action items:
+
+```
+LAB  TEAM   COMMIT   RULES   TO CHECK  PENALTIES  ACTION ITEMS
+L2   coral  0a1b2c3  1/1 +1  1         1          Talk with them
+L2   teal   0a1b2c3  1/1     0         0          Run it yourself
+```
+
+A file that can't be read is listed with dashes, and the standard error says to run `mc eval run`
+for its problems. To check the files of a lab:
+
+```sh
+mc eval run -l L2               # every file of ~/.mc/{year}/evaluations/lab-2/
+mc eval run -l 2 -t teal        # one team
+mc eval run -l 2 --dir DIR      # the files of DIR/lab-2/
 ```
 
 The rules come from the settings, or the file of the flag `--rules-file`, as for `mc rule`. Each

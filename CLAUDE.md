@@ -59,7 +59,8 @@ mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~
 mc rule check                 # one problem per line, with its line; exit 1 if any
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
-mc eval check -l L2 [-t teal] [--dir DIR]  # the evaluations of a lab, one YAML per team: one problem per line, exit 1 if any
+mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
+mc eval run -l L2 [-t teal] [--dir DIR]  # the checks of the evaluations of a lab: one problem per line, exit 1 if any
 mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
 mc info                       # the CLI, its commit and the registry: number of teams, URL of the evaluation sheet
@@ -101,7 +102,7 @@ assume exists at runtime. Nothing here works without it:
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 - `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml` — the evaluation of a lab for a team, written
-  by the evaluator (an AI agent) and read by `mc eval check` (`evaluation.Load`). The files of
+  by the evaluator (an AI agent) and read by `mc eval ls` and `mc eval run` (`evaluation.Load`). The files of
   `mc evidence` are next to it, in `~/.mc/{year}/teacher/`.
 
 Gotcha: `NewGrader()` only reads the **L1–L4** assignment files. `assignmentsL5` is never populated,

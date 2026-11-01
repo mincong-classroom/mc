@@ -979,22 +979,58 @@ func (e *env) writeEvaluations(t *testing.T, teams []string, commits map[string]
 	return []string{"--rules-file", filepath.Join(e.home, "rules.yaml"), "--team-file", filepath.Join(e.home, "teams.yaml")}
 }
 
-func TestEvalCheck(t *testing.T) {
+func TestEvalLs(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, []string{"teal"}, nil)
+	// coral: a rule to check, a penalty and the optional rule; olive: a key that doesn't exist.
+	e.writeFile(t, ".mc/2026/evaluations/lab-2/coral.yaml", `team: coral
+commit: 0a1b2c3d4e5f60718293a4b5c6d7e8f901234567
+action_items: Talk with them
+rules:
+  L2_POD:
+    completeness: 1
+    to_check: The logs come from another Pod.
+    penalty: {kind: secret, remove: 0.3, why: The report shows a token.}
+  L2_LOG:
+    completeness: 0.5
+`)
+	e.writeFile(t, ".mc/2026/evaluations/lab-2/olive.yaml", "team: olive\nrules:\n  L2_POD:\n    to_chek: \"\"\n")
+
+	r := e.run(t, "", append([]string{"eval", "ls"}, flags...)...)
+
+	dir := filepath.Join(e.home, ".mc", "2026", "evaluations")
+	want := "LAB  TEAM   COMMIT   RULES   TO CHECK  PENALTIES  ACTION ITEMS\n" +
+		"L2   coral  0a1b2c3  1/1 +1  1         1          Talk with them\n" +
+		"L2   olive  -        -       -         -          -\n" +
+		"L2   teal   0a1b2c3  1/1     0         0          Run it yourself\n"
+	wantStderr := filepath.Join(dir, "lab-2", "olive.yaml") + ": 1 problem, see mc eval run -l L2 -t olive\n"
+	if r.exitCode != 0 || r.stdout != want || r.stderr != wantStderr {
+		t.Errorf("mc eval ls = %d, stdout\n%s\nstderr %q, want 0, stdout\n%s\nstderr %q", r.exitCode, r.stdout, r.stderr, want, wantStderr)
+	}
+
+	// A lab without evaluations.
+	r = e.run(t, "", append([]string{"eval", "ls", "-l", "1"}, flags...)...)
+	if want := "No evaluation in " + filepath.Join(dir, "lab-1") + "\n"; r.exitCode != 0 || r.stdout != want {
+		t.Errorf("mc eval ls -l 1 = %d, %q, stderr %q, want 0, %q", r.exitCode, r.stdout, r.stderr, want)
+	}
+}
+
+func TestEvalRun(t *testing.T) {
 	e := newEnv(t)
 	flags := e.writeEvaluations(t, []string{"teal", "coral"}, map[string]string{
 		"teal":  "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567",
 		"coral": "0a1b2c3ffffffffffffffffffffffffffffffff",
 	})
 
-	r := e.run(t, "", append([]string{"eval", "check", "-l", "L2"}, flags...)...)
+	r := e.run(t, "", append([]string{"eval", "run", "-l", "L2"}, flags...)...)
 
 	want := "2 files of L2 checked in " + filepath.Join(e.home, ".mc", "2026", "evaluations", "lab-2") + ": no problem\n"
 	if r.exitCode != 0 || r.stdout != want || r.stderr != "" {
-		t.Errorf("mc eval check -l L2 = %d, %q, stderr %q, want 0, %q", r.exitCode, r.stdout, r.stderr, want)
+		t.Errorf("mc eval run -l L2 = %d, %q, stderr %q, want 0, %q", r.exitCode, r.stdout, r.stderr, want)
 	}
 }
 
-func TestEvalCheckPrintsTheProblems(t *testing.T) {
+func TestEvalRunPrintsTheProblems(t *testing.T) {
 	e := newEnv(t)
 	flags := e.writeEvaluations(t, []string{"teal", "coral", "olive"}, map[string]string{
 		"teal":  "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567",
@@ -1008,7 +1044,7 @@ func TestEvalCheckPrintsTheProblems(t *testing.T) {
 	}
 	e.writeFile(t, ".mc/2026/evaluations/lab-2/coral.yaml", strings.Replace(string(data), "completeness: 0.8", "completeness: 0.85", 1))
 
-	r := e.run(t, "", append([]string{"eval", "check", "-l", "2"}, flags...)...)
+	r := e.run(t, "", append([]string{"eval", "run", "-l", "2"}, flags...)...)
 
 	// One problem per line, sorted by file, then by line. olive has no facts, and no team.
 	want := coral + ":2: the commit 0a1b2c3 is not the one of the facts of mc evidence, 9f8e7d6: evaluate that commit, or gather the facts again\n" +
@@ -1017,32 +1053,32 @@ func TestEvalCheckPrintsTheProblems(t *testing.T) {
 		filepath.Join(dir, "olive.yaml") + ":2: no facts of mc evidence for the team olive in L2: run mc evidence -l L2 -t olive first\n" +
 		"Error: 4 problems in 2 of 3 files\n"
 	if r.exitCode != 1 || r.stdout != "" || r.stderr != want {
-		t.Errorf("mc eval check -l 2 = %d, %q, stderr\n%s\nwant 1 and the stderr\n%s", r.exitCode, r.stdout, r.stderr, want)
+		t.Errorf("mc eval run -l 2 = %d, %q, stderr\n%s\nwant 1 and the stderr\n%s", r.exitCode, r.stdout, r.stderr, want)
 	}
 
 	// One team only: the problems of the others don't count.
-	r = e.run(t, "", append([]string{"eval", "check", "-l", "2", "-t", "teal"}, flags...)...)
+	r = e.run(t, "", append([]string{"eval", "run", "-l", "2", "-t", "teal"}, flags...)...)
 	if want := "1 file of L2 checked in " + dir + ": no problem\n"; r.exitCode != 0 || r.stdout != want {
-		t.Errorf("mc eval check -l 2 -t teal = %d, %q, stderr %q, want 0, %q", r.exitCode, r.stdout, r.stderr, want)
+		t.Errorf("mc eval run -l 2 -t teal = %d, %q, stderr %q, want 0, %q", r.exitCode, r.stdout, r.stderr, want)
 	}
 }
 
-func TestEvalCheckWithoutEvaluations(t *testing.T) {
+func TestEvalRunWithoutEvaluations(t *testing.T) {
 	e := newEnv(t)
 	flags := e.writeEvaluations(t, nil, nil)
 	dir := filepath.Join(t.TempDir(), "evaluations")
 
-	r := e.run(t, "", append([]string{"eval", "check", "-l", "L2", "--dir", dir}, flags...)...)
+	r := e.run(t, "", append([]string{"eval", "run", "-l", "L2", "--dir", dir}, flags...)...)
 
 	want := "no evaluation of L2 in " + filepath.Join(dir, "lab-2") + ": one YAML file per team, such as " + filepath.Join(dir, "lab-2", "teal.yaml")
 	if r.exitCode != 1 || !strings.Contains(r.stderr, want) {
-		t.Errorf("mc eval check --dir of no file = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
+		t.Errorf("mc eval run --dir of no file = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
 	}
 
 	// A team asked for, without its file.
-	r = e.run(t, "", append([]string{"eval", "check", "-l", "L2", "--dir", dir, "-t", "teal"}, flags...)...)
+	r = e.run(t, "", append([]string{"eval", "run", "-l", "L2", "--dir", dir, "-t", "teal"}, flags...)...)
 	want = filepath.Join(dir, "lab-2", "teal.yaml") + ": no such file: the evaluation of the team teal\n"
 	if r.exitCode != 1 || !strings.HasPrefix(r.stderr, want) {
-		t.Errorf("mc eval check -t teal without its file = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
+		t.Errorf("mc eval run -t teal without its file = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
 	}
 }
