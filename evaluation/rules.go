@@ -17,16 +17,32 @@ import (
 // the tab Evaluation looks up the score of each rule.
 const RulesTab = "Rules"
 
-// The headers of the columns of the tab Rules.
+// The headers of the columns of the tab Rules, from A to I: one row per rule of the YAML. The
+// examples are the rules L1_BLD and L2_LOG of the made-up file rubric/testdata/evaluation-rules.yaml.
 const (
-	headerLabSession  = "Lab Session"
-	headerRuleEnd     = "Rule" // The end of the Rule ID: FBP for L2_FBP.
-	headerRuleID      = "Rule ID"
-	headerRuleName    = "Rule Name"
+	// headerLabSession is A, the lab of the rule, the key lab of the YAML: L1, L2. With the Rule,
+	// it finds the row of a rule.
+	headerLabSession = "Lab Session"
+	// headerRuleEnd is B, the end of the Rule ID, after the lab and the underscore: BLD, LOG.
+	headerRuleEnd = "Rule"
+	// headerRuleID is C, the ID of the rule, a formula that joins the Lab Session and the Rule:
+	// L1_BLD, L2_LOG. The Rule Score of the tab Evaluation looks it up there.
+	headerRuleID = "Rule ID"
+	// headerRuleName is D, the name of the rule, the key name of the YAML: Build Test, Logs Test.
+	headerRuleName = "Rule Name"
+	// headerCoefficient is E, the share of the 20 points of the lab that the rule gives, the key
+	// coefficient of the YAML: 0.6, 0.1. A bonus, such as L2_LOG, counts on top of the 20 points.
 	headerCoefficient = "Coefficient"
-	headerRulePoints  = "Score"
-	headerExercise    = "Exercise"
-	headerExerciseID  = "Exercise ID"
+	// headerRulePoints is F, the points of the rule, a formula, 20 times the Coefficient: 12, 2.
+	headerRulePoints = "Score"
+	// headerExercise is G, the exercise of the rule, the key exercise of the YAML, as a number: 1,
+	// or 2.1 for the part 2.1 of Exercise 2.
+	headerExercise = "Exercise"
+	// headerExerciseID is H, the ID of the exercise, a formula that joins the Lab Session and the
+	// Exercise: L1_EX1, L2_EX2.1.
+	headerExerciseID = "Exercise ID"
+	// headerDescription is I, what the team is expected to deliver, the key description of the
+	// YAML, on one line: "The team is expected to follow the logs of the Pod. This rule is a bonus."
 	headerDescription = "Rule Description"
 )
 
