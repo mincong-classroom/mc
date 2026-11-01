@@ -318,6 +318,73 @@ that the evaluator added the boxes. The flag `--evaluator` leaves it out, for a 
 evaluator, which carries its own watermark. The flag `--padding` sets the space between a text and
 its box, e.g. `--padding 1` when the box crosses the lines around it.
 
+## Sheet
+
+`mc sheet` moves the data of a tab of the evaluation spreadsheet between JSON files and the
+spreadsheet, by hand or through a browser. It never calls the API of Google Sheets, so it needs no
+project of Google Cloud. Each tab has its files in `~/.mc/{year}/sheet/`, named after the tab, such
+as `evaluation` for the tab "Evaluation":
+
+| File | What it holds |
+|---|---|
+| `evaluation.json` | What waits to be written in the tab |
+| `evaluation.read.json` | The tab, as read in the browser by the script of `mc sheet snippet` |
+| `evaluation.exported.json` | What was written last, to tell a cell that the teacher changed |
+
+A file holds one object per row, like the documents of a collection in MongoDB: each attribute is
+a column, named by its header. Here is a file with a made-up team:
+
+```json
+{
+  "tab": "Evaluation",
+  "keys": ["Team", "Lab", "Rule"],
+  "columns": {"A": "Team", "D": "Lab", "E": "Rule", "G": "Completeness", "L": "TA Commit", "O": "TA Analysis"},
+  "rows": [
+    {"_row": 81, "Team": "teal", "Lab": "L2", "Rule": "L2_RUN", "TA Commit": "2e88112", "TA Analysis": "detailed"},
+    {"_row": 82, "Team": "teal", "Lab": "L2", "Rule": "L2_FBP", "Completeness": 0.9,
+     "_check": {"Completeness": "0.7 at the last export, and no read of the tab since"}}
+  ]
+}
+```
+
+As you can see:
+
+- the keys, Team, Lab and Rule, find a row, and `_row` is its number in the tab
+- a row holds the cells to write only: an attribute absent is a cell left alone, never cleared
+- `columns` gives the letter of each header. A column out of it is never read nor written, such as
+  a column of personal data
+- `_check` names the cells to look at before writing them, which the teacher may have changed
+  since the last export
+
+To write a tab by hand:
+
+```sh
+mc sheet blocks evaluation       # the blocks of cells to paste
+mc sheet copy evaluation 1       # the block 1 to the clipboard, --print to print it instead
+# In the spreadsheet: type the range of the block in the Name Box, press Enter, then paste.
+mc sheet pasted evaluation       # every block was pasted: they become the last export
+mc sheet pasted evaluation 1 2   # or the blocks 1 and 2 only: the others wait still
+```
+
+A block is a rectangle of adjacent cells, every one of them written, since a paste of an empty cell
+would clear it. The keys are never written. A text that Sheets would read as something else, such
+as the commit `2e88112` (a number), starts with an apostrophe, which keeps it a text. The blocks
+with a `_check` come last.
+
+To check the tab afterwards, read it in the browser:
+
+```sh
+mc sheet snippet evaluation | pbcopy   # then run it in the console of the page of the spreadsheet
+pbpaste > ~/.mc/2026/sheet/evaluation.read.json
+mc sheet verify evaluation             # one difference per line, and an exit code of 1 if any
+```
+
+The script reads the columns of the files only, with the query language of
+[Google Visualization](https://developers.google.com/chart/interactive/docs/querylanguage) (gviz),
+and refuses to run in another spreadsheet than the `evaluation_sheet` of the team registry. gviz
+types a column by the majority of its values: a value of another type, such as a text in a column
+of numbers, comes back empty. `verify` never compares a formula, since the tab gives its result.
+
 ## Key Components
 
 The `cmd` directory contains all the commands exposed in the command line interface. Each command is registered in the `root.go`.
