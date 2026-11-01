@@ -123,7 +123,9 @@ of the evaluation rules), `evidence/` (the evidence report of a lab for a team),
 numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `rules/` (the
 grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
 diagram when a package is added, or imports another. `cmd/`, `common/`, `e2e/`, `evaluation/`,
-`evidence/` and `sheet/` have a `README.md` for humans, with a diagram: update it with its package.
+`evidence/` and `sheet/` have a `README.md`, with a diagram: update it with its package. The readers
+of every `README.md`, the root one included, are the users of `mc`: for now, the teacher. Write
+them for these readers.
 
 **Evaluation rules** (`rubric/`) — the YAML of a program has two maps: `labs` (title, report,
 reference, deadline with its offset, intro) and `rules`, keyed by ID, each with its `lab`. `Parse`
