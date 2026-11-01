@@ -140,19 +140,21 @@ The rules of a pass decide each cell:
 
 `SyncRules` turns the rules of the YAML into the cells of the tab Rules, where the Rule Score of
 the tab Evaluation looks up the score of each rule. It works as `Sync`, from the tab as read and
-what `mc` wrote last, and computes `rules.json`. Here are the columns of the tab:
+what `mc` wrote last, and computes `rules.json`. Here are the columns of the tab, with the rules
+`L1_BLD` and `L2_LOG` of the made-up file of the tests,
+[`rubric/testdata/evaluation-rules.yaml`](../rubric/testdata/evaluation-rules.yaml), as examples:
 
-| Column | Header | From the YAML |
-|---|---|---|
-| A | Lab Session | The lab of the rule, `L2` |
-| B | Rule | The end of the Rule ID, `FBP` |
-| C | Rule ID | A formula, `=CONCAT(A2, CONCAT("_", B2))`: `L2_FBP` |
-| D | Rule Name | `name` |
-| E | Coefficient | `coefficient`, `0.3` |
-| F | Score | A formula, `=20*E2`: `6` |
-| G | Exercise | `exercise`, `6` or `4.1`, as a number |
-| H | Exercise ID | A formula, `=CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2))`: `L2_EX6` |
-| I | Rule Description | `description`, on one line |
+| Column | Header | What it holds | Examples |
+|---|---|---|---|
+| A | Lab Session | The lab of the rule, the key `lab` of the YAML | `L1`, `L2` |
+| B | Rule | The end of the Rule ID, after the lab and the underscore | `BLD`, `LOG` |
+| C | Rule ID | The ID of the rule, a formula that joins A and B, `=CONCAT(A2, CONCAT("_", B2))`. The Rule Score of the tab Evaluation looks it up | `L1_BLD`, `L2_LOG` |
+| D | Rule Name | The name of the rule, the key `name` of the YAML | `Build Test`, `Logs Test` |
+| E | Coefficient | The share of the 20 points of the lab that the rule gives, the key `coefficient` of the YAML. A bonus, such as `L2_LOG`, counts on top of the 20 points | `0.6`, `0.1` |
+| F | Score | The points of the rule, a formula, `=20*E2` | `12`, `2` |
+| G | Exercise | The exercise of the rule, the key `exercise` of the YAML, as a number | `1`, `2.1` for the part 2.1 of Exercise 2 |
+| H | Exercise ID | The ID of the exercise, a formula that joins A and G, `=CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2))` | `L1_EX1`, `L2_EX2.1` |
+| I | Rule Description | What the team is expected to deliver, the key `description` of the YAML, on one line | "The team is expected to follow the logs of the Pod. This rule is a bonus." |
 
 The column J, Troubleshooting Instructions, belongs to the teacher: `mc` never reads it.
 
