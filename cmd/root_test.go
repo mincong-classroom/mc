@@ -11,7 +11,7 @@ func TestTeamFileFromArgs(t *testing.T) {
 		{[]string{"team", "ls", "--team-file", "test.yaml"}, "test.yaml"},
 		{[]string{"--team-file=test.yaml", "team", "red", "status"}, "test.yaml"},
 		{[]string{"team", "red", "provision", "--dry-run", "--team-file", "test.yaml"}, "test.yaml"},
-		{[]string{"grade", "-t", "red", "-l", "L1", "--team-file", "test.yaml"}, "test.yaml"},
+		{[]string{"evidence", "-t", "red", "-l", "L1", "--team-file", "test.yaml"}, "test.yaml"},
 	}
 	for _, tt := range tests {
 		if got := teamFileFromArgs(tt.args); got != tt.want {

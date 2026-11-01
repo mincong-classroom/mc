@@ -33,7 +33,6 @@ Each command has its own file, with its subcommands, their flags and their `RunE
 | `annotate.go` | `mc annotate find`, `draw` | `annotate` |
 | `info.go` | `mc info` | `common` |
 | `k8s.go` | `mc k8s create-namespaces` | `common` |
-| `grade.go` | `mc grade`, deprecated | `rules` |
 | `git/` | `mc git clone`, `pull`, `show`, `exec` | `common` |
 | `team/` | `mc team ls`, `mc team {team} provision`, `status`, `validate` | `common`, `github` |
 

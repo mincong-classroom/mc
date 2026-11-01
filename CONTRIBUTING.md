@@ -20,11 +20,6 @@ classDiagram
         TeamCmd
         AddTeamCommands(args)
     }
-    class rules {
-        <<deprecated>>
-        Grader
-        NewGrader() Grader
-    }
     class common {
         Settings
         Team
@@ -69,7 +64,6 @@ classDiagram
     }
     cmd ..> cmd_git
     cmd ..> cmd_team
-    cmd ..> rules
     cmd ..> common
     cmd ..> evidence
     cmd ..> evaluation
@@ -80,7 +74,6 @@ classDiagram
     cmd_git ..> common
     cmd_team ..> common
     cmd_team ..> github
-    rules ..> common
     evidence ..> github
     evidence ..> rubric
     evaluation ..> rubric
@@ -98,7 +91,6 @@ What each package does, in the order of the diagram:
 | `evaluation` | Reads the evaluation of a lab for a team, one YAML file per team and lab, as the evaluator writes it. It checks it against the rules of `rubric`, and against the commit of the facts of `mc evidence`, which `cmd` reads and passes to it. It computes the cells that write the evaluations of a lab in the tab Evaluation, as a file of `sheet`. |
 | `annotate` | Finds a text in a screenshot with `tesseract`, and draws numbered boxes around what the evaluator found. It imports no package of `mc`. |
 | `sheet` | Keeps the data of a tab of the evaluation spreadsheet in JSON files, one object per row: the blocks of cells to paste, the script that reads the tab in a browser, and the check of the tab against the last export. It imports no package of `mc`. |
-| `rules` | The grading engine of 2025, which `mc grade` runs. Deprecated. |
 | `common` | What every command shares: the settings of `~/.mc/settings.yaml`, the year, the commit of `mc` that runs, the team registry and the paths of the clones. It imports no package of `mc`. |
 | `github` | Runs the CLI `gh` on the organization: the repositories, the teams and their members, and the pushes to `main`. |
 | `rubric` | Reads the YAML of the evaluation rules, checks it and renders its page. It imports no package of `mc`: its tests only need the made-up file of `rubric/testdata/`. |

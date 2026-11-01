@@ -49,8 +49,8 @@ func (t Team) GetMembersAsString() string {
 }
 
 // GetRepoPath returns the path of the team's local clone, such as
-// "$HOME/github/mincong-classroom/k8s-red": mc git clones the repository there, and the grading
-// rules read it from there.
+// "$HOME/github/mincong-classroom/k8s-red": mc git clones the repository there, and mc evidence
+// reads it from there.
 func (t Team) GetRepoPath() string {
 	return filepath.Join(os.Getenv("HOME"), "github", "mincong-classroom", t.GetLocalRepoDirName())
 }
@@ -73,84 +73,3 @@ func (t Team) GetRepoURL() string {
 func (t Team) GetLocalRepoDirName() string {
 	return "k8s-" + t.Name
 }
-
-func (t Team) GetKubeNamespace() string {
-	return "team-" + t.Name
-}
-
-func (t Team) HasAllMembers(content string) bool {
-	var founds []bool = make([]bool, len(t.Members))
-	var lowerContent = strings.ToLower(content)
-
-	for i, member := range t.Members {
-		parts := strings.Split(member.Name, " ")
-		for _, part := range parts {
-			if strings.Contains(lowerContent, strings.ToLower(part)) {
-				founds[i] = true
-				break
-			}
-		}
-	}
-
-	var allFound = true
-	for _, found := range founds {
-		if !found {
-			allFound = false
-			break
-		}
-	}
-
-	return allFound
-}
-
-// Rule represents a rule to grade the assignment.
-//
-// The type T is the type of the options to be used when executing the rule.
-type Rule[T any] interface {
-	// Spec The specification of the rule.
-	Spec() RuleSpec
-
-	// Run Run the rule for the given team.
-	Run(team Team, opts T) RuleEvaluationResult
-}
-
-type RuleSpec struct {
-	Symbol      string // The symbol of the rule, such as "JAR", "MST", etc.
-	LabId       string // The ID of the lab session of this rule, such as "L1", "L2", "L3", etc.
-	Exercice    string // The exercice of the rule, such as "1.1", "1.2", "2.1", etc.
-	Name        string // The name of the rule.
-	Description string // The description of the rule.
-}
-
-func (r RuleSpec) Id() string {
-	return fmt.Sprintf("%s_%s", r.LabId, r.Symbol)
-}
-
-func (r RuleSpec) Representation() string {
-	// e.g. L1_JAR: JAR Creation Test (Ex 1.1)
-	title := fmt.Sprintf("%s: %s (Ex %s)", r.Id(), r.Name, r.Exercice)
-	description := strings.TrimSpace(r.Description)
-	body := strings.ReplaceAll(description, "\n", "\n    ")
-
-	return title + "\n\n    " + body + "\n"
-}
-
-type RuleEvaluationResult struct {
-	Team         Team    // The team evaluated
-	RuleId       string  // The ID of the rule
-	Completeness float32 // Between 0 and 1 (100%)
-	Reason       string  // Reason of the evaluation
-	ExecError    error   // Execution error if the rule fails
-}
-
-type TeamAssignmentL1 struct{}
-
-type TeamAssignmentL2 struct{}
-
-type TeamAssignmentL3 struct {
-	NginxPodName string `yaml:"nginx_pod_name"`
-}
-
-type TeamAssignmentL4 struct{}
-
-type TeamAssignmentL5 struct{}
