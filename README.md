@@ -563,6 +563,9 @@ sheet.
 The `annotate` directory finds a text in a screenshot with tesseract, and draws numbered boxes on
 it.
 
+The `sheet` directory keeps the data of the tabs of the evaluation spreadsheet in JSON files, and
+moves it through a browser: [its README](sheet/README.md) explains why, with a diagram.
+
 The `rules` directory contains the rules of 2025 for the auto-grading, which are deprecated.
 
 The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
