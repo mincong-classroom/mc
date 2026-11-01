@@ -146,8 +146,8 @@ what `mc` wrote last, and computes `rules.json`. Here are the columns of the tab
 
 | Column | Header | What it holds | Examples |
 |---|---|---|---|
-| A | Lab Session | The lab of the rule, the key `lab` of the YAML | `L1`, `L2` |
-| B | Rule | The end of the Rule ID, after the lab and the underscore | `BLD`, `LOG` |
+| A | Lab Session | The lab of the rule, the key `lab` of the YAML. With the Rule, it finds the row of a rule | `L1`, `L2` |
+| B | Rule | The end of the Rule ID, after the lab and the underscore. With the Lab Session, it finds the row of a rule | `BLD`, `LOG` |
 | C | Rule ID | The ID of the rule, a formula that joins A and B, `=CONCAT(A2, CONCAT("_", B2))`. The Rule Score of the tab Evaluation looks it up | `L1_BLD`, `L2_LOG` |
 | D | Rule Name | The name of the rule, the key `name` of the YAML | `Build Test`, `Logs Test` |
 | E | Coefficient | The share of the 20 points of the lab that the rule gives, the key `coefficient` of the YAML. A bonus, such as `L2_LOG`, counts on top of the 20 points | `0.6`, `0.1` |

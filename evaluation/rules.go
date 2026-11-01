@@ -21,33 +21,64 @@ const RulesTab = "Rules"
 // them: one row per rule of the YAML. The examples are the rules L1_BLD and L2_LOG of the made-up
 // file rubric/testdata/evaluation-rules.yaml.
 const (
-	// headerLabSession is A: the lab of the rule, the key lab of the YAML. Examples: L1, L2.
+	// headerLabSession is the lab of the rule, the key lab of the YAML. With the Rule, it finds the
+	// row of a rule.
+	//
+	// column: A
+	// examples: L1, L2
 	headerLabSession = "Lab Session"
-	// headerRuleEnd is B: the end of the Rule ID, after the lab and the underscore. Examples: BLD,
-	// LOG.
+
+	// headerRuleEnd is the end of the Rule ID, after the lab and the underscore. With the Lab
+	// Session, it finds the row of a rule.
+	//
+	// column: B
+	// examples: BLD, LOG
 	headerRuleEnd = "Rule"
-	// headerRuleID is C: the ID of the rule, a formula that joins A and B,
-	// =CONCAT(A2, CONCAT("_", B2)). The Rule Score of the tab Evaluation looks it up. Examples:
-	// L1_BLD, L2_LOG.
+
+	// headerRuleID is the ID of the rule, a formula that joins A and B,
+	// =CONCAT(A2, CONCAT("_", B2)). The Rule Score of the tab Evaluation looks it up.
+	//
+	// column: C
+	// examples: L1_BLD, L2_LOG
 	headerRuleID = "Rule ID"
-	// headerRuleName is D: the name of the rule, the key name of the YAML. Examples: Build Test,
-	// Logs Test.
+
+	// headerRuleName is the name of the rule, the key name of the YAML.
+	//
+	// column: D
+	// examples: Build Test, Logs Test
 	headerRuleName = "Rule Name"
-	// headerCoefficient is E: the share of the 20 points of the lab that the rule gives, the key
-	// coefficient of the YAML. A bonus, such as L2_LOG, counts on top of the 20 points. Examples:
-	// 0.6, 0.1.
+
+	// headerCoefficient is the share of the 20 points of the lab that the rule gives, the key
+	// coefficient of the YAML. A bonus, such as L2_LOG, counts on top of the 20 points.
+	//
+	// column: E
+	// examples: 0.6, 0.1
 	headerCoefficient = "Coefficient"
-	// headerRulePoints is F: the points of the rule, a formula, =20*E2. Examples: 12, 2.
+
+	// headerRulePoints is the points of the rule, a formula, =20*E2.
+	//
+	// column: F
+	// examples: 12, 2
 	headerRulePoints = "Score"
-	// headerExercise is G: the exercise of the rule, the key exercise of the YAML, as a number.
-	// Examples: 1, 2.1 for the part 2.1 of Exercise 2.
+
+	// headerExercise is the exercise of the rule, the key exercise of the YAML, as a number.
+	//
+	// column: G
+	// examples: 1, 2.1 for the part 2.1 of Exercise 2
 	headerExercise = "Exercise"
-	// headerExerciseID is H: the ID of the exercise, a formula that joins A and G,
-	// =CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2)). Examples: L1_EX1, L2_EX2.1.
+
+	// headerExerciseID is the ID of the exercise, a formula that joins A and G,
+	// =CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2)).
+	//
+	// column: H
+	// examples: L1_EX1, L2_EX2.1
 	headerExerciseID = "Exercise ID"
-	// headerDescription is I: what the team is expected to deliver, the key description of the
-	// YAML, on one line. Example: "The team is expected to follow the logs of the Pod. This rule is
-	// a bonus."
+
+	// headerDescription is what the team is expected to deliver, the key description of the YAML,
+	// on one line.
+	//
+	// column: I
+	// example: The team is expected to follow the logs of the Pod. This rule is a bonus.
 	headerDescription = "Rule Description"
 )
 
