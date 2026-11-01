@@ -61,7 +61,7 @@ mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc rule sync [--sheet-dir DIR]  # the checks, then the cells of the rules in ~/.mc/{year}/sheet/rules.json for mc sheet; without a read of the tab Rules since the last export, writes rules.read.js and exits 1
 mc eval gather-facts -l L1 [-t red] [--late] [--force] [--template DIR] [--dir DIR]  # the facts of each team, docs/lab-1.facts.md on its branch teacher; --dir is the worktrees here
 mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
-mc eval run -l L2 [-t teal] [--check-only] [--dir DIR]  # the agent of agents.eval_run (sh, in the repo of the rules), then the checks of its files: one problem per line, exit 1 if any
+mc eval run -l L2 [-t teal] [--skip|--force facts|report|grade] [--late] [--template DIR] [--check-only] [--dir DIR]  # the facts, then the agents of agents.report and agents.grade (sh, in the repo of the rules), each step when its inputs changed (.steps/{team}.json), then the checks: one problem per line, exit 1 if any
 mc eval sync -l L2 [-t teal] [--sheet-dir DIR]  # the checks, then the cells of the files in ~/.mc/{year}/sheet/evaluation.json for mc sheet; without a read of the tab since the last export, writes evaluation.read.js and exits 1
 mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
