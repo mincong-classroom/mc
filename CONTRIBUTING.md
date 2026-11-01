@@ -100,4 +100,8 @@ What each package does, in the order of the diagram:
 | `common` | What every command shares: the settings of `~/.mc/settings.yaml`, the year, the commit of `mc` that runs, the team registry and the paths of the clones. It imports no package of `mc`. |
 | `github` | Runs the CLI `gh` on the organization: the repositories, the teams and their members, and the pushes to `main`. |
 | `rubric` | Reads the YAML of the evaluation rules, checks it and renders its page. It imports no package of `mc`: its tests only need the made-up file of `rubric/testdata/`. |
-| `e2e` | Builds the binary `mc` and runs it, with a made-up `~/.mc` and a fake `gh`. It imports no package, so the diagram leaves it out. |
+| `e2e` | Builds the binary `mc` and runs it, with a made-up `~/.mc` and a fake `gh`. It imports `cmd` only so that `go test` runs again when the sources change, so the diagram leaves it out. |
+
+A package can explain itself further in a `README.md` of its own: what it is for, and a diagram of
+how it relates to the rest, such as the files that it reads and writes. A reader learns the package
+there before the code, so the README changes with the package, in the same pull request.
