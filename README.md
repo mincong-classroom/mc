@@ -46,7 +46,6 @@ Usage:
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
   git         Perform Git operations in bulk
-  grade       Grade assignments
   help        Help about any command
   info        Display CLI information
   k8s         Perform Kubernetes operations
@@ -73,7 +72,7 @@ agents:
 ```
 
 The year selects the files of the cohort, such as the team registry `~/.mc/teams-{year}.yaml`. It
-is the environment variable `MC_YEAR` if set, e.g. `MC_YEAR=2025 mc grade`, then the key `year`,
+is the environment variable `MC_YEAR` if set, e.g. `MC_YEAR=2025 mc rule ls`, then the key `year`,
 then the current year. `rules` is the YAML of the evaluation rules, where `{year}` is the year:
 `mc rule`, `mc evidence` and `mc eval` read it. `agents` are the command lines of the AI agents
 that `mc` starts, see [Evaluation](#evaluation). An unknown key is an error, so that a typo doesn't
@@ -567,8 +566,6 @@ it.
 The `sheet` directory keeps the data of the tabs of the evaluation spreadsheet in JSON files, and
 moves it through a browser: [its README](sheet/README.md) explains why, with a diagram.
 
-The `rules` directory contains the rules of 2025 for the auto-grading, which are deprecated.
-
 The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
 
 The `common` directory holds what the commands share: the settings, the year, the team registry
@@ -578,4 +575,4 @@ them.
 The `e2e` directory runs the binary of `mc` end to end, in a home of its own and with a fake `gh`:
 [its README](e2e/README.md) explains how.
 
-The `.mc` directory is private. It contains the team registry `.mc/teams-{year}.yaml`, and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.
+The `.mc` directory is private. It contains the team registry `.mc/teams-{year}.yaml`, the settings, and the files of each year in `.mc/{year}/`, such as the evaluations. This directory is ignored by Git.

@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`mc` (Mincong Classroom) is a Cobra-based CLI in Go that auto-grades student assignments for a
+`mc` (Mincong Classroom) is a Cobra-based CLI in Go that evaluates student assignments for a
 "Software Containerization and Orchestration" (Docker/Kubernetes) course. Each year ~25-30 students
 form two-person teams; every team has its own Git repository cloned from the same template
 ([`mincong-classroom/containers`](https://github.com/mincong-classroom/containers)), so all student
 repos share an identical file layout (e.g. `apps/spring-petclinic/Dockerfile`, `k8s/lab-2/pod-nginx.yaml`).
-The tool exists to run team-specific commands and grading rules in bulk across those dozens of repos.
+The tool exists to run team-specific commands and gather evidence in bulk across those dozens of repos.
 
 ## Build & run
 
@@ -20,8 +20,8 @@ go build -o dist/mc     # binary is gitignored under dist/
 ```
 
 CI (`.github/workflows/mincong-classroom.yaml`, runs on every push) does: `go mod tidy`,
-`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/`, `e2e/`, `evaluation/`, `sheet/` and
-the Pods of Lab 2 in `rules/` so far; add `_test.go` files alongside the package under test. The team unit tests use an
+`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/`, `e2e/`, `evaluation/` and `sheet/`
+so far; add `_test.go` files alongside the package under test. The team unit tests use an
 in-memory `github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
 
 The end-to-end tests (`e2e/`) build the real binary and run it with `HOME` pointing at a copy of
@@ -66,8 +66,6 @@ mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
 mc sheet blocks|copy|pasted|verify|snippet TAB  # the data of a tab of the evaluation sheet, in ~/.mc/{year}/sheet/TAB*.json
 mc info                       # the CLI, its commit and the registry: number of teams, URL of the evaluation sheet
-mc grade                      # grade all teams, all labs (L1-L5)
-mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
 mc git clone|show             # bulk git ops over all team repos, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml`
 mc git pull                   # git pull --ff-only; a rewritten history (force-push) is a warning for that team, never merged
 mc git exec -- log -1 --oneline  # any git command in each team repo; goes on when one fails, exits 1 if any did
@@ -101,27 +99,16 @@ assume exists at runtime. Nothing here works without it:
   The optional top-level `evaluation_sheet:` is the URL of the spreadsheet where the teams of the
   year are evaluated: `mc` never reads the spreadsheet, `mc info` only prints the URL, so that a
   tool can find it without opening the registry, which holds the names of the students.
-- `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
-  (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 - `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml` — the evaluation of a lab for a team, written
   by the evaluator (an AI agent) and read by `mc eval ls`, `run` and `sync` (`evaluation.Load`). The files of
   `mc evidence` are next to it, in `~/.mc/{year}/teacher/`.
 
-Gotcha: `NewGrader()` only reads the **L1–L4** assignment files. `assignmentsL5` is never populated,
-so `GradeL5` always reports "team not found in assignments" and grades nothing until an
-`assignments-L5.yaml` load is added. Most assignment structs are also empty placeholders today
-(`TeamAssignmentL1/L2/L4/L5` have no fields); only L3 (`nginx_pod_name`) carries data.
-Still, `GradeL3` skips the teams missing from `assignments-L1.yaml` (the file of Lab 1, not Lab 3),
-and `GradeL4` / `GradeL5` those missing from their own file. `GradeL1` and `GradeL2` grade every
-team of the registry.
-
 ## Architecture
 
-Nine packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
+Eight packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
 of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `evaluation/`
 (the evaluation of a lab for a team, by the evaluator), `annotate/` (the
-numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `rules/` (the
-grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
+numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
 diagram when a package is added, or imports another. `cmd/`, `common/`, `e2e/`, `evaluation/`,
 `evidence/` and `sheet/` have a `README.md`, with a diagram: update it with its package. The readers
 of every `README.md`, the root one included, are the users of `mc`: for now, the teacher. Write
@@ -252,35 +239,7 @@ former `mc team provision` returns an error that points to `mc team <team> provi
 **Team model** (`common/types.go`) — a `Team` has a `Name`, `Members`, and an optional
 `CustomRepoName`. There is no role anymore: every team is graded on the same rules, and an old
 `role:` key in a registry is ignored. All team-derived paths/URLs come from methods on `Team`
-(`GetRepoPath`, `GetKubeNamespace` → `team-<name>`, `GetRepoURL`).
-Prefer these helpers over rebuilding paths inline: `mc git clone|pull|show|exec` and the grading rules
+(`GetRepoPath`, `GetRepoURL`).
+Prefer these helpers over rebuilding paths inline: `mc git clone|pull|show|exec` and `mc evidence`
 all find the team repos at `GetRepoPath()`, `$HOME/github/mincong-classroom/k8s-<name>`.
 
-**Rule abstraction** (`common/types.go`) — every grading check implements
-`Rule[T]{ Spec() RuleSpec; Run(team, opts T) RuleEvaluationResult }`. A `RuleSpec` combines
-`LabId` + `Symbol` into an id like `L1_DKF` (see `RuleSpec.Id()`); `RuleEvaluationResult.Completeness`
-is a float in `[0,1]` (a percentage). There are three flavors of rule:
-- **Automated file/cluster checks** (`rules/k8s_pod.go`,
-  `k8s_replicaset.go`, `k8s_deployment.go`, `k8s_service.go`, `k8s_namespace.go`):
-  read files from the locally-cloned student repo and/or drive the cluster — `kubectl apply` a
-  manifest, `kubectl port-forward` (`rules/k8s.go`), then HTTP-fetch and string-match the response.
-  These require the student repos to be cloned locally and (for k8s rules) a live cluster + kubectl.
-- **`ManualRule`** (`rules/manual.go`): returns 0% / "Manual grading is required" — a placeholder for
-  checks graded by reading the work of the team: its report, its files and its Docker images. Every
-  rule of Lab 1 (`rules/lab1.go`) and most L2/L3/L4/L5 rules are wired as these.
-- Some automated rules also short-circuit to "Check the report manually" when they can't self-assess.
-
-**Grader** (`rules/grader.go`) is the hub: one struct holding all assignment maps and every rule
-instance, assembled in `NewGrader()`. `GradeL1(team)`…`GradeL5(team)` each run that lab's rules and
-return `[]RuleEvaluationResult`. `cmd/grade.go` loops teams × selected labs and prints the report.
-
-### Adding a grading rule
-
-1. Implement `Spec()` and `Run()` on a new type in the appropriate `rules/*.go` file (put the shared
-   manifest paths/ports/consts in `rules/k8s.go`).
-2. Add a field for it on the `Grader` struct and construct it in `NewGrader()`.
-3. Register it in `ListRuleSpecs()` (so `mc rule` prints it) **and** in the matching
-   `GradeL<n>` method (so `mc grade` runs it).
-
-Rule descriptions in `RuleSpec` are the source of truth for the human-readable rule catalog that the
-README reproduces; update both together if you change wording.

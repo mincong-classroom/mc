@@ -51,7 +51,6 @@ func init() {
 		"Team registry to use instead of ~/.mc/teams-{year}.yaml, e.g. a test registry to try the commands")
 
 	RootCmd.AddCommand(git.GitCmd)
-	RootCmd.AddCommand(gradeCmd)
 	RootCmd.AddCommand(infoCmd)
 	RootCmd.AddCommand(k8sCmd)
 	RootCmd.AddCommand(ruleCmd)

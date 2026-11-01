@@ -7,7 +7,7 @@ the students.
 
 ## The Packages That Use It
 
-4 packages import `common`, for the settings and the teams. Here are the types that they use:
+3 packages import `common`, for the settings and the teams. Here are the types that they use:
 
 ```mermaid
 ---
@@ -46,25 +46,18 @@ classDiagram
     class cmd_team["cmd/team"] {
         TeamCmd
     }
-    class rules {
-        <<deprecated>>
-        Grader
-    }
     TeamRegistry *-- Team
     Team *-- TeamMember
     cmd ..> Settings : CheckSettings, Year, RulesPath
     cmd ..> TeamRegistry : ListTeams, the evaluation sheet
     cmd_git ..> Team : ListTeams, the clones
     cmd_team ..> TeamRegistry : LoadRegistry, AddTeam
-    rules ..> Team : the grading of 2025
 ```
 
 - `cmd` checks the settings before every command, then reads the year, the file of the rules, the
   teams, the URL of the evaluation spreadsheet, and the commit of `mc` that runs.
 - `cmd/git` runs `git` in the clone of each team, which `Team` finds from its name.
 - `cmd/team` reads the registry and changes it, for `mc team {team} provision`.
-- `rules`, the grading of 2025 that `mc grade` runs, takes its types from `common`. It is
-  deprecated.
 
 The other packages, such as `evidence`, `evaluation` and `sheet`, don't import `common`: `cmd`
 passes them what they need, such as a team or the rules, so they never read `~/.mc` themselves.
@@ -110,7 +103,7 @@ The files of the package:
 |---|---|
 | `settings.go` | `Settings` and `Agents`, `CheckSettings`, `Year`, `RulesPath` and `ExpandHome` |
 | `team.go` | `ConfigDir`, the team registry: `LoadRegistry`, `ListTeams`, `AddTeam`, `SetTeamMembers` |
-| `types.go` | `TeamRegistry`, `Team` and `Student`; the types of `mc grade`, deprecated |
+| `types.go` | `TeamRegistry`, `Team` and `Student` |
 | `name.go` | `ParseName` and `SameName`, the names of the students |
 | `revision.go` | `Revision` and `StableRevision`, the commit of `mc` |
 
