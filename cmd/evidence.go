@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -100,7 +98,7 @@ func runEvidence(cmd *cobra.Command, _ []string) error {
 	}
 	dir := evidenceDir
 	if dir == "" {
-		dir = filepath.Join(common.ConfigDir(), strconv.Itoa(common.Year()), "teacher")
+		dir = teacherDir()
 	}
 	revision := common.Revision()
 	opts := evidence.Options{

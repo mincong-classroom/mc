@@ -26,6 +26,17 @@ type Settings struct {
 	// ~/github/my-org/course/{year}/evaluation-rules.yaml. Without it, the commands that read the
 	// rules need the flag --rules-file.
 	Rules string `yaml:"rules"`
+	// Agents are the commands of the AI agents that mc starts, such as the one of mc eval run.
+	Agents Agents `yaml:"agents"`
+}
+
+// Agents are the command lines that mc runs with sh for the steps of an AI agent, such as
+// claude -p "/evaluate-lab {lab} {teams}": mc orchestrates, and the agent does the work of a
+// skill.
+type Agents struct {
+	// EvalRun evaluates a lab for mc eval run, in the Git repository of the rules, where {lab} is
+	// the lab, such as L2, and {teams} the teams separated by spaces, or all.
+	EvalRun string `yaml:"eval_run"`
 }
 
 // SettingsPath returns the file of the settings, ~/.mc/settings.yaml.
@@ -57,6 +68,11 @@ func ReadSettings() (Settings, error) {
 
 // settings reads the settings once per run of mc. CheckSettings reports its error at the start.
 var settings = sync.OnceValues(ReadSettings)
+
+// CurrentSettings returns the settings of this run of mc.
+func CurrentSettings() (Settings, error) {
+	return settings()
+}
 
 // CheckSettings returns the error of the settings, if any: mc checks them before any command, so
 // that a command never runs on a year that a broken file failed to give.

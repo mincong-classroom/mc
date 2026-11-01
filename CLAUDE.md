@@ -59,6 +59,8 @@ mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~
 mc rule check                 # one problem per line, with its line; exit 1 if any
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
+mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
+mc eval run -l L2 [-t teal] [--check-only] [--dir DIR]  # the agent of agents.eval_run (sh, in the repo of the rules), then the checks of its files: one problem per line, exit 1 if any
 mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
 mc sheet blocks|copy|pasted|verify|snippet TAB  # the data of a tab of the evaluation sheet, in ~/.mc/{year}/sheet/TAB*.json
@@ -100,6 +102,9 @@ assume exists at runtime. Nothing here works without it:
   tool can find it without opening the registry, which holds the names of the students.
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
+- `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml` — the evaluation of a lab for a team, written
+  by the evaluator (an AI agent) and read by `mc eval ls` and `mc eval run` (`evaluation.Load`). The files of
+  `mc evidence` are next to it, in `~/.mc/{year}/teacher/`.
 
 Gotcha: `NewGrader()` only reads the **L1–L4** assignment files. `assignmentsL5` is never populated,
 so `GradeL5` always reports "team not found in assignments" and grades nothing until an
@@ -111,11 +116,15 @@ team of the registry.
 
 ## Architecture
 
-Eight packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
-of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `annotate/` (the
+Nine packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
+of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `evaluation/`
+(the evaluation of a lab for a team, by the evaluator), `annotate/` (the
 numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `rules/` (the
 grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
-diagram when a package is added, or imports another.
+diagram when a package is added, or imports another. `cmd/`, `common/`, `e2e/`, `evaluation/`,
+`evidence/` and `sheet/` have a `README.md`, with a diagram: update it with its package. The readers
+of every `README.md`, the root one included, are the users of `mc`: for now, the teacher. Write
+them for these readers.
 
 **Evaluation rules** (`rubric/`) — the YAML of a program has two maps: `labs` (title, report,
 reference, deadline with its offset, intro) and `rules`, keyed by ID, each with its `lab`. `Parse`
@@ -149,6 +158,23 @@ from it, `docs/lab-{n}.generated.md`, copies the front matter: when it equals th
 test builds a template and a team repository with git in a temporary `HOME` with fixed dates, so
 the commits and the golden report `evidence/testdata/lab-1.evidence.md` are the same at each run.
 
+**Evaluation** (`evaluation/`) — the evaluator writes one YAML per team and lab, so that several
+agents work at once: `LabDir(dir, lab)` is `{dir}/lab-{n}`, `Path(labDir, team)` its file
+`{team}.yaml`, and `Teams(labDir)` the teams with a file. `Load(path)` decodes it as `rubric.Parse`
+does: strictly with `KnownFields(true)` into Go maps (an unknown key, a key twice or a wrong type is
+`Problems`, with its line), and as a `yaml.Node` for the order of the rules and the lines of the
+keys. A syntax error keeps the line in the message of yaml.v3, which is 0-based for some parser
+errors. `File.Check(opts)` returns the problems of the content, sorted by line: the team of the
+name of the file, the commit (a prefix of `opts.Commit`, the facts of `mc evidence`; empty means no
+facts), the action items, each mandatory rule of the lab, the completeness by steps of 0.1,
+`done_well` and `to_improve`, the analysis level, the writing style, and the penalty: a key of
+`scoring.penalties` with its `remove`, `rule` (`PenaltyRule`) with a `remove` of the rule's own
+penalties, or `late` (`PenaltyLate`) within `scoring.late_penalty`. It imports `rubric` only:
+`cmd/eval.go` finds the worktree of the team by its repository in the registry, and reads the facts
+with `evidence.ReadFacts(evidence.ReportPath(worktree, lab))`. It checks the content of the rules
+only (`loadRules` with no root): the files of the teacher don't change an evaluation. The tests use
+the made-up rules of `rubric/testdata/`.
+
 **Annotate** (`annotate/`) — `Read(ctx, img)` runs `tesseract --psm 11` on the image enlarged twice
 (the filter Mitchell, as ImageMagick does), then groups its words in lines (`groupLines`): by row,
 split at a large gap. `Line.Find` matches a text without the case, the spaces and the kind of
@@ -172,8 +198,7 @@ text a text (a number such as `2e88112`, a date, `-0.2`). `RecordPasted` moves t
 blocks pasted to the export; `Verify` compares the tab read with it, cell by cell at the same
 letter, never a formula. The script (`snippet.js`, its `CONFIG` replaced by `Snippet`) queries gviz
 from the page, numbers the rows from 2 (gviz keeps the empty rows above the last one), and copies
-the rows to the clipboard. The tests use made-up teams only. `sheet/README.md` explains the package to
-humans, with a diagram of the files and the spreadsheet: update it with the package.
+the rows to the clipboard. The tests use made-up teams only.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.

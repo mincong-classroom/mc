@@ -443,6 +443,37 @@ func TestReadMetadata(t *testing.T) {
 	}
 }
 
+func TestReadFacts(t *testing.T) {
+	worktree := filepath.Join(t.TempDir(), "k8s-teal")
+	lab := rubric.Lab{ID: "L2", Report: "docs/lab-2.md"}
+	report := ReportPath(worktree, lab)
+	if want := filepath.Join(worktree, "docs", "lab-2.evidence.md"); report != want {
+		t.Errorf("ReportPath() = %q, want %q", report, want)
+	}
+
+	if got, ok, err := ReadFacts(report); err != nil || ok {
+		t.Errorf("ReadFacts() before mc evidence = %+v, %v, %v, want no facts", got, ok, err)
+	}
+
+	content := `---
+commit: 0a1b2c3d4e5f60718293a4b5c6d7e8f901234567
+mc: 949d7aa740ab
+---
+
+# Lab 2
+`
+	if err := os.MkdirAll(filepath.Dir(report), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(report, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	want := Facts{Commit: "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567", MC: "949d7aa740ab"}
+	if got, ok, err := ReadFacts(report); err != nil || !ok || got != want {
+		t.Errorf("ReadFacts() = %+v, %v, %v, want %+v, true", got, ok, err, want)
+	}
+}
+
 func TestPlural(t *testing.T) {
 	for _, c := range []struct {
 		n    int

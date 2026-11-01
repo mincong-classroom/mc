@@ -21,7 +21,13 @@ func TestReadSettings(t *testing.T) {
 			content: "year: 2030\nrules: ~/course/{year}/evaluation-rules.yaml\n",
 			want:    Settings{Year: 2030, Rules: "~/course/{year}/evaluation-rules.yaml"},
 		},
+		{
+			name:    "agents",
+			content: "agents:\n  eval_run: claude -p \"/evaluate-lab {lab} {teams}\"\n",
+			want:    Settings{Agents: Agents{EvalRun: `claude -p "/evaluate-lab {lab} {teams}"`}},
+		},
 		{name: "unknown key", content: "yaer: 2030\n", wantErr: "field yaer not found"},
+		{name: "unknown agent", content: "agents:\n  eval_rnu: claude\n", wantErr: "field eval_rnu not found"},
 		{name: "not a year", content: "year: -1\n", wantErr: "the year -1 is not a year"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
