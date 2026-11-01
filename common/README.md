@@ -5,43 +5,69 @@ of the cohort, the team registry of the year, and the commit of `mc` that runs. 
 the registry are private files of `~/.mc`, which never go to Git: the registry holds the names of
 the students.
 
-## The Year Selects the Files
+## The Packages That Use It
 
-Most files of `mc` belong to a year: the team registry, the evaluation rules, and the files that
-the commands write, such as the evaluations. `Year` gives the year, from 3 sources in order:
+4 packages import `common`, for the settings and the teams. Here are the types that they use:
 
 ```mermaid
 ---
-title: "The year selects the files of the year"
-config:
-  flowchart:
-    wrappingWidth: 200
+title: "The types of common, and the packages that use them"
 ---
-flowchart LR
-  env["MC_YEAR=2025<br>in the environment"]
-  settings["~/.mc/settings.yaml<br>year: 2026"]
-  clock["The current year"]
-  year["Year()"]
-  registry["~/.mc/teams-2026.yaml<br>the team registry"]
-  rules["~/course/2026/<br>evaluation-rules.yaml<br>the rules of the year"]
-  dir["~/.mc/2026/<br>evaluations, teacher, sheet"]
-  env -- "1. first" --> year
-  settings -- "2. then" --> year
-  clock -- "3. otherwise" --> year
-  year --> registry
-  year --> rules
-  year --> dir
+classDiagram
+    direction LR
+    namespace common {
+        class Settings {
+            Year int
+            Rules string
+            Agents Agents
+        }
+        class TeamRegistry {
+            Students []Student
+            Teams []Team
+            EvaluationSheet string
+        }
+        class Team {
+            Name string
+            Members []TeamMember
+            GetRepoName() string
+            GetRepoPath() string
+        }
+        class TeamMember {
+            Name string
+            Github string
+        }
+    }
+    class cmd {
+        Execute() error
+    }
+    class cmd_git["cmd/git"] {
+        GitCmd
+    }
+    class cmd_team["cmd/team"] {
+        TeamCmd
+    }
+    class rules {
+        <<deprecated>>
+        Grader
+    }
+    TeamRegistry *-- Team
+    Team *-- TeamMember
+    cmd ..> Settings : CheckSettings, Year, RulesPath
+    cmd ..> TeamRegistry : ListTeams, the evaluation sheet
+    cmd_git ..> Team : ListTeams, the clones
+    cmd_team ..> TeamRegistry : LoadRegistry, AddTeam
+    rules ..> Team : the grading of 2025
 ```
 
-1. **The variable `MC_YEAR`**, to look at a former year once, such as `MC_YEAR=2025 mc team ls`.
-   The end-to-end tests set it too, so that they don't depend on the clock.
-2. **The key `year` of the settings**, the cohort that the machine works on.
-3. **The current year**, without settings.
+- `cmd` checks the settings before every command, then reads the year, the file of the rules, the
+  teams, the URL of the evaluation spreadsheet, and the commit of `mc` that runs.
+- `cmd/git` runs `git` in the clone of each team, which `Team` finds from its name.
+- `cmd/team` reads the registry and changes it, for `mc team {team} provision`.
+- `rules`, the grading of 2025 that `mc grade` runs, takes its types from `common`. It is
+  deprecated.
 
-`TeamRegistryPath` gives `~/.mc/teams-{year}.yaml`, or the file of the flag `--team-file`, such as a
-test registry. `RulesPath` gives the file of the flag `--rules-file`, or the key `rules` of the
-settings with `{year}` replaced, such as `~/course/{year}/evaluation-rules.yaml`. The directories
-of the year, `~/.mc/{year}/`, are built by `cmd` from `ConfigDir` and `Year`.
+The other packages, such as `evidence`, `evaluation` and `sheet`, don't import `common`: `cmd`
+passes them what they need, such as a team or the rules, so they never read `~/.mc` themselves.
 
 ## The Settings
 
