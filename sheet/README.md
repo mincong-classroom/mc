@@ -47,7 +47,8 @@ flowchart LR
 
 1. **Write.** `Blocks` splits the cells of `evaluation.json` into blocks: rectangles of adjacent
    cells, every one of them written. A block goes to the clipboard as tab-separated values, and a
-   paste at its range spreads it on the cells of the tab.
+   paste at its range spreads it on the cells of the tab. A new row is written the same way, after
+   the last row of the tab, with its keys.
 2. **Record.** `RecordPasted` moves the cells of the blocks pasted from `evaluation.json` to
    `evaluation.exported.json`, the last export. The cells of a block not pasted wait still.
 3. **Read.** `Snippet` writes a script to run in the page of the spreadsheet. The script reads the
@@ -59,8 +60,8 @@ flowchart LR
    that the teacher changed by hand.
 
 The read and the export serve the next write too. A cell of the tab that differs from the export
-was changed by someone else, so the tool that writes `evaluation.json` marks it with `_check`: its
-block comes last, for the teacher to look at before pasting it.
+was changed by someone else, so the tool that writes `evaluation.json`, such as `mc eval sync`,
+marks it with `_check`: its block comes last, for the teacher to look at before pasting it.
 
 ## A File
 
@@ -73,7 +74,8 @@ attributes are the columns, named by their headers. Here is a row with a made-up
 ```
 
 The keys of the file, Team, Lab and Rule, find the row, and `_row` is its number in the tab. The
-other attributes are the cells to write, and `_check` says why to look at a cell first. The section
+other attributes are the cells to write, and `_check` says why to look at a cell first. A row that
+the tab doesn't have yet has `"_new": true`: its keys are written too, at its number. The section
 [Sheet](../README.md#sheet) of the README shows a whole file.
 
 ## What Keeps the Tab Safe

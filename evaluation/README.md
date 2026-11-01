@@ -4,8 +4,10 @@ The package `evaluation` reads the evaluation of a lab for a team, as the evalua
 checks it against the evaluation rules. The evaluator is an AI agent that `mc eval run` starts, or
 the teacher. The checks catch its mistakes before the evaluation goes any further: a rule
 forgotten, a completeness of 0.85, a penalty that the rules don't give, or another commit than the
-one of the facts. The commands are `mc eval ls` and `mc eval run`, described in the section
-[Evaluation](../README.md#evaluation) of the README: this page explains the package behind them.
+one of the facts. Then the package computes the cells that write the evaluations in the evaluation
+spreadsheet. The commands are `mc eval ls`, `mc eval run` and `mc eval sync`, described in the
+section [Evaluation](../README.md#evaluation) of the README: this page explains the package behind
+them.
 
 ## One File per Team and Lab
 
@@ -65,7 +67,7 @@ flowchart LR
    levels, and the penalties with the share of the score they remove.
 3. **The commit of the facts.** It is in the front matter of the facts, in the worktree of the
    team. The package doesn't read it: `cmd` does, with `evidence.ReadFacts`, and passes it in
-   `CheckOptions`. This way, `evaluation` imports `rubric` only.
+   `CheckOptions`. This way, `evaluation` doesn't import `evidence`.
 4. **The problems.** `Check` returns them in the order of their lines, and `mc eval run` prints them
    as `teal.yaml:12: L2_POD: message`, then exits with 1.
 
@@ -86,6 +88,53 @@ Besides the keys, `Check` looks at:
   penalty of every rule, such as `secret`, or `rule` for the penalty of the rule itself, or `late`,
   whose share goes from the min to the max of the late penalty
 
+## From the Evaluations to the Sheet
+
+`Sync` turns the evaluations of a lab into the cells of the tab Evaluation of the evaluation
+spreadsheet. It writes nothing in the spreadsheet: it computes the file of the package `sheet` that
+waits to be pasted, from 3 inputs:
+
+```mermaid
+---
+title: "mc eval sync -l L2: the evaluations become the cells to write"
+config:
+  flowchart:
+    wrappingWidth: 200
+---
+flowchart LR
+  files["lab-2/{team}.yaml<br>the evaluations, checked"]
+  read["evaluation.read.json<br>the tab, as read"]
+  exported["evaluation.exported.json<br>what mc wrote last"]
+  sync["Sync<br>package evaluation"]
+  pending["evaluation.json<br>the cells to write"]
+  tab["Evaluation<br>tab of the spreadsheet"]
+  files -- "1. the evaluations" --> sync
+  read -- "2. the rows of the tab" --> sync
+  exported -- "3. what mc wrote" --> sync
+  sync -- "4. the cells to write" --> pending
+  pending -. "5. mc sheet, through the browser" .-> tab
+```
+
+1. **The evaluations** of the lab, which `mc eval sync` checks first, as `mc eval run` does.
+2. **The tab, as read** after the last paste. A row is found by its team, its lab and its rule. A
+   missing row is new: it goes after the last row of the tab, with its keys and the formulas of
+   Rule Score, Score and TA Lab Flag.
+3. **What `mc` wrote last.** A cell of the tab that differs from it was changed by someone else,
+   such as the teacher: the sync never overwrites it without a `_check`.
+4. **The cells to write**, in `evaluation.json`. The rows of the lab and the teams that waited there
+   are replaced, and the others wait still.
+5. **The paste**, with the commands of `mc sheet`: see [its README](../sheet/README.md).
+
+The rules of a pass decide each cell:
+
+- The completeness goes to an empty cell, or over the one that `mc` wrote last when it is higher.
+  A lower one keeps the former value, and so does a completeness that `mc` didn't write: TA To
+  Check says why.
+- The other TA columns follow the evaluation, but a cell is never cleared.
+- TA Comment says "Done well: ... To improve: ...", and the reason of a penalty, if any. The
+  penalty itself becomes the formula of TA Penalty, such as `=-0.1*G80*F80`.
+- A text that starts with `=` is an error, since Sheets would read it as a formula.
+
 ## Code
 
 The files of the package:
@@ -94,5 +143,6 @@ The files of the package:
 |---|---|
 | `evaluation.go` | `File`, `Rule` and `Penalty`; `Load`, with the line of each key; `LabDir`, `Path` and `Teams` |
 | `check.go` | `Check` and `CheckOptions`: the problems of a file against the rules and the commit of the facts |
+| `sync.go` | `Sync`, its options and its result: the cells of the tab Evaluation, and `SheetFile`, its columns |
 
-The package imports `rubric` only, and its tests use made-up teams.
+The package imports `rubric` and `sheet` only, and its tests use made-up teams.

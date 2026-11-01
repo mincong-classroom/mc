@@ -46,7 +46,8 @@ A file holds one object per row, whose attributes are the columns, named by thei
 The keys find a row, and "_row" is its number in the tab. A row holds the cells to write only:
 an attribute absent is a cell left alone, never cleared. A column out of "columns" is never read
 nor written. "_check" names the cells to look at before writing them, which the teacher may have
-changed since the last export.`,
+changed since the last export. "_new": true marks a row that the tab doesn't have yet, such as a
+row that mc eval sync adds: its keys are written too.`,
 	Example: `  mc sheet snippet evaluation | pbcopy   # then run it in the page of the spreadsheet
   pbpaste > ~/.mc/2026/sheet/evaluation.read.json
   mc sheet blocks evaluation
@@ -74,9 +75,9 @@ var sheetBlocksCmd = &cobra.Command{
 	Use:   "blocks TAB",
 	Short: "List the blocks of cells to paste to write TAB.json",
 	Long: `List the blocks of cells to paste to write what waits in TAB.json: rectangles of adjacent cells,
-every one of them written, so that a paste never clears a cell. The keys of the rows are never
-written. The cells with a "_check" come last, in blocks of their own: look at them in the tab
-before pasting them.`,
+every one of them written, so that a paste never clears a cell. The keys of the rows are written
+for a new row only, with "_new". The cells with a "_check" come last, in blocks of their own: look
+at them in the tab before pasting them.`,
 	Args:         cobra.ExactArgs(1),
 	RunE:         runSheetBlocks,
 	SilenceUsage: true,

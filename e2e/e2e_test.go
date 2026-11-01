@@ -1131,3 +1131,79 @@ func TestEvalRunWithoutEvaluations(t *testing.T) {
 		t.Errorf("mc eval run -t teal without its file = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
 	}
 }
+
+// tabRead is the tab Evaluation as the script of mc eval sync reads it: a row of teal in Lab 1,
+// and one in Lab 2 without a completeness.
+const tabRead = `{
+  "tab": "Evaluation",
+  "keys": ["Team", "Lab", "Rule"],
+  "columns": {"A": "Team", "D": "Lab", "E": "Rule", "F": "Rule Score", "G": "Completeness", "H": "Score", "I": "Comment",
+    "J": "Troubleshooting Instructions", "K": "TA To Check", "L": "TA Commit", "M": "TA Docker Images", "N": "TA Screenshots",
+    "O": "TA Analysis", "P": "TA Writing Style", "Q": "TA Time Spent", "R": "TA Lab Flag", "S": "TA Penalty",
+    "T": "TA Action Items", "U": "TA Comment"},
+  "rows": [
+    {"_row": 2, "Team": "teal", "Lab": "L1", "Rule": "L1_BLD", "Completeness": "1"},
+    {"_row": 3, "Team": "teal", "Lab": "L2", "Rule": "L2_POD", "Rule Score": "10", "TA Analysis": "none"}
+  ]
+}
+`
+
+func TestEvalSync(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, []string{"teal", "coral"}, map[string]string{
+		"teal":  "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567",
+		"coral": "0a1b2c3ffffffffffffffffffffffffffffffff",
+	})
+	dir := filepath.Join(e.home, ".mc", "2026", "sheet")
+	sync := append([]string{"eval", "sync", "-l", "L2"}, flags...)
+
+	// Without a read of the tab: the script that reads it, then a stop.
+	r := e.run(t, "", sync...)
+	script := filepath.Join(dir, "evaluation.read.js")
+	if r.exitCode != 1 || !strings.Contains(r.stdout, "No read of the tab Evaluation since the last export") ||
+		!strings.Contains(r.stdout, "\n  "+script+"\n") || !strings.Contains(r.stderr, "read the tab first") {
+		t.Errorf("mc eval sync without a read = %d, stdout %q, stderr %q, want 1 and the script", r.exitCode, r.stdout, r.stderr)
+	}
+	data, err := os.ReadFile(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(data); !strings.Contains(s, `"I": "Comment"`) || !strings.Contains(s, `"U": "TA Comment"`) || strings.Contains(s, `"B"`) || strings.Contains(s, `"C"`) {
+		t.Errorf("the script reads other columns than A and D to U:\n%s", s)
+	}
+
+	// With a read: teal L2_POD is a row of the tab, and coral L2_POD a new row after the last one.
+	e.writeFile(t, ".mc/2026/sheet/evaluation.read.json", tabRead)
+	r = e.run(t, "", sync...)
+	pending := filepath.Join(dir, "evaluation.json")
+	want := "Synced 2 evaluations of L2 with the tab Evaluation, as read in " + filepath.Join(dir, "evaluation.read.json") + ".\n\n" +
+		"CELL           ROW             COLUMN            CHANGE\n" +
+		"Evaluation!G3  teal L2 L2_POD  Completeness      nothing -> 0.8\n" +
+		"Evaluation!U3  teal L2 L2_POD  TA Comment        nothing -> \"Done well: The Pod runs the image of Lab...\"\n" +
+		"Evaluation!L3  teal L2 L2_POD  TA Commit         nothing -> \"0a1b2c3\"\n" +
+		"Evaluation!P3  teal L2 L2_POD  TA Writing Style  nothing -> \"own words\"\n" +
+		"Evaluation!Q3  teal L2 L2_POD  TA Time Spent     nothing -> \"Session only, done at 11:21\"\n" +
+		"Evaluation!T3  teal L2 L2_POD  TA Action Items   nothing -> \"Run it yourself\"\n\n" +
+		"New 1 row: coral, row 4.\n\n" +
+		"2 rows wait in " + pending + ". Next, in the page of the spreadsheet:\n\n" +
+		"  mc sheet blocks evaluation  list the blocks to paste\n" +
+		"  mc sheet copy evaluation 1  copy a block, then paste it at its range, block after block\n" +
+		"  fill down B3:C4             the columns B and C of the new rows: type the range in the Name Box, then Cmd+D\n" +
+		"  mc sheet pasted evaluation  record the blocks pasted, such as 1 2 3, or every block\n" +
+		"  mc sheet verify evaluation  after a new read of the tab, compare it with what was written\n"
+	if r.exitCode != 0 || r.stdout != want || r.stderr != "" {
+		t.Errorf("mc eval sync = %d, stdout\n%s\nstderr %q, want 0, stdout\n%s", r.exitCode, r.stdout, r.stderr, want)
+	}
+
+	// The blocks write the keys of the new row, and those of the row of the tab are left alone.
+	r = e.run(t, "", "sheet", "blocks", "evaluation")
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "Evaluation!A4 ") || !strings.Contains(r.stdout, "Evaluation!D4:F4 ") || strings.Contains(r.stdout, "Evaluation!A3") {
+		t.Errorf("mc sheet blocks evaluation = %d, stdout\n%s\nstderr %q, want the keys of the row 4 only", r.exitCode, r.stdout, r.stderr)
+	}
+
+	// Again for coral only: its row waits still, replaced, at the same number.
+	r = e.run(t, "", append(sync, "-t", "coral")...)
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "New 1 row: coral, row 4.\n\nReplaced 1 row of L2 that waited.\n\n2 rows wait in ") {
+		t.Errorf("mc eval sync -t coral = %d, stdout\n%s\nstderr %q, want the row 4 again", r.exitCode, r.stdout, r.stderr)
+	}
+}

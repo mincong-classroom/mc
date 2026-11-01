@@ -64,8 +64,9 @@ type cell struct {
 }
 
 // Blocks returns the blocks to paste to write every cell of the file but its keys, which find the
-// rows and are in the tab already: from left to right, then from top to bottom. A cell with a
-// "_check" is in a block of its own, after the others, so that the teacher can look at it first.
+// rows and are in the tab already, except in a new row: from left to right, then from top to
+// bottom. A cell with a "_check" is in a block of its own, after the others, so that the teacher
+// can look at it first.
 func Blocks(f *File) ([]Block, error) {
 	columns := f.columnOf()
 	keys := map[string]bool{}
@@ -77,7 +78,7 @@ func Blocks(f *File) ([]Block, error) {
 	var errs []string
 	for _, row := range f.Rows {
 		for header, value := range row.Cells {
-			if keys[header] {
+			if keys[header] && !row.New {
 				continue
 			}
 			c := cell{row: row.Number, column: columns[header]}

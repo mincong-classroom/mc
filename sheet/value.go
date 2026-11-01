@@ -85,10 +85,10 @@ func text(v any) string {
 	return fmt.Sprint(v)
 }
 
-// sameValue reports whether the value of a cell read from the tab is the one written. A tab read
+// SameValue reports whether the value of a cell read from the tab is the one written. A tab read
 // as CSV gives texts, so a number or a boolean is compared with its text. A formula is never
 // compared: the tab gives its result.
-func sameValue(read, written any) bool {
+func SameValue(read, written any) bool {
 	switch w := written.(type) {
 	case json.Number:
 		want, err := w.Float64()

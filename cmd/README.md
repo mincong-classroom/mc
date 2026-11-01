@@ -26,6 +26,7 @@ Each command has its own file, with its subcommands, their flags and their `RunE
 | File | Commands | Packages that do the work |
 |---|---|---|
 | `eval.go` | `mc eval ls`, `mc eval run` | `evaluation`, `rubric`, and `evidence` for the facts |
+| `eval_sync.go` | `mc eval sync` | `evaluation`, `sheet` |
 | `evidence.go` | `mc evidence` | `evidence`, `rubric`, `github` |
 | `rule.go` | `mc rule ls`, `check`, `render` | `rubric` |
 | `sheet.go` | `mc sheet snippet`, `blocks`, `copy`, `pasted`, `verify` | `sheet` |

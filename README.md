@@ -393,6 +393,62 @@ A file with an unknown key, a key twice or a value of the wrong type stops at th
 other checks of the file run once they are fixed. Without a problem, the command prints how many
 files it checked.
 
+Once the files have no problem, `mc eval sync` computes the cells that write them in the tab
+"Evaluation" of the evaluation sheet. `mc` has no access to the spreadsheet: an agent in the
+browser, such as Claude in Chrome, reads the tab and pastes the cells with the commands of
+[Sheet](#sheet). Without such an agent, the evaluations stay in their files, and nothing is
+written:
+
+```sh
+mc eval sync -l L2                 # every file of ~/.mc/{year}/evaluations/lab-2/
+mc eval sync -l 2 -t teal          # one team
+mc eval sync -l 2 --sheet-dir DIR  # the files of the tabs in DIR, instead of ~/.mc/{year}/sheet/
+```
+
+The sync checks the files first, as `mc eval run --check-only` does. Then it needs the tab as read
+since the last export, `evaluation.read.json`. Without it, the sync writes the script that reads
+the tab, `evaluation.read.js`, says how to run it, and exits with 1. The script reads the columns A
+and D to U only: B and C hold the names of the students.
+
+A sync follows the rules of a pass:
+
+- a row is found by its team, its lab and its rule. A missing row is added after the last row of
+  the tab, with its keys and its formulas (Rule Score, Score and TA Lab Flag). Its columns B and C
+  are filled down from the last row of the tab, and the sync gives the range
+- the completeness goes to an empty cell, or over the one that `mc` wrote last when it is higher,
+  with its TA Comment: "Done well: ... To improve: ...". A lower one keeps the former value, since
+  the work of a team only grows, and so does a completeness that `mc` didn't write, such as one of
+  the teacher. TA To Check says why
+- the other TA columns follow the files, but a cell is never cleared. A cell that `mc` didn't
+  write, and that the files change, waits in a block of its own, to check first
+- a penalty becomes the formula of TA Penalty, such as `=-0.1*G80*F80`, and its reason goes to the
+  TA Comment
+
+The rows of the lab and the teams that waited in `evaluation.json` are replaced, at the same
+numbers, and the others wait still. The sync prints each cell that it writes or keeps, the new
+rows, then the next commands. For a made-up team `teal`, whose second pass gives a higher
+completeness to a rule and a lower one to another, and a new team `coral`:
+
+```
+Synced 2 evaluations of L2 with the tab Evaluation, as read in /Users/me/.mc/2026/sheet/evaluation.read.json.
+
+CELL            ROW             COLUMN        CHANGE
+Evaluation!G80  teal L2 L2_POD  Completeness  0.6 -> 0.8
+Evaluation!U80  teal L2 L2_POD  TA Comment    "Done well: The Pod runs. To improve: Sho..." -> "Done well: The Pod runs the image of Lab..."
+Evaluation!G81  teal L2 L2_LOG  Completeness  kept 1, not 0.5: lower than the former pass
+Evaluation!K81  teal L2 L2_LOG  TA To Check   nothing -> "The pass of 0a1b2c3 gives 0.5, lower tha..."
+
+New 2 rows: coral, rows 82 to 83.
+
+4 rows wait in /Users/me/.mc/2026/sheet/evaluation.json. Next, in the page of the spreadsheet:
+
+  mc sheet blocks evaluation  list the blocks to paste
+  mc sheet copy evaluation 1  copy a block, then paste it at its range, block after block
+  fill down B81:C83           the columns B and C of the new rows: type the range in the Name Box, then Cmd+D
+  mc sheet pasted evaluation  record the blocks pasted, such as 1 2 3, or every block
+  mc sheet verify evaluation  after a new read of the tab, compare it with what was written
+```
+
 ## Annotate
 
 `mc annotate` puts numbered boxes on a screenshot, around what the evaluator found: a green box
@@ -458,6 +514,8 @@ As you can see:
   a column of personal data
 - `_check` names the cells to look at before writing them, which the teacher may have changed
   since the last export
+- `"_new": true` marks a row that the tab doesn't have yet, such as a row that `mc eval sync` adds:
+  its keys are written too
 
 To write a tab by hand:
 
@@ -470,7 +528,7 @@ mc sheet pasted evaluation 1 2   # or the blocks 1 and 2 only: the others wait s
 ```
 
 A block is a rectangle of adjacent cells, every one of them written, since a paste of an empty cell
-would clear it. The keys are never written. A text that Sheets would read as something else, such
+would clear it. The keys are written for a new row only. A text that Sheets would read as something else, such
 as the commit `2e88112` (a number), starts with an apostrophe, which keeps it a text. The blocks
 with a `_check` come last.
 
@@ -500,8 +558,8 @@ The `evidence` directory gathers the evidence of a lab for a team, on the local 
 of its clone: [its README](evidence/README.md) shows where the facts come from.
 
 The `evaluation` directory reads the evaluation of a lab for a team, as the evaluator writes it,
-and checks it against the evaluation rules: [its README](evaluation/README.md) shows what a check
-reads.
+checks it against the evaluation rules, and computes the cells that write it in the evaluation
+sheet: [its README](evaluation/README.md) shows what a check reads, and what a sync writes.
 
 The `annotate` directory finds a text in a screenshot with tesseract, and draws numbered boxes on
 it.

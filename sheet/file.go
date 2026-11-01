@@ -4,7 +4,8 @@
 //
 // A file holds one tab: one object per row, like the documents of a collection in MongoDB, whose
 // attributes are the columns, named by their headers. A row holds the keys that find it, and the
-// cells to write only: an attribute absent is a cell left alone, never cleared.
+// cells to write only: an attribute absent is a cell left alone, never cleared. A new row, which
+// the tab doesn't have yet, gets its keys written too.
 package sheet
 
 import (
@@ -43,12 +44,16 @@ type Row struct {
 	// Check says why the teacher should look at a cell before it is written, by header, the
 	// attribute "_check": a cell that the teacher may have changed since the last export.
 	Check map[string]string
+	// New says that the tab doesn't have the row yet, the attribute "_new": its keys are written
+	// with its cells, at its number.
+	New bool
 }
 
 // The attributes of a row that are not columns.
 const (
 	rowAttribute   = "_row"
 	checkAttribute = "_check"
+	newAttribute   = "_new"
 )
 
 // Load reads a file and checks it: every problem is in the error, one per line.
@@ -281,8 +286,10 @@ func (f *File) UnmarshalJSON(data []byte) error {
 				err = json.Unmarshal(value, &row.Number)
 			case name == checkAttribute:
 				err = json.Unmarshal(value, &row.Check)
+			case name == newAttribute:
+				err = json.Unmarshal(value, &row.New)
 			case strings.HasPrefix(name, "_"):
-				err = fmt.Errorf("unknown attribute: only %s and %s start with _", rowAttribute, checkAttribute)
+				err = fmt.Errorf("unknown attribute: only %s, %s and %s start with _", rowAttribute, newAttribute, checkAttribute)
 			default:
 				d := json.NewDecoder(bytes.NewReader(value))
 				d.UseNumber()
@@ -303,7 +310,7 @@ func (f *File) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalJSON encodes a file: the columns from left to right, and the attributes of each row in
-// the order of the columns, after "_row" and before "_check".
+// the order of the columns, after "_row" and "_new", and before "_check".
 func (f *File) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
 	b.WriteString(`{"tab":`)
@@ -326,6 +333,9 @@ func (f *File) MarshalJSON() ([]byte, error) {
 		}
 		b.WriteString(`{"` + rowAttribute + `":`)
 		writeJSON(&b, row.Number)
+		if row.New {
+			b.WriteString(`,"` + newAttribute + `":true`)
+		}
 		for _, header := range f.headersOf(row.Cells) {
 			b.WriteByte(',')
 			writeJSON(&b, header)
