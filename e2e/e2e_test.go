@@ -958,7 +958,7 @@ rules:
 `
 
 // writeEvaluations writes the evaluations of Lab 2 of the teams, each one a copy of the one of
-// teal, the facts of mc evidence for the teams with a commit, and the rules and a registry of
+// teal, the facts of mc eval gather-facts for the teams with a commit, and the rules and a registry of
 // teal and coral. It returns the arguments of mc for the rules and the registry.
 func (e *env) writeEvaluations(t *testing.T, teams []string, commits map[string]string) []string {
 	t.Helper()
@@ -966,7 +966,7 @@ func (e *env) writeEvaluations(t *testing.T, teams []string, commits map[string]
 		e.writeFile(t, ".mc/2026/evaluations/lab-2/"+team+".yaml", strings.Replace(evaluationOfTeal, "team: teal", "team: "+team, 1))
 	}
 	for team, commit := range commits {
-		e.writeFile(t, ".mc/2026/teacher/k8s-"+team+"/docs/lab-2.evidence.md", "---\ncommit: "+commit+"\nmc: 949d7aa740ab\n---\n\n# Lab 2\n")
+		e.writeFile(t, ".mc/2026/teacher/k8s-"+team+"/docs/lab-2.facts.md", "---\ncommit: "+commit+"\nmc: 949d7aa740ab\n---\n\n# Lab 2\n")
 	}
 	e.writeFile(t, "rules.yaml", testRules(t))
 	registry := `teams:
@@ -1096,10 +1096,10 @@ func TestEvalRunPrintsTheProblems(t *testing.T) {
 	r := e.run(t, "", append([]string{"eval", "run", "-l", "2", "--check-only"}, flags...)...)
 
 	// One problem per line, sorted by file, then by line. olive has no facts, and no team.
-	want := coral + ":2: the commit 0a1b2c3 is not the one of the facts of mc evidence, 9f8e7d6: evaluate that commit, or gather the facts again\n" +
+	want := coral + ":2: the commit 0a1b2c3 is not the one of the facts, 9f8e7d6: evaluate that commit, or gather the facts again\n" +
 		coral + ":7: L2_POD: the completeness 0.85 is not from 0 to 1 by steps of 0.1\n" +
 		filepath.Join(dir, "olive.yaml") + `: the team "olive" is not in the registry ` + filepath.Join(e.home, "teams.yaml") + "\n" +
-		filepath.Join(dir, "olive.yaml") + ":2: no facts of mc evidence for the team olive in L2: run mc evidence -l L2 -t olive first\n" +
+		filepath.Join(dir, "olive.yaml") + ":2: no facts for the team olive in L2: run mc eval gather-facts -l L2 -t olive first\n" +
 		"Error: 4 problems in 2 of 3 files\n"
 	if r.exitCode != 1 || r.stdout != "" || r.stderr != want {
 		t.Errorf("mc eval run -l 2 = %d, %q, stderr\n%s\nwant 1 and the stderr\n%s", r.exitCode, r.stdout, r.stderr, want)

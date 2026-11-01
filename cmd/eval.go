@@ -24,13 +24,13 @@ import (
 
 var evalCmd = &cobra.Command{
 	Use:   "eval",
-	Short: "List and check the evaluations of the labs, one YAML file per team and lab",
-	Long: `List and check the evaluations of the labs, as the evaluator writes them: one YAML file per
-team and lab, so that several evaluators can work at once, in
-~/.mc/{year}/evaluations/lab-{n}/{team}.yaml:
+	Short: "Gather the facts of the labs, then list, check and sync their evaluations",
+	Long: `Gather the facts of the labs for the evaluator, with mc eval gather-facts. Then list, check and
+sync the evaluations of the labs, as the evaluator writes them: one YAML file per team and lab, so
+that several evaluators can work at once, in ~/.mc/{year}/evaluations/lab-{n}/{team}.yaml:
 
   team: teal
-  commit: 0a1b2c3                    # the commit evaluated, the one of the facts of mc evidence
+  commit: 0a1b2c3                    # the commit evaluated, the one of the facts
   time_spent: Session only, done at 11:21
   action_items: Run it yourself      # or Talk with them, Less attention, Late work to decide
   rules:
@@ -42,7 +42,8 @@ team and lab, so that several evaluators can work at once, in
       analysis: short                # a key of the analysis levels of the rules
       writing_style: own words
       penalty: null                  # or {kind: secret, remove: 0.3, why: ...}`,
-	Example: `  mc eval ls
+	Example: `  mc eval gather-facts -l L2
+  mc eval ls
   mc eval ls -l L2
   mc eval run -l L2
   mc eval run -l 2 -t teal
@@ -86,18 +87,18 @@ rules, where {lab} is the lab and {teams} the teams of --team, or all:
   agents:
     eval_run: claude -p "/evaluate-lab {lab} {teams}"
 
-The agent does the work, such as gathering the evidence with mc evidence, and writes one file per
-team. It runs with the variable MC_EVAL_AGENT set, so that it can't start another agent: it checks
-its files with mc eval run --check-only.
+The agent does the work, such as gathering the facts with mc eval gather-facts, and writes one
+file per team. It runs with the variable MC_EVAL_AGENT set, so that it can't start another agent:
+it checks its files with mc eval run --check-only.
 
 The checks compare the files with the evaluation rules of the year, from the key rules of
 ~/.mc/settings.yaml, or the file of --rules-file:
 
   - the keys: an unknown key is a problem, and so is a key twice
   - the team, the name of the file
-  - the commit, the one of the facts that mc evidence gathered for the team, in the report of the
-    evidence on its branch teacher, such as ~/.mc/{year}/teacher/k8s-teal/docs/lab-2.evidence.md.
-    A short hash matches the full one
+  - the commit, the one of the facts that mc eval gather-facts gathered for the team, on its branch
+    teacher, such as ~/.mc/{year}/teacher/k8s-teal/docs/lab-2.facts.md. A short hash matches the
+    full one
   - the action items, if any, one of "Run it yourself", "Talk with them", "Less attention" and
     "Late work to decide"
   - the rules: each mandatory rule of the lab, an optional one if evaluated, and no other rule
@@ -371,7 +372,7 @@ type evalChecker struct {
 	rubric     *rubric.Rubric
 	lab        rubric.Lab
 	teams      []common.Team // The teams of the registry.
-	teacherDir string        // The worktrees of the branch teacher, with the facts of mc evidence.
+	teacherDir string        // The worktrees of the branch teacher, with the facts.
 }
 
 // check returns the problems of the file of the team. Its error is one of the facts, which is not
@@ -388,14 +389,14 @@ func (c evalChecker) check(file, name string) ([]evaluation.Problem, error) {
 		return nil, err
 	}
 
-	// The worktree of a team is named after its repository, as mc evidence names it.
+	// The worktree of a team is named after its repository, as mc eval gather-facts names it.
 	team := common.Team{Name: name}
 	if i := slices.IndexFunc(c.teams, func(t common.Team) bool { return t.Name == name }); i >= 0 {
 		team = c.teams[i]
 	} else {
 		problems = append(problems, evaluation.Problem{Message: fmt.Sprintf("the team %q is not in the registry %s", name, common.TeamRegistryPath())})
 	}
-	facts, ok, err := evidence.ReadFacts(evidence.ReportPath(filepath.Join(c.teacherDir, team.GetRepoName()), c.lab))
+	facts, ok, err := evidence.ReadFacts(evidence.FactsPath(filepath.Join(c.teacherDir, team.GetRepoName()), c.lab))
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +420,7 @@ func printEvaluationProblems(w io.Writer, path string, problems []evaluation.Pro
 }
 
 // teacherDir returns the directory of the worktrees of the branch teacher, one per team, where mc
-// evidence writes its reports.
+// eval gather-facts writes the facts.
 func teacherDir() string {
 	return filepath.Join(common.ConfigDir(), strconv.Itoa(common.Year()), "teacher")
 }

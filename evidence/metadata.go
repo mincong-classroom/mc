@@ -14,12 +14,12 @@ import (
 	"github.com/mincong-classroom/mc/rubric"
 )
 
-// metadata tells what a report was made from, in its front matter. The report of the evidence
-// carries it, and the report generated from the evidence copies it: a generated report whose
-// metadata are those of a new pass is up to date.
+// metadata tells what a file was made from, in its front matter. The facts carry it, and the
+// report written from the facts copies it: a report whose metadata are those of a new pass is up to
+// date.
 type metadata struct {
 	Commit string `yaml:"commit"` // The commit of the team evaluated, in full.
-	MC     string `yaml:"mc"`     // The commit of mc that gathered the evidence.
+	MC     string `yaml:"mc"`     // The commit of mc that gathered the facts.
 }
 
 // frontMatter returns the metadata as the front matter of a Markdown file.
@@ -27,8 +27,8 @@ func (m metadata) frontMatter() string {
 	return fmt.Sprintf("---\ncommit: %s\nmc: %s\n---\n\n", m.Commit, m.MC)
 }
 
-// readMetadata reads the metadata in the front matter of a report. It reports false when the file
-// doesn't exist, or when it has no front matter with both keys.
+// readMetadata reads the metadata in the front matter of the facts or of a report. It reports false
+// when the file doesn't exist, or when it has no front matter with both keys.
 func readMetadata(p string) (metadata, bool, error) {
 	var m metadata
 	data, err := os.ReadFile(p)
@@ -55,29 +55,28 @@ func readMetadata(p string) (metadata, bool, error) {
 	return m, true, nil
 }
 
-// Facts are what the front matter of a report of the evidence tells of its pass.
+// Facts are what the front matter of the facts tells of their pass.
 type Facts struct {
 	Commit string // The commit of the team evaluated, in full.
-	MC     string // The commit of mc that gathered the evidence.
+	MC     string // The commit of mc that gathered the facts.
 }
 
-// ReportPath returns the report of the evidence of a lab in the worktree of a team, such as
-// ~/.mc/2026/teacher/k8s-red/docs/lab-1.evidence.md for the report docs/lab-1.md of the lab.
-func ReportPath(worktree string, lab rubric.Lab) string {
-	report, _ := evidencePaths(lab.Report)
-	return filepath.Join(worktree, filepath.FromSlash(report))
+// FactsPath returns the facts of a lab in the worktree of a team, such as
+// ~/.mc/2026/teacher/k8s-red/docs/lab-1.facts.md for the report docs/lab-1.md of the lab.
+func FactsPath(worktree string, lab rubric.Lab) string {
+	facts, _ := factsPaths(lab.Report)
+	return filepath.Join(worktree, filepath.FromSlash(facts))
 }
 
-// ReadFacts reads the facts in the front matter of a report of the evidence. It reports false
-// when the report doesn't exist, or has no front matter with both commits: mc evidence hasn't
-// gathered the evidence yet.
-func ReadFacts(report string) (Facts, bool, error) {
-	m, ok, err := readMetadata(report)
+// ReadFacts reads the front matter of the facts. It reports false when the file doesn't exist, or
+// has no front matter with both commits: mc eval gather-facts hasn't gathered the facts yet.
+func ReadFacts(file string) (Facts, bool, error) {
+	m, ok, err := readMetadata(file)
 	return Facts(m), ok, err // The same fields: a conversion, which the tags don't prevent.
 }
 
-// generatedPath returns the report that an evaluator generates from the evidence, next to the
-// report of the team: docs/lab-1.generated.md for docs/lab-1.md.
-func generatedPath(report string) string {
-	return strings.TrimSuffix(report, path.Ext(report)) + ".generated.md"
+// reportPath returns the report that an evaluator writes from the facts, next to the report of the
+// team: docs/lab-1.report.md for docs/lab-1.md.
+func reportPath(report string) string {
+	return strings.TrimSuffix(report, path.Ext(report)) + ".report.md"
 }

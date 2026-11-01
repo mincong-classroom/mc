@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 form two-person teams; every team has its own Git repository cloned from the same template
 ([`mincong-classroom/containers`](https://github.com/mincong-classroom/containers)), so all student
 repos share an identical file layout (e.g. `apps/spring-petclinic/Dockerfile`, `k8s/lab-2/pod-nginx.yaml`).
-The tool exists to run team-specific commands and gather evidence in bulk across those dozens of repos.
+The tool exists to run team-specific commands and gather facts in bulk across those dozens of repos.
 
 ## Build & run
 
@@ -59,7 +59,7 @@ mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~
 mc rule check                 # one problem per line, with its line; exit 1 if any
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc rule sync [--sheet-dir DIR]  # the checks, then the cells of the rules in ~/.mc/{year}/sheet/rules.json for mc sheet; without a read of the tab Rules since the last export, writes rules.read.js and exits 1
-mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
+mc eval gather-facts -l L1 [-t red] [--late] [--force] [--template DIR] [--dir DIR]  # the facts of each team, docs/lab-1.facts.md on its branch teacher; --dir is the worktrees here
 mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
 mc eval run -l L2 [-t teal] [--check-only] [--dir DIR]  # the agent of agents.eval_run (sh, in the repo of the rules), then the checks of its files: one problem per line, exit 1 if any
 mc eval sync -l L2 [-t teal] [--sheet-dir DIR]  # the checks, then the cells of the files in ~/.mc/{year}/sheet/evaluation.json for mc sheet; without a read of the tab since the last export, writes evaluation.read.js and exits 1
@@ -72,6 +72,11 @@ mc git pull                   # git pull --ff-only; a rewritten history (force-p
 mc git exec -- log -1 --oneline  # any git command in each team repo; goes on when one fails, exits 1 if any did
 mc k8s create-namespaces      # kubectl create one namespace per team
 ```
+
+`mc --help` lists the commands in 2 Cobra groups (`cmd/root.go`): those of the teacher (`eval`,
+`rule`, `team`, `git`, `info`, `k8s`) and those of the agents (`annotate`, `sheet`). A new
+top-level command takes its group there, or `TestEveryCommandHasAGroup` fails. Its name follows
+"Commands" in `CONTRIBUTING.md`.
 
 ## External data (critical — not in this repo)
 
@@ -102,12 +107,12 @@ assume exists at runtime. Nothing here works without it:
   tool can find it without opening the registry, which holds the names of the students.
 - `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml` — the evaluation of a lab for a team, written
   by the evaluator (an AI agent) and read by `mc eval ls`, `run` and `sync` (`evaluation.Load`). The files of
-  `mc evidence` are next to it, in `~/.mc/{year}/teacher/`.
+  `mc eval gather-facts` are next to it, in `~/.mc/{year}/teacher/`.
 
 ## Architecture
 
 Eight packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
-of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `evaluation/`
+of the evaluation rules), `evidence/` (the facts of a lab for a team), `evaluation/`
 (the evaluation of a lab for a team, by the evaluator), `annotate/` (the
 numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
 diagram when a package is added, or imports another. `cmd/`, `common/`, `e2e/`, `evaluation/`,
@@ -124,12 +129,13 @@ the embedded `page.md.tmpl` with texts that Go wraps at 96 characters (`wrapper`
 never starts with a marker of Markdown. The tests use the made-up `rubric/testdata/`, never real
 rules: update the golden page with `go test ./rubric -update`, then review its diff.
 
-**Evidence** (`evidence/`) — `Gather(team, opts)` writes `docs/lab-{n}.evidence.md` for one team
-and one lab: facts, never a score. The commit is the last push to main before the deadline
+**Facts** (`evidence/`) — `Gather(team, opts)` writes `docs/lab-{n}.facts.md` for one team and
+one lab: facts, never a score. The package keeps the name `evidence`, which the evaluator's files of
+`docs/lab-{n}.evidence/` keep too. The commit is the last push to main before the deadline
 (`github.CLI.MainPushes`, the activity of the repository, not its events), `origin/main` with
-`Late`, or `Rev`. The report goes to the local branch `teacher` (`Branch`) of the clone, checked
+`Late`, or `Rev`. The facts go to the local branch `teacher` (`Branch`) of the clone, checked
 out in a worktree of `opts.Dir` (`~/.mc/{year}/teacher/<repo>`): the branch starts from the
-commit, the next pass merges the new one (never a reset, never a push), and `commitReport`
+commit, the next pass merges the new one (never a reset, never a push), and `commitFacts`
 commits a change only. `build` reads the tree of the commit with git, not the worktree: the section
 of the exercise (`findSection`, `blocks`), without the lines of the statement, which are those of
 every version of the report in the template (`LoadTemplate`, or the first commit of the team
@@ -137,15 +143,19 @@ without `--template`); the files of the rule and those the report links to (`fil
 file is imported, a file of the template shows its smallest diff with one of its versions, a long
 one is linked, so that the evaluator quotes its key lines); the files of the evaluator in
 `docs/lab-{n}.evidence/` of the worktree (`{ID}.md`, `{lab}-{xyz}-*`); and the images of the rule
-on Docker Hub (`DockerHub`, with the later patches of a tag). `markdown()` writes the report,
+on Docker Hub (`DockerHub`, with the later patches of a tag). `markdown()` writes the facts,
 with a front matter (`metadata`): the commit evaluated and the commit of mc (`opts.Revision`, from
 `common.Revision`, which reads the build info: the pseudo-version of `go run ...@{commit}`, or
-`vcs.revision` of a local build, `-dirty` with changes). The report that the evaluator generates
-from it, `docs/lab-{n}.generated.md`, copies the front matter: when it equals the one of now,
+`vcs.revision` of a local build, `-dirty` with changes). The report that the evaluator writes
+from them, `docs/lab-{n}.report.md`, copies the front matter: when it equals the one of now,
 `Gather` returns `UpToDate` and gathers nothing, unless `opts.Force`, which the command sets for
-`--force` and for a revision that isn't stable (`common.StableRevision`). The
+`--force` and for a revision that isn't stable (`common.StableRevision`). Before that check,
+`renameFormerFiles` (`rename.go`) renames the files of the former names, `lab-{n}.evidence.md` and
+`lab-{n}.generated.md`, with `git mv` (an untracked one with `os.Rename`), fixes the link of the
+report to the facts, and commits: otherwise the check would miss the report, and every team would
+be gathered again. The
 test builds a template and a team repository with git in a temporary `HOME` with fixed dates, so
-the commits and the golden report `evidence/testdata/lab-1.evidence.md` are the same at each run.
+the commits and the golden facts `evidence/testdata/lab-1.facts.md` are the same at each run.
 
 **Evaluation** (`evaluation/`) — the evaluator writes one YAML per team and lab, so that several
 agents work at once: `LabDir(dir, lab)` is `{dir}/lab-{n}`, `Path(labDir, team)` its file
@@ -154,13 +164,13 @@ does: strictly with `KnownFields(true)` into Go maps (an unknown key, a key twic
 `Problems`, with its line), and as a `yaml.Node` for the order of the rules and the lines of the
 keys. A syntax error keeps the line in the message of yaml.v3, which is 0-based for some parser
 errors. `File.Check(opts)` returns the problems of the content, sorted by line: the team of the
-name of the file, the commit (a prefix of `opts.Commit`, the facts of `mc evidence`; empty means no
-facts), the action items, each mandatory rule of the lab, the completeness by steps of 0.1,
+name of the file, the commit (a prefix of `opts.Commit`, the facts of `mc eval gather-facts`; empty
+means no facts), the action items, each mandatory rule of the lab, the completeness by steps of 0.1,
 `done_well` and `to_improve`, the analysis level, the writing style, and the penalty: a key of
 `scoring.penalties` with its `remove`, `rule` (`PenaltyRule`) with a `remove` of the rule's own
 penalties, or `late` (`PenaltyLate`) within `scoring.late_penalty`. It imports `rubric` and `sheet` only:
 `cmd/eval.go` finds the worktree of the team by its repository in the registry, and reads the facts
-with `evidence.ReadFacts(evidence.ReportPath(worktree, lab))`. It checks the content of the rules
+with `evidence.ReadFacts(evidence.FactsPath(worktree, lab))`. It checks the content of the rules
 only (`loadRules` with no root): the files of the teacher don't change an evaluation. The tests use
 the made-up rules of `rubric/testdata/`.
 
@@ -241,6 +251,6 @@ former `mc team provision` returns an error that points to `mc team <team> provi
 `CustomRepoName`. There is no role anymore: every team is graded on the same rules, and an old
 `role:` key in a registry is ignored. All team-derived paths/URLs come from methods on `Team`
 (`GetRepoPath`, `GetRepoURL`).
-Prefer these helpers over rebuilding paths inline: `mc git clone|pull|show|exec` and `mc evidence`
-all find the team repos at `GetRepoPath()`, `$HOME/github/mincong-classroom/k8s-<name>`.
+Prefer these helpers over rebuilding paths inline: `mc git clone|pull|show|exec` and `mc eval
+gather-facts` all find the team repos at `GetRepoPath()`, `$HOME/github/mincong-classroom/k8s-<name>`.
 

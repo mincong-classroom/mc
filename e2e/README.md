@@ -46,8 +46,9 @@ flowchart LR
    a log, and `env.ghChanges` returns it, so that a test checks which changes `mc` asked for.
 
 The clones of the teams are Git repositories that a test creates in its home, with `initTeamRepo`
-or `cloneRedRepo`: `mc git` reads them as it reads the real ones. The facts of `mc evidence` are
-written by hand, as `writeEvaluations` does: the package `evidence` has its own tests of a pass.
+or `cloneRedRepo`: `mc git` reads them as it reads the real ones. The facts of
+`mc eval gather-facts` are written by hand, as `writeEvaluations` does: the package `evidence` has
+its own tests of a pass.
 
 ## The Cache of `go test`
 

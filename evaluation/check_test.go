@@ -51,7 +51,7 @@ func TestCheck(t *testing.T) {
 	for _, c := range []struct {
 		name     string
 		old, new string // The change of the file; old is empty for the valid file.
-		noFacts  bool   // Whether mc evidence has gathered no facts for the team.
+		noFacts  bool   // Whether mc eval gather-facts has gathered no facts for the team.
 		want     []string
 	}{
 		{name: "valid"},
@@ -99,7 +99,7 @@ func TestCheck(t *testing.T) {
 		{
 			name: "no commit",
 			old:  "commit: 0a1b2c3\n",
-			want: []string{"no commit: the commit evaluated, the one of the facts of mc evidence"},
+			want: []string{"no commit: the commit evaluated, the one of the facts"},
 		},
 		{
 			name: "a commit too short",
@@ -116,12 +116,12 @@ func TestCheck(t *testing.T) {
 			name: "another commit than the one of the facts",
 			old:  "commit: 0a1b2c3",
 			new:  "commit: 9f8e7d6",
-			want: []string{"2: the commit 9f8e7d6 is not the one of the facts of mc evidence, 0a1b2c3: evaluate that commit, or gather the facts again"},
+			want: []string{"2: the commit 9f8e7d6 is not the one of the facts, 0a1b2c3: evaluate that commit, or gather the facts again"},
 		},
 		{
 			name:    "no facts",
 			noFacts: true,
-			want:    []string{"2: no facts of mc evidence for the team teal in L2: run mc evidence -l L2 -t teal first"},
+			want:    []string{"2: no facts for the team teal in L2: run mc eval gather-facts -l L2 -t teal first"},
 		},
 		{
 			name: "unknown action items",
@@ -268,7 +268,7 @@ func TestCheck(t *testing.T) {
 			old:  "commit: 0a1b2c3\ntime_spent: Session only, done at 11:21\naction_items: Run it yourself\n",
 			new:  "commit: 9f8e7d6\ntime_spent: Session only, done at 11:21\naction_items: Later\n",
 			want: []string{
-				"2: the commit 9f8e7d6 is not the one of the facts of mc evidence, 0a1b2c3: evaluate that commit, or gather the facts again",
+				"2: the commit 9f8e7d6 is not the one of the facts, 0a1b2c3: evaluate that commit, or gather the facts again",
 				`4: the action items "Later" are not one of "Run it yourself", "Talk with them", "Less attention" or "Late work to decide"`,
 			},
 		},

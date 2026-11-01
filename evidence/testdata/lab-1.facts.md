@@ -5,7 +5,7 @@ mc: 0a1b2c3d4e5f
 
 # Lab 1: Build an Image, Team red
 
-The evidence of each rule, for the teacher: what the team wrote in its report, the files of its repository, and what the evaluator made. It gathers facts, not a score. `mc evidence` generates this file: the evaluator writes in [`lab-1.evidence/`](lab-1.evidence/), and `mc evidence` runs again.
+The facts of each rule, for the teacher: what the team wrote in its report, the files of its repository, and the evidence that the evaluator made. Facts, not a score. `mc eval gather-facts` generates this file: the evaluator writes in [`lab-1.evidence/`](lab-1.evidence/), and `mc eval gather-facts` runs again.
 
 - Commit evaluated: `d5c907a`, the head of main at the deadline (Mon 4 Mar 2030, 08:30 (UTC+01:00)), pushed on Mon 4 Mar 2030, 07:30 (UTC+01:00)
 - Gathered by `mc` at `0a1b2c3d4e5f`
@@ -90,7 +90,7 @@ No file of the rule, and the report links to none.
 
 ### By the Evaluator
 
-On Docker Hub, read by `mc evidence`:
+On Docker Hub, read by `mc eval gather-facts`:
 
 | Image | Last pushed | Platforms | Digest |
 |---|---|---|---|

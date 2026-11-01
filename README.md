@@ -43,20 +43,25 @@ assignments in the Kubernetes course.
 Usage:
   mc [command]
 
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
+Commands of the teacher:
+  eval        Gather the facts of the labs, then list, check and sync their evaluations
   git         Perform Git operations in bulk
-  help        Help about any command
   info        Display CLI information
   k8s         Perform Kubernetes operations
   rule        List, check, render and sync the evaluation rules of the year
   team        Manage the teams
 
+Commands of the agents:
+  annotate    Find a text in a screenshot, then draw numbered boxes around what the evaluator found
+  sheet       Move the data of a tab between ~/.mc/{year}/sheet/ and the evaluation spreadsheet
+
+Additional Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+
 Flags:
   -h, --help               help for mc
       --team-file string   Team registry to use instead of ~/.mc/teams-{year}.yaml, e.g. a test registry to try the commands
-
-Use "mc [command] --help" for more information about a command.
 ```
 
 ## Settings
@@ -74,7 +79,7 @@ agents:
 The year selects the files of the cohort, such as the team registry `~/.mc/teams-{year}.yaml`. It
 is the environment variable `MC_YEAR` if set, e.g. `MC_YEAR=2025 mc rule ls`, then the key `year`,
 then the current year. `rules` is the YAML of the evaluation rules, where `{year}` is the year:
-`mc rule`, `mc evidence` and `mc eval` read it. `agents` are the command lines of the AI agents
+`mc rule` and `mc eval` read it. `agents` are the command lines of the AI agents
 that `mc` starts, see [Evaluation](#evaluation). An unknown key is an error, so that a typo doesn't
 go unnoticed.
 
@@ -279,39 +284,39 @@ with the formulas of the tab. A cell that `mc` didn't write, such as a coefficie
 waits in a block to check first, and a row whose rule is gone is listed, never deleted. The
 [README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives the columns.
 
-## Evidence
+## Facts
 
-`mc evidence` gathers the evidence of each rule of a lab, for each team, in a report for the
-teacher. The report holds facts, not a score, of 3 kinds:
+`mc eval gather-facts` gathers the facts of each rule of a lab, for each team, in a file for the
+teacher. They are facts, not a score, of 3 kinds:
 
 1. What the team wrote in its report for the exercise of the rule, without the lines of the
    statement.
 2. The files of the repository: those of the rule, and those the report links to. A short file
    is imported, a file of the template shows its changes, and a long one is linked.
-3. What the evaluator made: its notes and its files, such as screenshots and logs, next to the
-   report, and the tags of the images of the rule on Docker Hub, with their push dates.
+3. The evidence that the evaluator made: its notes and its files, such as screenshots and logs,
+   next to the report, and the tags of the images of the rule on Docker Hub, with their push
+   dates.
 
 ```sh
-mc evidence -l L1 --template ~/github/mincong-classroom/containers
-mc evidence -l L1 -t red --late   # origin/main, for a late pass
-mc evidence -l L1 -t red --force  # gather again, even when the generated report is up to date
+mc eval gather-facts -l L1 --template ~/github/mincong-classroom/containers
+mc eval gather-facts -l L1 -t red --late   # origin/main, for a late pass
+mc eval gather-facts -l L1 -t red --force  # gather again, even when the report is up to date
 ```
 
 The rules are those of the year, from the settings, or the file of the flag `--rules-file`. The
 commit evaluated is the head of `main` at the deadline of the lab, from the activity of the
-repository on GitHub. The report of `docs/lab-1.md` is `docs/lab-1.evidence.md`, and the files of
+repository on GitHub. The facts of `docs/lab-1.md` are `docs/lab-1.facts.md`, and the files of
 the evaluator go to `docs/lab-1.evidence/`: its notes for a rule are `L1_DKF.md`, and its files
 `l1-dkf-*`, such as `l1-dkf-build.log`. Run the command again once they are there.
 
-The report goes to the local branch `teacher` of the clone of the team, checked out in a worktree
-under `~/.mc/{year}/teacher/`, one directory per team: open it in an editor to read the reports
-next to the files of the team. The branch starts from the commit evaluated, the next pass merges
-the new one into it, and each change of a report is committed. `mc` never pushes it.
+The facts go to the local branch `teacher` of the clone of the team, checked out in a worktree
+under `~/.mc/{year}/teacher/`, one directory per team: open it in an editor to read the facts next
+to the files of the team. The branch starts from the commit evaluated, the next pass merges the new
+one into it, and each change of the facts is committed. `mc` never pushes it.
 
-The evaluator can generate a report of its own from the evidence, such as a report for the
-teacher, in `docs/lab-1.generated.md`. The front matter of the evidence holds 2 commits: the
-commit of the team evaluated, and the commit of `mc` that gathered the evidence. `mc info` prints
-the second one:
+The evaluator writes a report from the facts, such as a report for the teacher in
+`docs/lab-1.report.md`. The front matter of the facts holds 2 commits: the commit of the team
+evaluated, and the commit of `mc` that gathered the facts. `mc info` prints the second one:
 
 ```yaml
 ---
@@ -320,17 +325,22 @@ mc: 949d7aa740ab
 ---
 ```
 
-The generated report copies this front matter. While both commits stay the same, nothing changed
-since it was written: `mc evidence` skips the team, and says that its report is up to date. The
-flag `--force` gathers the evidence again anyway, e.g. after a new image on Docker Hub, or a new
-version of the generated report. A local build of `mc` with changes never skips a team, since its
-commit doesn't tell which code ran.
+The report copies this front matter. While both commits stay the same, nothing changed since it
+was written: `mc eval gather-facts` skips the team, and says that its report is up to date. The
+flag `--force` gathers the facts again anyway, e.g. after a new image on Docker Hub, or a new
+version of the report. A local build of `mc` with changes never skips a team, since its commit
+doesn't tell which code ran.
+
+The files had other names before: `docs/lab-1.evidence.md` for the facts, and
+`docs/lab-1.generated.md` for the report. The next pass renames them with `git mv`, so that they
+keep their history, and commits the renames. The check above then finds the report under its new
+name, and the link of the report to the facts follows them.
 
 ## Evaluation
 
 `mc eval` is the command of the teacher for the evaluation of a lab, and `mc rule` the one for
-its rules. `mc eval run` starts an AI agent, which does the work: it gathers the evidence with `mc
-evidence`, puts boxes on the screenshots with `mc annotate`, and evaluates each rule. The agent is
+its rules. `mc eval run` starts an AI agent, which does the work: it gathers the facts with `mc
+eval gather-facts`, puts boxes on the screenshots with `mc annotate`, and evaluates each rule. The agent is
 a command line of the settings, run with `sh` in the Git repository of the rules, where `{lab}` is
 the lab, such as `L2`, and `{teams}` the teams of `-t`, or `all`:
 
@@ -346,7 +356,7 @@ sheet, and `mc eval ls` lists them. Here is the file of a made-up team, `teal`, 
 
 ```yaml
 team: teal
-commit: 0a1b2c3                # the commit evaluated, the one of the facts of mc evidence
+commit: 0a1b2c3                # the commit evaluated, the one of the facts
 time_spent: Session only, done at 11:21
 action_items: Run it yourself  # or Talk with them, Less attention, Late work to decide
 rules:
@@ -398,9 +408,9 @@ settings, or pass the options of `claude` in the command line of the agent.
 
 The rules come from the settings, or the file of the flag `--rules-file`, as for `mc rule`. Each
 mandatory rule of the lab must be there once, and an optional rule may be absent. The commit must
-be the one of the facts that `mc evidence` gathered for the team: the commit in the front matter
-of its report, such as `~/.mc/{year}/teacher/k8s-teal/docs/lab-2.evidence.md`. A short hash
-matches the full one. Without facts, the check says to run `mc evidence` first.
+be the one of the facts that `mc eval gather-facts` gathered for the team: the commit in their
+front matter, such as `~/.mc/{year}/teacher/k8s-teal/docs/lab-2.facts.md`. A short hash matches
+the full one. Without facts, the check says to run `mc eval gather-facts` first.
 
 A penalty removes a share of the score of a rule. Its `kind` is one of 3:
 
@@ -586,8 +596,8 @@ README](cmd/README.md) explains how a command runs, and how `mc eval run` starts
 The `rubric` directory reads the YAML of the evaluation rules: it checks the file, and renders its
 page from the template `rubric/page.md.tmpl`.
 
-The `evidence` directory gathers the evidence of a lab for a team, on the local branch `teacher`
-of its clone: [its README](evidence/README.md) shows where the facts come from.
+The `evidence` directory gathers the facts of a lab for a team, on the local branch `teacher` of
+its clone: [its README](evidence/README.md) shows where the facts come from.
 
 The `evaluation` directory reads the evaluation of a lab for a team, as the evaluator writes it,
 checks it against the evaluation rules, and computes the cells that write it in the evaluation
