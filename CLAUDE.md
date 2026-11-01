@@ -172,7 +172,8 @@ text a text (a number such as `2e88112`, a date, `-0.2`). `RecordPasted` moves t
 blocks pasted to the export; `Verify` compares the tab read with it, cell by cell at the same
 letter, never a formula. The script (`snippet.js`, its `CONFIG` replaced by `Snippet`) queries gviz
 from the page, numbers the rows from 2 (gviz keeps the empty rows above the last one), and copies
-the rows to the clipboard. The tests use made-up teams only.
+the rows to the clipboard. The tests use made-up teams only. `sheet/README.md` explains the package to
+humans, with a diagram of the files and the spreadsheet: update it with the package.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
