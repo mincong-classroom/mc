@@ -548,17 +548,18 @@ of numbers, comes back empty. `verify` never compares a formula, since the tab g
 
 ## Key Components
 
-The `cmd` directory contains all the commands exposed in the command line interface. Each command is registered in the `root.go`.
+The `cmd` directory wires the commands of the command line interface with Cobra: [its
+README](cmd/README.md) explains how a command runs, and how `mc eval run` starts an agent.
 
 The `rubric` directory reads the YAML of the evaluation rules: it checks the file, and renders its
 page from the template `rubric/page.md.tmpl`.
 
 The `evidence` directory gathers the evidence of a lab for a team, on the local branch `teacher`
-of its clone.
+of its clone: [its README](evidence/README.md) shows where the facts come from.
 
 The `evaluation` directory reads the evaluation of a lab for a team, as the evaluator writes it,
 checks it against the evaluation rules, and computes the cells that write it in the evaluation
-sheet.
+sheet: [its README](evaluation/README.md) shows what a check reads, and what a sync writes.
 
 The `annotate` directory finds a text in a screenshot with tesseract, and draws numbered boxes on
 it.
@@ -569,5 +570,11 @@ moves it through a browser: [its README](sheet/README.md) explains why, with a d
 The `rules` directory contains the rules of 2025 for the auto-grading, which are deprecated.
 
 The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
+
+The `common` directory holds what the commands share: the settings, the year, the team registry
+and the commit of `mc`. [Its README](common/README.md) shows how the year selects the files.
+
+The `e2e` directory runs the binary of `mc` end to end, in a home of its own and with a fake `gh`:
+[its README](e2e/README.md) explains how.
 
 The `.mc` directory is private. It contains the team registry `.mc/teams-{year}.yaml`, and the lab session results `.mc/assignments-L{i}.yaml`, such as `.mc/assignments-L1.yaml` for Lab Session 1. This directory is ignored by Git.

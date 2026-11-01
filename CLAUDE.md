@@ -122,7 +122,8 @@ of the evaluation rules), `evidence/` (the evidence report of a lab for a team),
 (the evaluation of a lab for a team, by the evaluator), `annotate/` (the
 numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `rules/` (the
 grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
-diagram when a package is added, or imports another.
+diagram when a package is added, or imports another. `cmd/`, `common/`, `e2e/`, `evaluation/`,
+`evidence/` and `sheet/` have a `README.md` for humans, with a diagram: update it with its package.
 
 **Evaluation rules** (`rubric/`) — the YAML of a program has two maps: `labs` (title, report,
 reference, deadline with its offset, intro) and `rules`, keyed by ID, each with its `lab`. `Parse`
@@ -211,8 +212,7 @@ text a text (a number such as `2e88112`, a date, `-0.2`). `RecordPasted` moves t
 blocks pasted to the export; `Verify` compares the tab read with it, cell by cell at the same
 letter, never a formula. The script (`snippet.js`, its `CONFIG` replaced by `Snippet`) queries gviz
 from the page, numbers the rows from 2 (gviz keeps the empty rows above the last one), and copies
-the rows to the clipboard. The tests use made-up teams only. `sheet/README.md` explains the package to
-humans, with a diagram of the files and the spreadsheet: update it with the package.
+the rows to the clipboard. The tests use made-up teams only.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
