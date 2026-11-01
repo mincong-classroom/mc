@@ -60,7 +60,7 @@ mc rule check                 # one problem per line, with its line; exit 1 if a
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
 mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
-mc eval run -l L2 [-t teal] [--dir DIR]  # the checks of the evaluations of a lab: one problem per line, exit 1 if any
+mc eval run -l L2 [-t teal] [--check-only] [--dir DIR]  # the agent of agents.eval_run (sh, in the repo of the rules), then the checks of its files: one problem per line, exit 1 if any
 mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
 mc info                       # the CLI, its commit and the registry: number of teams, URL of the evaluation sheet

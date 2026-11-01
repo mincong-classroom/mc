@@ -68,12 +68,16 @@ are optional:
 ```yaml
 year: 2026                                                  # the year of the cohort
 rules: ~/github/my-org/course/{year}/evaluation-rules.yaml  # the evaluation rules of each year
+agents:
+  eval_run: claude -p "/evaluate-lab {lab} {teams}"         # the AI agent of mc eval run
 ```
 
 The year selects the files of the cohort, such as the team registry `~/.mc/teams-{year}.yaml`. It
 is the environment variable `MC_YEAR` if set, e.g. `MC_YEAR=2025 mc grade`, then the key `year`,
 then the current year. `rules` is the YAML of the evaluation rules, where `{year}` is the year:
-`mc rule`, `mc evidence` and `mc eval` read it. An unknown key is an error, so that a typo doesn't go unnoticed.
+`mc rule`, `mc evidence` and `mc eval` read it. `agents` are the command lines of the AI agents
+that `mc` starts, see [Evaluation](#evaluation). An unknown key is an error, so that a typo doesn't
+go unnoticed.
 
 ## Team
 
@@ -292,10 +296,21 @@ commit doesn't tell which code ran.
 
 ## Evaluation
 
-The evaluator writes what it found for each team in a YAML file, one per team and lab, so that
-several evaluators can work at once: `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml`. `mc eval
-ls` lists these files, and `mc eval run` checks them against the evaluation rules, before they
-become the rows of the evaluation sheet. Here is the file of a made-up team, `teal`, in Lab 2:
+`mc eval` is the command of the teacher for the evaluation of a lab, and `mc rule` the one for
+its rules. `mc eval run` starts an AI agent, which does the work: it gathers the evidence with `mc
+evidence`, puts boxes on the screenshots with `mc annotate`, and evaluates each rule. The agent is
+a command line of the settings, run with `sh` in the Git repository of the rules, where `{lab}` is
+the lab, such as `L2`, and `{teams}` the teams of `-t`, or `all`:
+
+```yaml
+agents:
+  eval_run: claude -p "/evaluate-lab {lab} {teams}"
+```
+
+The agent writes what it found for each team in a YAML file, one per team and lab, so that several
+agents can work at once: `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml`. Then `mc eval run`
+checks these files against the evaluation rules, before they become the rows of the evaluation
+sheet, and `mc eval ls` lists them. Here is the file of a made-up team, `teal`, in Lab 2:
 
 ```yaml
 team: teal
@@ -334,13 +349,20 @@ L2   teal   0a1b2c3  1/1     0         0          Run it yourself
 ```
 
 A file that can't be read is listed with dashes, and the standard error says to run `mc eval run`
-for its problems. To check the files of a lab:
+for its problems. To evaluate a lab, then check its files:
 
 ```sh
-mc eval run -l L2               # every file of ~/.mc/{year}/evaluations/lab-2/
+mc eval run -l L2               # the agent for all, then every file of ~/.mc/{year}/evaluations/lab-2/
 mc eval run -l 2 -t teal        # one team
+mc eval run -l 2 --check-only   # the checks only, without the agent
 mc eval run -l 2 --dir DIR      # the files of DIR/lab-2/
 ```
+
+A failed agent stops the command before the checks. The agent runs with the variable
+`MC_EVAL_AGENT` set: `mc eval run` refuses to start another agent from it, so the agent checks its
+own files with `--check-only`. With `claude -p`, a tool that the settings of Claude Code don't
+allow is refused, since nobody is there to approve it: allow the commands of the skill in its
+settings, or pass the options of `claude` in the command line of the agent.
 
 The rules come from the settings, or the file of the flag `--rules-file`, as for `mc rule`. Each
 mandatory rule of the lab must be there once, and an optional rule may be absent. The commit must

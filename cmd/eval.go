@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -41,7 +45,8 @@ team and lab, so that several evaluators can work at once, in
 	Example: `  mc eval ls
   mc eval ls -l L2
   mc eval run -l L2
-  mc eval run -l 2 -t teal`,
+  mc eval run -l 2 -t teal
+  mc eval run -l 2 --check-only`,
 }
 
 var (
@@ -66,15 +71,27 @@ A file that can't be read is listed with dashes: "mc eval run" gives its problem
 }
 
 var (
-	evalRunLab   string
-	evalRunTeams []string
+	evalRunLab       string
+	evalRunTeams     []string
+	evalRunCheckOnly bool
 )
 
 var evalRunCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Run the checks of the evaluations of a lab against the rules and the facts of mc evidence, and exit with 1 on a problem",
-	Long: `Run the checks of the evaluations of a lab against the evaluation rules of the year, from the
-key rules of ~/.mc/settings.yaml, or the file of --rules-file:
+	Short: "Evaluate a lab with the agent of the settings, then check its files, and exit with 1 on a problem",
+	Long: `Evaluate a lab with the AI agent of the key agents.eval_run of ~/.mc/settings.yaml, then check
+the files that it wrote. The agent is a command line, run with sh in the Git repository of the
+rules, where {lab} is the lab and {teams} the teams of --team, or all:
+
+  agents:
+    eval_run: claude -p "/evaluate-lab {lab} {teams}"
+
+The agent does the work, such as gathering the evidence with mc evidence, and writes one file per
+team. It runs with the variable MC_EVAL_AGENT set, so that it can't start another agent: it checks
+its files with mc eval run --check-only.
+
+The checks compare the files with the evaluation rules of the year, from the key rules of
+~/.mc/settings.yaml, or the file of --rules-file:
 
   - the keys: an unknown key is a problem, and so is a key twice
   - the team, the name of the file
@@ -101,7 +118,8 @@ func init() {
 	evalCmd.PersistentFlags().StringVar(&evalDir, "dir", "", "The directory of the evaluations, one directory per lab such as lab-2 (default: ~/.mc/{year}/evaluations)")
 	evalLsCmd.Flags().StringVarP(&evalLsLab, "lab", "l", "", "List the evaluations of one lab only, e.g. L2 or 2")
 	evalRunCmd.Flags().StringVarP(&evalRunLab, "lab", "l", "", "The lab, e.g. L2 or 2")
-	evalRunCmd.Flags().StringArrayVarP(&evalRunTeams, "team", "t", nil, "A team, repeatable (default: every team with a file)")
+	evalRunCmd.Flags().StringArrayVarP(&evalRunTeams, "team", "t", nil, "A team, repeatable (default: every team, all for the agent)")
+	evalRunCmd.Flags().BoolVar(&evalRunCheckOnly, "check-only", false, "Check the files only, without the agent, e.g. from the agent itself")
 	_ = evalRunCmd.MarkFlagRequired("lab") // The flag exists: it is defined above.
 	evalCmd.AddCommand(evalLsCmd, evalRunCmd)
 	RootCmd.AddCommand(evalCmd)
@@ -245,6 +263,11 @@ func runEvalRun(cmd *cobra.Command, _ []string) error {
 	if !ok {
 		return fmt.Errorf("no lab %q in %s", evalRunLab, path)
 	}
+	if !evalRunCheckOnly {
+		if err := runEvalAgent(cmd, lab, evalRunTeams, path); err != nil {
+			return err
+		}
+	}
 	labDir := evaluation.LabDir(evaluationsDir(), lab)
 	names := slices.Clone(evalRunTeams)
 	if len(names) == 0 {
@@ -280,6 +303,49 @@ func runEvalRun(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%s in %d of %s", plural(total, "problem"), failed, plural(len(names), "file"))
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%s of %s checked in %s: no problem\n", plural(len(names), "file"), lab.ID, labDir)
+	return nil
+}
+
+// agentEnv is set for the agent of mc eval run, so that it can't start another agent.
+const agentEnv = "MC_EVAL_AGENT"
+
+// teamNamePattern matches the name of a team, which goes into the command line of the agent as it
+// is.
+var teamNamePattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// runEvalAgent runs the agent of the settings that evaluates the lab for the teams, or for all of
+// them, in the Git repository of the rules.
+func runEvalAgent(cmd *cobra.Command, lab rubric.Lab, teams []string, rulesPath string) error {
+	if os.Getenv(agentEnv) != "" {
+		return fmt.Errorf("an agent of mc eval run can't start another one (%s is set): run mc eval run --check-only", agentEnv)
+	}
+	s, err := common.CurrentSettings()
+	if err != nil {
+		return err
+	}
+	if s.Agents.EvalRun == "" {
+		return fmt.Errorf(`no agent to evaluate the lab: set agents.eval_run in %s, such as claude -p "/evaluate-lab {lab} {teams}", or pass --check-only`, common.SettingsPath())
+	}
+	for _, team := range teams {
+		if !teamNamePattern.MatchString(team) {
+			return fmt.Errorf("%q is not the name of a team: lowercase letters, digits and dashes", team)
+		}
+	}
+	arg := "all"
+	if len(teams) > 0 {
+		arg = strings.Join(teams, " ")
+	}
+	line := strings.NewReplacer("{lab}", lab.ID, "{teams}", arg).Replace(s.Agents.EvalRun)
+	dir := repositoryRoot(filepath.Dir(rulesPath))
+	fmt.Fprintf(cmd.ErrOrStderr(), "Running the agent in %s: %s\n", dir, line)
+	agent := exec.Command("sh", "-c", line)
+	agent.Dir = dir
+	agent.Env = append(os.Environ(), agentEnv+"=1")
+	agent.Stdout = cmd.OutOrStdout()
+	agent.Stderr = cmd.ErrOrStderr()
+	if err := agent.Run(); err != nil {
+		return fmt.Errorf("the agent failed, so its files are not checked: %w", err)
+	}
 	return nil
 }
 
