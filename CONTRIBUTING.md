@@ -55,6 +55,12 @@ classDiagram
         Check(opts) Problems
         Teams(labDir) []string
     }
+    class sheet {
+        File
+        Load(path) File
+        Blocks(f) []Block
+        Verify(read, exported) []string
+    }
     class annotate {
         Mark
         Read(ctx, img) []Line
@@ -67,6 +73,7 @@ classDiagram
     cmd ..> evidence
     cmd ..> evaluation
     cmd ..> annotate
+    cmd ..> sheet
     cmd ..> github
     cmd ..> rubric
     cmd_git ..> common
@@ -88,6 +95,7 @@ What each package does, in the order of the diagram:
 | `evidence` | Gathers the evidence of a lab for a team: the rules of the lab from `rubric`, the pushes from `github`, the files of the clone with `git`, and the tags on Docker Hub. It takes the rules and the team as arguments, so it doesn't import `common`. |
 | `evaluation` | Reads the evaluation of a lab for a team, one YAML file per team and lab, as the evaluator writes it. It checks it against the rules of `rubric`, and against the commit of the facts of `mc evidence`, which `cmd` reads and passes to it. |
 | `annotate` | Finds a text in a screenshot with `tesseract`, and draws numbered boxes around what the evaluator found. It imports no package of `mc`. |
+| `sheet` | Keeps the data of a tab of the evaluation spreadsheet in JSON files, one object per row: the blocks of cells to paste, the script that reads the tab in a browser, and the check of the tab against the last export. It imports no package of `mc`. |
 | `rules` | The grading engine of 2025, which `mc grade` runs. Deprecated. |
 | `common` | What every command shares: the settings of `~/.mc/settings.yaml`, the year, the commit of `mc` that runs, the team registry and the paths of the clones. It imports no package of `mc`. |
 | `github` | Runs the CLI `gh` on the organization: the repositories, the teams and their members, and the pushes to `main`. |

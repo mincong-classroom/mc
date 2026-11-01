@@ -20,7 +20,7 @@ go build -o dist/mc     # binary is gitignored under dist/
 ```
 
 CI (`.github/workflows/mincong-classroom.yaml`, runs on every push) does: `go mod tidy`,
-`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/`, `e2e/` and
+`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/`, `e2e/`, `sheet/` and
 the Pods of Lab 2 in `rules/` so far; add `_test.go` files alongside the package under test. The team unit tests use an
 in-memory `github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
 
@@ -63,6 +63,7 @@ mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: co
 mc eval run -l L2 [-t teal] [--check-only] [--dir DIR]  # the agent of agents.eval_run (sh, in the repo of the rules), then the checks of its files: one problem per line, exit 1 if any
 mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
+mc sheet blocks|copy|pasted|verify|snippet TAB  # the data of a tab of the evaluation sheet, in ~/.mc/{year}/sheet/TAB*.json
 mc info                       # the CLI, its commit and the registry: number of teams, URL of the evaluation sheet
 mc grade                      # grade all teams, all labs (L1-L5)
 mc grade -t red -t blue -l L3 # grade specific teams (-t, repeatable) for one lab (-l L3/3)
@@ -118,7 +119,7 @@ team of the registry.
 Eight packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
 of the evaluation rules), `evidence/` (the evidence report of a lab for a team), `evaluation/`
 (the evaluation of a lab for a team, by the evaluator), `annotate/` (the
-numbered boxes on a screenshot), `rules/` (the
+numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `rules/` (the
 grading engine of 2025, deprecated), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
 diagram when a package is added, or imports another.
 
@@ -177,6 +178,25 @@ split at a large gap. `Line.Find` matches a text without the case, the spaces an
 dash. `Draw(img, marks, opts)` draws the boxes in pure Go, with the font Go Bold of
 `golang.org/x/image`: no ImageMagick. The tests parse a made-up TSV of tesseract; `TestRead` runs
 tesseract only when it is installed, so the CI skips it.
+
+**Sheet** (`sheet/`) — the data of a tab of the evaluation spreadsheet, in JSON files of
+`~/.mc/{year}/sheet/` (`cmd/sheet.go`: `TAB.json` waits to be written, `TAB.read.json` is the tab as
+read, `TAB.exported.json` the last export). `mc` never calls the API of Google Sheets: the teacher
+or a browser agent pastes the blocks, and reads the tab with the script of `mc sheet snippet`. A
+`File` holds one object per row, its attributes the columns by header (`Columns` gives the
+letters), found by its `Keys`; `_row` is its number in the tab, `_check` the cells to look at
+before writing them. A row holds the cells to write only, never an empty text, which would clear
+a cell. `UnmarshalJSON` decodes the rows by hand (an unknown `_` attribute is an error);
+`MarshalJSON` orders the attributes like the columns, and `Save` calls it directly, since
+`json.Marshal` would escape `<`, `>` and `&` again. `Blocks` splits the cells to write into
+rectangles where every cell is written (`rectangles`: the runs of rows of each column, merged
+across adjacent columns), the `_check` ones last; `pasteText` adds the apostrophe that keeps a
+text a text (a number such as `2e88112`, a date, `-0.2`). `RecordPasted` moves the cells of the
+blocks pasted to the export; `Verify` compares the tab read with it, cell by cell at the same
+letter, never a formula. The script (`snippet.js`, its `CONFIG` replaced by `Snippet`) queries gviz
+from the page, numbers the rows from 2 (gviz keeps the empty rows above the last one), and copies
+the rows to the clipboard. The tests use made-up teams only. `sheet/README.md` explains the package to
+humans, with a diagram of the files and the spreadsheet: update it with the package.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.
