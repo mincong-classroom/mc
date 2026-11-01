@@ -1,6 +1,12 @@
 ---
 commit: d5c907ade0cd2cfd6be09977018ff972e0efa7c6
 mc: 0a1b2c3d4e5f
+rules:
+  L1_BLD:
+    screenshots: 1
+  L1_TAG:
+    images: "1.0.0 0f3e5d6c7b8a, 1.0.1 1a2b3c4d5e6f"
+    screenshots: 0
 ---
 
 # Lab 1: Build an Image, Team red

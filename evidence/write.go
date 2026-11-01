@@ -21,7 +21,8 @@ func (r *labFacts) markdown() string {
 	evalDir := path.Base(r.evidenceDir)
 	at := func(t time.Time) string { return t.In(r.deadline.Location()).Format(timeLayout) }
 
-	b.WriteString(metadata{Commit: r.commit.hash, MC: r.revision}.frontMatter())
+	rules, order := r.ruleFacts()
+	b.WriteString(metadata{Commit: r.commit.hash, MC: r.revision, Rules: rules}.frontMatter(order))
 	fmt.Fprintf(&b, "# Lab %s: %s, Team %s\n\n", r.lab.Number(), r.lab.Title, r.team)
 	fmt.Fprintf(&b, "The facts of each rule, for the teacher: what the team wrote in its report, the files of its repository, and the evidence that the evaluator made. Facts, not a score. `mc eval gather-facts` generates this file: the evaluator writes in [`%s/`](%s/), and `mc eval gather-facts` runs again.\n\n", evalDir, evalDir)
 

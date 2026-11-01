@@ -181,6 +181,65 @@ func TestSyncAPassAfterAFormerOne(t *testing.T) {
 	}
 }
 
+func TestSyncWritesTheFactsOfMC(t *testing.T) {
+	read := tab(t, `{"_row": 2, "Team": "teal", "Lab": "L1", "Rule": "L1_IMG", "Completeness": "1", "TA Commit": "0a1b2c3", "TA Docker Images": "1.0.0 b80767bd1a2c", "TA Screenshots": "2"},
+		{"_row": 3, "Team": "teal", "Lab": "L1", "Rule": "L1_BLD", "Completeness": "1", "TA Commit": "0a1b2c3", "TA Screenshots": "1"}`)
+	exported := tab(t, `{"_row": 2, "Team": "teal", "Lab": "L1", "Rule": "L1_IMG", "Completeness": 1, "TA Docker Images": "1.0.0 b80767bd1a2c", "TA Screenshots": 2}`)
+	facts := map[string]map[string]RuleFacts{
+		// A new patch of the image of teal; the rule L1_BLD has no image, and the teacher typed 1
+		// screenshot over the facts.
+		"teal": {
+			"L1_IMG": {Images: "1.0.0 b80767bd1a2c, 1.0.1 0f3e5d6c7b8a", Screenshots: 2},
+			"L1_BLD": {Screenshots: 0},
+		},
+		"coral": {"L1_IMG": {Images: "none", Screenshots: 0}},
+	}
+
+	result, err := Sync(SyncOptions{
+		Lab:      "L1",
+		Files:    []*File{evaluationOf("teal", rule("L1_IMG", 1), rule("L1_BLD", 1)), evaluationOf("coral", rule("L1_IMG", 0), rule("L1_RUN", 1))},
+		Read:     read,
+		Exported: exported,
+		Facts:    facts,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got []string
+	for _, line := range changes(result) {
+		if strings.Contains(line, "TA Docker Images") || strings.Contains(line, "TA Screenshots") {
+			got = append(got, line)
+		}
+	}
+	want := []string{
+		"Evaluation!M2 TA Docker Images: 1.0.0 b80767bd1a2c -> 1.0.0 b80767bd1a2c, 1.0.1 0f3e5d6c7b8a",
+		`Evaluation!N3 TA Screenshots: 1 -> 0, check: the tab has "1", which mc didn't write`,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Changes of the facts =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	for _, row := range result.Pending.Rows {
+		if !row.New {
+			continue
+		}
+		images, hasImages := row.Cells["TA Docker Images"]
+		screenshots, hasScreenshots := row.Cells["TA Screenshots"]
+		switch rule := row.Cells["Rule"]; rule {
+		case "L1_IMG":
+			if images != "none" || screenshots != json.Number("0") {
+				t.Errorf("the new row of coral L1_IMG has M %v and N %v, want none and 0", images, screenshots)
+			}
+		case "L1_RUN":
+			if hasImages || hasScreenshots {
+				t.Errorf("the new row of coral L1_RUN, without facts, has M %v and N %v, want neither", images, screenshots)
+			}
+		default:
+			t.Errorf("a new row of the rule %v, want L1_IMG and L1_RUN only", rule)
+		}
+	}
+}
+
 func TestSyncReplacesWhatWaited(t *testing.T) {
 	read := tab(t, `{"_row": 2, "Team": "teal", "Lab": "L1", "Rule": "L1_BLD", "Completeness": "1"}`)
 	pending := tab(t, `{"_row": 3, "_new": true, "Team": "teal", "Lab": "L2", "Rule": "L2_POD", "Completeness": 0.5},

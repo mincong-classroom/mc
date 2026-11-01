@@ -1154,6 +1154,9 @@ func TestEvalSync(t *testing.T) {
 		"teal":  "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567",
 		"coral": "0a1b2c3ffffffffffffffffffffffffffffffff",
 	})
+	// The facts of teal give the images and the screenshots of L2_POD: the columns M and N.
+	e.writeFile(t, ".mc/2026/teacher/k8s-teal/docs/lab-2.facts.md", "---\ncommit: 0a1b2c3d4e5f60718293a4b5c6d7e8f901234567\nmc: 949d7aa740ab\n"+
+		"rules:\n  L2_POD:\n    images: \"1.1.0 b80767bd1a2c\"\n    screenshots: 2\n---\n\n# Lab 2\n")
 	dir := filepath.Join(e.home, ".mc", "2026", "sheet")
 	sync := append([]string{"eval", "sync", "-l", "L2"}, flags...)
 
@@ -1183,7 +1186,9 @@ func TestEvalSync(t *testing.T) {
 		"Evaluation!L3  teal L2 L2_POD  TA Commit         nothing -> \"0a1b2c3\"\n" +
 		"Evaluation!P3  teal L2 L2_POD  TA Writing Style  nothing -> \"own words\"\n" +
 		"Evaluation!Q3  teal L2 L2_POD  TA Time Spent     nothing -> \"Session only, done at 11:21\"\n" +
-		"Evaluation!T3  teal L2 L2_POD  TA Action Items   nothing -> \"Run it yourself\"\n\n" +
+		"Evaluation!T3  teal L2 L2_POD  TA Action Items   nothing -> \"Run it yourself\"\n" +
+		"Evaluation!M3  teal L2 L2_POD  TA Docker Images  nothing -> \"1.1.0 b80767bd1a2c\"\n" +
+		"Evaluation!N3  teal L2 L2_POD  TA Screenshots    nothing -> 2\n\n" +
 		"New 1 row: coral, row 4.\n\n" +
 		"2 rows wait in " + pending + ". Next, in the page of the spreadsheet:\n\n" +
 		"  mc sheet blocks evaluation  list the blocks to paste\n" +

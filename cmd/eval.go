@@ -389,14 +389,11 @@ func (c evalChecker) check(file, name string) ([]evaluation.Problem, error) {
 		return nil, err
 	}
 
-	// The worktree of a team is named after its repository, as mc eval gather-facts names it.
-	team := common.Team{Name: name}
-	if i := slices.IndexFunc(c.teams, func(t common.Team) bool { return t.Name == name }); i >= 0 {
-		team = c.teams[i]
-	} else {
+	team, found := teamOf(c.teams, name)
+	if !found {
 		problems = append(problems, evaluation.Problem{Message: fmt.Sprintf("the team %q is not in the registry %s", name, common.TeamRegistryPath())})
 	}
-	facts, ok, err := evidence.ReadFacts(evidence.FactsPath(filepath.Join(c.teacherDir, team.GetRepoName()), c.lab))
+	facts, ok, err := evidence.ReadFacts(factsOf(c.teacherDir, team, c.lab))
 	if err != nil {
 		return nil, err
 	}
@@ -405,6 +402,21 @@ func (c evalChecker) check(file, name string) ([]evaluation.Problem, error) {
 		opts.Commit = facts.Commit
 	}
 	return append(problems, f.Check(opts)...), nil
+}
+
+// teamOf returns the team of the registry with the name, or a team of that name alone when the
+// registry doesn't have it.
+func teamOf(teams []common.Team, name string) (common.Team, bool) {
+	if i := slices.IndexFunc(teams, func(t common.Team) bool { return t.Name == name }); i >= 0 {
+		return teams[i], true
+	}
+	return common.Team{Name: name}, false
+}
+
+// factsOf returns the file of the facts of the lab for the team, in its worktree of the branch
+// teacher, which is named after its repository, as mc eval gather-facts names it.
+func factsOf(teacherDir string, team common.Team, lab rubric.Lab) string {
+	return evidence.FactsPath(filepath.Join(teacherDir, team.GetRepoName()), lab)
 }
 
 // printEvaluationProblems prints each problem prefixed by the path of the file, and its line if

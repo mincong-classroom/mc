@@ -144,10 +144,13 @@ file is imported, a file of the template shows its smallest diff with one of its
 one is linked, so that the evaluator quotes its key lines); the files of the evaluator in
 `docs/lab-{n}.evidence/` of the worktree (`{ID}.md`, `{lab}-{xyz}-*`); and the images of the rule
 on Docker Hub (`DockerHub`, with the later patches of a tag). `markdown()` writes the facts,
-with a front matter (`metadata`): the commit evaluated and the commit of mc (`opts.Revision`, from
+with a front matter (`metadata`): the commit evaluated, the commit of mc (`opts.Revision`, from
 `common.Revision`, which reads the build info: the pseudo-version of `go run ...@{commit}`, or
-`vcs.revision` of a local build, `-dirty` with changes). The report that the evaluator writes
-from them, `docs/lab-{n}.report.md`, copies the front matter: when it equals the one of now,
+`vcs.revision` of a local build, `-dirty` with changes), and `rules`, the `RuleFacts` of each rule
+for the columns M and N of the sheet (`imagesCell`: tag and 12 characters of digest, or `none`; the
+screenshots of the team in the section). The report that the evaluator writes from them,
+`docs/lab-{n}.report.md`, copies the front matter: when its commits and its images equal those of
+now (`metadata.upToDate`, after `lookUpImages`, so Docker Hub is read before the check),
 `Gather` returns `UpToDate` and gathers nothing, unless `opts.Force`, which the command sets for
 `--force` and for a revision that isn't stable (`common.StableRevision`). Before that check,
 `renameFormerFiles` (`rename.go`) renames the files of the former names, `lab-{n}.evidence.md` and
@@ -186,7 +189,9 @@ Check. Another cell is written when it differs, with a `_check` when the tab hol
 didn't write (`sheet.SameValue` against the export). A formula is in the tab when the export has
 the same text and the cell is not empty. The rows that wait for the lab and the teams are replaced,
 reusing the numbers of the new ones; a row that waits for another lab must still match the tab.
-`cmd/eval_sync.go` requires `evaluation.read.json` newer than `evaluation.exported.json`.
+`cmd/eval_sync.go` requires `evaluation.read.json` newer than `evaluation.exported.json`, and
+passes the facts of each team (`readFacts`, `SyncOptions.Facts`) for TA Docker Images and TA
+Screenshots.
 
 **Annotate** (`annotate/`) — `Read(ctx, img)` runs `tesseract --psm 11` on the image enlarged twice
 (the filter Mitchell, as ImageMagick does), then groups its words in lines (`groupLines`): by row,
