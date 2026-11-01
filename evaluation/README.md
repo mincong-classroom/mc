@@ -5,9 +5,10 @@ checks it against the evaluation rules. The evaluator is an AI agent that `mc ev
 the teacher. The checks catch its mistakes before the evaluation goes any further: a rule
 forgotten, a completeness of 0.85, a penalty that the rules don't give, or another commit than the
 one of the facts. Then the package computes the cells that write the evaluations in the evaluation
-spreadsheet. The commands are `mc eval ls`, `mc eval run` and `mc eval sync`, described in the
-section [Evaluation](../README.md#evaluation) of the README: this page explains the package behind
-them.
+spreadsheet, and those that write the rules of the year. The commands are `mc eval ls`,
+`mc eval run` and `mc eval sync`, described in the section [Evaluation](../README.md#evaluation)
+of the README, and `mc rule sync`, in the section [Rule](../README.md#rule): this page explains the
+package behind them.
 
 ## One File per Team and Lab
 
@@ -135,6 +136,36 @@ The rules of a pass decide each cell:
   penalty itself becomes the formula of TA Penalty, such as `=-0.1*G80*F80`.
 - A text that starts with `=` is an error, since Sheets would read it as a formula.
 
+## From the Rules to the Sheet
+
+`SyncRules` turns the rules of the YAML into the cells of the tab Rules, where the Rule Score of
+the tab Evaluation looks up the score of each rule. It works as `Sync`, from the tab as read and
+what `mc` wrote last, and computes `rules.json`. Here are the columns of the tab, with the rules
+`L1_BLD` and `L2_LOG` of the made-up file of the tests,
+[`rubric/testdata/evaluation-rules.yaml`](../rubric/testdata/evaluation-rules.yaml), as examples:
+
+| Column | Header | What it holds | Examples |
+|---|---|---|---|
+| A | Lab Session | The lab of the rule, the key `lab` of the YAML. With the Rule, it finds the row of a rule | `L1`, `L2` |
+| B | Rule | The end of the Rule ID, after the lab and the underscore. With the Lab Session, it finds the row of a rule | `BLD`, `LOG` |
+| C | Rule ID | The ID of the rule, a formula that joins A and B, `=CONCAT(A2, CONCAT("_", B2))`. The Rule Score of the tab Evaluation looks it up | `L1_BLD`, `L2_LOG` |
+| D | Rule Name | The name of the rule, the key `name` of the YAML | `Build Test`, `Logs Test` |
+| E | Coefficient | The share of the 20 points of the lab that the rule gives, the key `coefficient` of the YAML. A bonus, such as `L2_LOG`, counts on top of the 20 points | `0.6`, `0.1` |
+| F | Score | The points of the rule, a formula, `=20*E2` | `12`, `2` |
+| G | Exercise | The exercise of the rule, the key `exercise` of the YAML, as a number | `1`, `2.1` for the part 2.1 of Exercise 2 |
+| H | Exercise ID | The ID of the exercise, a formula that joins A and G, `=CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2))` | `L1_EX1`, `L2_EX2.1` |
+| I | Rule Description | What the team is expected to deliver, the key `description` of the YAML, on one line | "The team is expected to follow the logs of the Pod. This rule is a bonus." |
+
+The column J, Troubleshooting Instructions, belongs to the teacher: `mc` never reads it.
+
+- A row is found by A and B, whose values the YAML gives, rather than by C, which is a formula. A
+  rule that the tab doesn't have gets a new row after the last one, with the formulas of C, F and H.
+- D, E, G and I follow the YAML. A cell that `mc` didn't write, such as a coefficient tuned in the
+  tab, gets a `_check`, and waits in a block to check first.
+- A formula whose value is not the one that it gives from its row, such as a Rule ID typed over it,
+  is written again with a `_check`.
+- A row whose rule the YAML no longer has is listed in the result, `Extra`, and never deleted.
+
 ## Code
 
 The files of the package:
@@ -144,5 +175,6 @@ The files of the package:
 | `evaluation.go` | `File`, `Rule` and `Penalty`; `Load`, with the line of each key; `LabDir`, `Path` and `Teams` |
 | `check.go` | `Check` and `CheckOptions`: the problems of a file against the rules and the commit of the facts |
 | `sync.go` | `Sync`, its options and its result: the cells of the tab Evaluation, and `SheetFile`, its columns |
+| `rules.go` | `SyncRules`, its options and its result: the cells of the tab Rules, and `RulesSheetFile`, its columns |
 
-The package imports `rubric` and `sheet` only, and its tests use made-up teams.
+The package imports `rubric` and `sheet` only, and its tests use made-up teams and rules.

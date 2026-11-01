@@ -61,14 +61,41 @@ var sheetColumns = map[string]string{
 	"U": headerComment,
 }
 
+// evaluationLayout is the layout of the tab Evaluation.
+var evaluationLayout = layout{tab: SheetTab, keys: sheetKeys, columns: sheetColumns, command: "mc eval sync"}
+
 // SheetFile returns an empty file of the tab Evaluation, with the columns that mc reads: the
 // layout of the script that reads the tab.
 func SheetFile() *sheet.File {
-	columns := make(map[string]string, len(sheetColumns))
-	for letter, header := range sheetColumns {
+	return evaluationLayout.file()
+}
+
+// layout is a tab of the evaluation sheet that mc writes: its name, the headers whose values find
+// a row, and the columns that mc reads, by their letters.
+type layout struct {
+	tab     string
+	keys    []string
+	columns map[string]string
+	command string // The command that writes the script that reads the tab, such as mc eval sync.
+}
+
+// file returns an empty file of the tab, with its columns: the layout of the script that reads it.
+func (l layout) file() *sheet.File {
+	columns := make(map[string]string, len(l.columns))
+	for letter, header := range l.columns {
 		columns[letter] = header
 	}
-	return &sheet.File{Tab: SheetTab, Keys: slices.Clone(sheetKeys), Columns: columns}
+	return &sheet.File{Tab: l.tab, Keys: slices.Clone(l.keys), Columns: columns}
+}
+
+// letterOf returns the letter of the column of a header, empty if the tab has no such column.
+func (l layout) letterOf(header string) string {
+	for letter, h := range l.columns {
+		if h == header {
+			return letter
+		}
+	}
+	return ""
 }
 
 // SyncOptions are the options of Sync.
@@ -136,7 +163,7 @@ func Sync(opts SyncOptions) (*SyncResult, error) {
 	if opts.Read == nil {
 		return nil, errors.New("no read of the tab")
 	}
-	if err := checkColumns("the tab read", opts.Read, true); err != nil {
+	if err := evaluationLayout.check("the tab read", opts.Read, true); err != nil {
 		return nil, err
 	}
 	s := syncer{
@@ -191,28 +218,28 @@ func Sync(opts SyncOptions) (*SyncResult, error) {
 	return s.result, nil
 }
 
-// checkColumns returns an error if the file, the tab read or what waits, doesn't have the layout of
-// mc: its tab, its keys, and its columns. all requires each column of the layout.
-func checkColumns(what string, f *sheet.File, all bool) error {
-	if f.Tab != SheetTab || !slices.Equal(f.Keys, sheetKeys) {
-		return fmt.Errorf("%s is the tab %q with the keys %q, not %q with %q", what, f.Tab, f.Keys, SheetTab, sheetKeys)
+// check returns an error if the file, the tab read or what waits, doesn't have the layout of mc:
+// its tab, its keys, and its columns. all requires each column of the layout.
+func (l layout) check(what string, f *sheet.File, all bool) error {
+	if f.Tab != l.tab || !slices.Equal(f.Keys, l.keys) {
+		return fmt.Errorf("%s is the tab %q with the keys %q, not %q with %q", what, f.Tab, f.Keys, l.tab, l.keys)
 	}
-	letters := make([]string, 0, len(sheetColumns))
-	for letter := range sheetColumns {
+	letters := make([]string, 0, len(l.columns))
+	for letter := range l.columns {
 		letters = append(letters, letter)
 	}
 	sort.Strings(letters) // One letter each: the order of the columns.
 	for _, letter := range letters {
-		want := sheetColumns[letter]
+		want := l.columns[letter]
 		switch got, ok := f.Columns[letter]; {
 		case !ok && all:
-			return fmt.Errorf("%s has no column %s, %q: read the tab with the script of mc eval sync", what, letter, want)
+			return fmt.Errorf("%s has no column %s, %q: read the tab with the script of %s", what, letter, want, l.command)
 		case ok && got != want:
 			return fmt.Errorf("the column %s of %s is %q, whereas mc writes %q there: the layout of the tab changed", letter, what, got, want)
 		}
 	}
 	for letter, header := range f.Columns {
-		if _, ok := sheetColumns[letter]; !ok {
+		if _, ok := l.columns[letter]; !ok {
 			return fmt.Errorf("%s has the column %s, %q, which mc never reads", what, letter, header)
 		}
 	}
@@ -233,7 +260,7 @@ type syncer struct {
 // keepWaiting keeps the rows that wait, but those of the lab and the teams, which the sync
 // replaces. A row that waits must still find its place in the tab.
 func (s *syncer) keepWaiting(pending *sheet.File, teams map[string]bool) error {
-	if err := checkColumns("what waits", pending, false); err != nil {
+	if err := evaluationLayout.check("what waits", pending, false); err != nil {
 		return err
 	}
 	for _, row := range pending.Rows {
@@ -430,12 +457,7 @@ func (r *rowSync) keep(header string, value any, why string) {
 
 // cell returns the address of the cell of the row under the header, such as Evaluation!G81.
 func (r *rowSync) cell(header string) string {
-	for letter, h := range sheetColumns {
-		if h == header {
-			return SheetTab + "!" + letter + strconv.Itoa(r.row.Number)
-		}
-	}
-	return SheetTab + "!" + strconv.Itoa(r.row.Number)
+	return SheetTab + "!" + evaluationLayout.letterOf(header) + strconv.Itoa(r.row.Number)
 }
 
 // comment returns the TA Comment of the rule: what the team did well, what it can improve, and

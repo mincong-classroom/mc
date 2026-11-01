@@ -29,6 +29,7 @@ Each command has its own file, with its subcommands, their flags and their `RunE
 | `eval_sync.go` | `mc eval sync` | `evaluation`, `sheet` |
 | `evidence.go` | `mc evidence` | `evidence`, `rubric`, `github` |
 | `rule.go` | `mc rule ls`, `check`, `render` | `rubric` |
+| `rule_sync.go` | `mc rule sync` | `evaluation`, `rubric`, `sheet` |
 | `sheet.go` | `mc sheet snippet`, `blocks`, `copy`, `pasted`, `verify` | `sheet` |
 | `annotate.go` | `mc annotate find`, `draw` | `annotate` |
 | `info.go` | `mc info` | `common` |

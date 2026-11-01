@@ -1207,3 +1207,70 @@ func TestEvalSync(t *testing.T) {
 		t.Errorf("mc eval sync -t coral = %d, stdout\n%s\nstderr %q, want the row 4 again", r.exitCode, r.stdout, r.stderr)
 	}
 }
+
+// rulesRead is the tab Rules as the script of mc rule sync reads it: L1_TAG as in the rules, L2_POD
+// with another coefficient, and L2_OLD, which the rules no longer have. L1_BLD and L2_LOG are
+// missing.
+const rulesRead = `{
+  "tab": "Rules",
+  "keys": ["Lab Session", "Rule"],
+  "columns": {"A": "Lab Session", "B": "Rule", "C": "Rule ID", "D": "Rule Name", "E": "Coefficient", "F": "Score",
+    "G": "Exercise", "H": "Exercise ID", "I": "Rule Description"},
+  "rows": [
+    {"_row": 2, "Lab Session": "L1", "Rule": "TAG", "Rule ID": "L1_TAG", "Rule Name": "Publish Test", "Coefficient": "0.4",
+     "Score": "8", "Exercise": "2", "Exercise ID": "L1_EX2",
+     "Rule Description": "The team is expected to publish the image ` + "`sample/app-{team}:1.0.0`" + `."},
+    {"_row": 3, "Lab Session": "L2", "Rule": "POD", "Rule ID": "L2_POD", "Rule Name": "Pod Test", "Coefficient": "0.5",
+     "Score": "10", "Exercise": "1", "Exercise ID": "L2_EX1",
+     "Rule Description": "The team is expected to run the image of Lab 1 in a Pod."},
+    {"_row": 4, "Lab Session": "L2", "Rule": "OLD", "Rule ID": "L2_OLD", "Rule Name": "Former Test", "Coefficient": "0.2",
+     "Score": "4", "Exercise": "3", "Exercise ID": "L2_EX3", "Rule Description": "Gone."}
+  ]
+}
+`
+
+func TestRuleSync(t *testing.T) {
+	e := newEnv(t)
+	e.writeFile(t, "rules.yaml", testRules(t))
+	rulesFile := filepath.Join(e.home, "rules.yaml")
+	dir := filepath.Join(e.home, ".mc", "2026", "sheet")
+	sync := []string{"rule", "sync", "--rules-file", rulesFile}
+
+	// Without a read of the tab: the script that reads it, then a stop.
+	r := e.run(t, "", sync...)
+	script := filepath.Join(dir, "rules.read.js")
+	if r.exitCode != 1 || !strings.Contains(r.stdout, "No read of the tab Rules since the last export") ||
+		!strings.Contains(r.stdout, "then run mc rule sync again.") || !strings.Contains(r.stderr, "read the tab first") {
+		t.Errorf("mc rule sync without a read = %d, stdout %q, stderr %q, want 1 and the script", r.exitCode, r.stdout, r.stderr)
+	}
+	data, err := os.ReadFile(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(data); !strings.Contains(s, `"I": "Rule Description"`) || strings.Contains(s, `"J"`) {
+		t.Errorf("the script reads other columns than A to I:\n%s", s)
+	}
+
+	// With a read: a coefficient of the tab that mc didn't write, 2 new rows, and a row left alone.
+	e.writeFile(t, ".mc/2026/sheet/rules.read.json", rulesRead)
+	r = e.run(t, "", sync...)
+	want := "Synced 4 rules of " + rulesFile + " with the tab Rules, as read in " + filepath.Join(dir, "rules.read.json") + ".\n\n" +
+		"CELL      RULE    COLUMN       CHANGE\n" +
+		"Rules!E3  L2_POD  Coefficient  0.5 -> 1, check first: the tab has \"0.5\", which mc didn't write\n\n" +
+		"New 2 rows: L1_BLD (row 5), L2_LOG (row 6).\n\n" +
+		"In the tab, not in the rules: L2_OLD (row 4). mc never deletes a row: delete it by hand if the rule is gone.\n\n" +
+		"3 rows wait in " + filepath.Join(dir, "rules.json") + ". Next, in the page of the spreadsheet:\n\n" +
+		"  mc sheet blocks rules  list the blocks to paste\n" +
+		"  mc sheet copy rules 1  copy a block, then paste it at its range, block after block\n" +
+		"  mc sheet pasted rules  record the blocks pasted, such as 1 2 3, or every block\n" +
+		"  mc sheet verify rules  after a new read of the tab, compare it with what was written\n"
+	if r.exitCode != 0 || r.stdout != want || r.stderr != "" {
+		t.Errorf("mc rule sync = %d, stdout\n%s\nstderr %q, want 0, stdout\n%s", r.exitCode, r.stdout, r.stderr, want)
+	}
+
+	// The new rows are one block, keys and formulas included, and the coefficient to check comes last.
+	r = e.run(t, "", "sheet", "blocks", "rules")
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "1      Rules!A5:I6 ") || !strings.Contains(r.stdout, "2      Rules!E3 ") {
+		t.Errorf("mc sheet blocks rules = %d, stdout\n%s\nstderr %q, want the rows 5 and 6, then E3", r.exitCode, r.stdout, r.stderr)
+	}
+}
