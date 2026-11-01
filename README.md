@@ -572,7 +572,8 @@ The `rules` directory contains the rules of 2025 for the auto-grading, which are
 The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
 
 The `common` directory holds what the commands share: the settings, the year, the team registry
-and the commit of `mc`. [Its README](common/README.md) shows how the year selects the files.
+and the commit of `mc`. [Its README](common/README.md) draws its types, and the packages that use
+them.
 
 The `e2e` directory runs the binary of `mc` end to end, in a home of its own and with a fake `gh`:
 [its README](e2e/README.md) explains how.
