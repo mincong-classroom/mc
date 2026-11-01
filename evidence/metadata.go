@@ -73,7 +73,7 @@ func ReportPath(worktree string, lab rubric.Lab) string {
 // gathered the evidence yet.
 func ReadFacts(report string) (Facts, bool, error) {
 	m, ok, err := readMetadata(report)
-	return Facts{Commit: m.Commit, MC: m.MC}, ok, err
+	return Facts(m), ok, err // The same fields: a conversion, which the tags don't prevent.
 }
 
 // generatedPath returns the report that an evaluator generates from the evidence, next to the
