@@ -269,22 +269,40 @@ func runEvalRun(cmd *cobra.Command, _ []string) error {
 		}
 	}
 	labDir := evaluation.LabDir(evaluationsDir(), lab)
-	names := slices.Clone(evalRunTeams)
+	names, err := labTeams(labDir, lab, evalRunTeams)
+	if err != nil {
+		return err
+	}
+	if err := checkEvaluations(cmd.ErrOrStderr(), r, lab, labDir, names); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "%s of %s checked in %s: no problem\n", plural(len(names), "file"), lab.ID, labDir)
+	return nil
+}
+
+// labTeams returns the teams, or else those of the files of the lab, sorted and without a duplicate.
+func labTeams(labDir string, lab rubric.Lab, teams []string) ([]string, error) {
+	names := slices.Clone(teams)
 	if len(names) == 0 {
+		var err error
 		if names, err = evaluation.Teams(labDir); err != nil {
-			return err
+			return nil, err
 		}
 		if len(names) == 0 {
-			return fmt.Errorf("no evaluation of %s in %s: one YAML file per team, such as %s", lab.ID, labDir, evaluation.Path(labDir, "teal"))
+			return nil, fmt.Errorf("no evaluation of %s in %s: one YAML file per team, such as %s", lab.ID, labDir, evaluation.Path(labDir, "teal"))
 		}
 	}
 	slices.Sort(names)
-	names = slices.Compact(names)
+	return slices.Compact(names), nil
+}
+
+// checkEvaluations checks the files of the teams in the lab, prints their problems to w, and
+// returns an error if there is any.
+func checkEvaluations(w io.Writer, r *rubric.Rubric, lab rubric.Lab, labDir string, names []string) error {
 	teams, err := common.ListTeams()
 	if err != nil {
 		return err
 	}
-
 	c := evalChecker{rubric: r, lab: lab, teams: teams, teacherDir: teacherDir()}
 	total, failed := 0, 0
 	for _, name := range names {
@@ -293,7 +311,7 @@ func runEvalRun(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			return err
 		}
-		printEvaluationProblems(cmd.ErrOrStderr(), file, problems)
+		printEvaluationProblems(w, file, problems)
 		if len(problems) > 0 {
 			total += len(problems)
 			failed++
@@ -302,7 +320,6 @@ func runEvalRun(cmd *cobra.Command, _ []string) error {
 	if failed > 0 {
 		return fmt.Errorf("%s in %d of %s", plural(total, "problem"), failed, plural(len(names), "file"))
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "%s of %s checked in %s: no problem\n", plural(len(names), "file"), lab.ID, labDir)
 	return nil
 }
 

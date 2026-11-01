@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -343,4 +344,72 @@ func TestSnippet(t *testing.T) {
 	if strings.Contains(got, "CONFIG") {
 		t.Errorf("Snippet left its placeholder:\n%s", got)
 	}
+}
+
+func TestNewRow(t *testing.T) {
+	p := load(t, `{
+  "tab": "Evaluation",
+  "keys": ["Team", "Lab", "Rule"],
+  "columns": {"A": "Team", "D": "Lab", "E": "Rule", "G": "Completeness", "H": "Score"},
+  "rows": [
+    {"_row": 80, "Team": "teal", "Lab": "L2", "Rule": "L2_CTL", "Completeness": 0.9},
+    {"_row": 81, "_new": true, "Team": "teal", "Lab": "L2", "Rule": "L2_RUN", "Completeness": 1, "Score": "=G81*F81+S81"}
+  ]
+}`)
+	if !p.Rows[1].New || p.Rows[0].New {
+		t.Fatalf("_new of the rows = %t, %t, want false, true", p.Rows[0].New, p.Rows[1].New)
+	}
+	raw, err := p.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"_row":81,"_new":true,"Team":"teal","Lab":"L2","Rule":"L2_RUN","Completeness":1,"Score":"=G81*F81+S81"}`; !strings.Contains(string(raw), want) {
+		t.Errorf("MarshalJSON = %s, want the row %s", raw, want)
+	}
+
+	// The keys of the new row are written, and those of the row of the tab are not.
+	blocks, err := Blocks(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ranges []string
+	for _, b := range blocks {
+		ranges = append(ranges, b.Range())
+	}
+	if want := []string{"Evaluation!A81", "Evaluation!G80:G81", "Evaluation!D81:E81", "Evaluation!H81"}; !reflect.DeepEqual(sorted(ranges), sorted(want)) {
+		t.Errorf("Blocks = %q, want %q", ranges, want)
+	}
+
+	// A paste of every block but the keys of the new row: it stays new, with its keys only.
+	var withoutKeys []Block
+	for _, b := range blocks {
+		if b.FirstColumn >= 6 {
+			withoutKeys = append(withoutKeys, b)
+		}
+	}
+	exported := NewExport(p)
+	if _, err := RecordPasted(p, exported, withoutKeys); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Rows) != 1 || !p.Rows[0].New || !reflect.DeepEqual(p.Rows[0].Cells, map[string]any{"Team": "teal", "Lab": "L2", "Rule": "L2_RUN"}) {
+		t.Errorf("RecordPasted without the keys left in pending: %+v", p.Rows)
+	}
+
+	// Then its keys: the row is in the tab, and nothing waits anymore.
+	rest, err := Blocks(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RecordPasted(p, exported, rest); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Rows) != 0 || len(exported.Rows) != 2 || exported.Rows[1].Number != 81 || exported.Rows[1].New {
+		t.Errorf("RecordPasted of the keys: pending %+v, exported %+v", p.Rows, exported.Rows)
+	}
+}
+
+func sorted(s []string) []string {
+	s = append([]string(nil), s...)
+	sort.Strings(s)
+	return s
 }

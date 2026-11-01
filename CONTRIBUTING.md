@@ -54,6 +54,7 @@ classDiagram
         Load(path) File
         Check(opts) Problems
         Teams(labDir) []string
+        Sync(opts) SyncResult
     }
     class sheet {
         File
@@ -83,6 +84,7 @@ classDiagram
     evidence ..> github
     evidence ..> rubric
     evaluation ..> rubric
+    evaluation ..> sheet
 ```
 
 What each package does, in the order of the diagram:
@@ -93,7 +95,7 @@ What each package does, in the order of the diagram:
 | `cmd/git` | The commands on the clones of the teams: `mc git clone`, `pull`, `show` and `exec`. |
 | `cmd/team` | The commands on the teams: `mc team ls`, `mc team <team> provision`, etc. The only package that changes GitHub. |
 | `evidence` | Gathers the evidence of a lab for a team: the rules of the lab from `rubric`, the pushes from `github`, the files of the clone with `git`, and the tags on Docker Hub. It takes the rules and the team as arguments, so it doesn't import `common`. |
-| `evaluation` | Reads the evaluation of a lab for a team, one YAML file per team and lab, as the evaluator writes it. It checks it against the rules of `rubric`, and against the commit of the facts of `mc evidence`, which `cmd` reads and passes to it. |
+| `evaluation` | Reads the evaluation of a lab for a team, one YAML file per team and lab, as the evaluator writes it. It checks it against the rules of `rubric`, and against the commit of the facts of `mc evidence`, which `cmd` reads and passes to it. It computes the cells that write the evaluations of a lab in the tab Evaluation, as a file of `sheet`. |
 | `annotate` | Finds a text in a screenshot with `tesseract`, and draws numbered boxes around what the evaluator found. It imports no package of `mc`. |
 | `sheet` | Keeps the data of a tab of the evaluation spreadsheet in JSON files, one object per row: the blocks of cells to paste, the script that reads the tab in a browser, and the check of the tab against the last export. It imports no package of `mc`. |
 | `rules` | The grading engine of 2025, which `mc grade` runs. Deprecated. |

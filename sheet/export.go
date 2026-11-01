@@ -17,7 +17,8 @@ func NewExport(f *File) *File {
 
 // RecordPasted moves the cells of the blocks that were pasted from pending, the file of what
 // waits, to exported, the file of the last export: the cells of the other blocks wait still. A
-// row of the export takes the number of the row of pending, where its cells were pasted. It
+// row of the export takes the number of the row of pending, where its cells were pasted. A new
+// row stays new until its keys are pasted: they stay in pending, since they find the row. It
 // returns the number of cells moved.
 func RecordPasted(pending, exported *File, pasted []Block) (int, error) {
 	if err := sameLayout(pending, exported); err != nil {
@@ -58,12 +59,16 @@ func RecordPasted(pending, exported *File, pasted []Block) (int, error) {
 			}
 			exported.Rows = append(exported.Rows, r)
 		}
-		left := 0
+		left, keysLeft := 0, 0
 		for _, header := range sortedKeys(row.Cells) {
+			pasted := moved[cell{row: row.Number, column: columns[header]}]
 			if keys[header] {
+				if row.New && !pasted {
+					keysLeft++
+				}
 				continue
 			}
-			if !moved[cell{row: row.Number, column: columns[header]}] {
+			if !pasted {
 				left++
 				continue
 			}
@@ -73,7 +78,11 @@ func RecordPasted(pending, exported *File, pasted []Block) (int, error) {
 			delete(row.Check, header)
 			count++
 		}
-		if left > 0 {
+		if row.New && keysLeft == 0 {
+			row.New = false
+			exported.Rows[i].Number = row.Number
+		}
+		if left+keysLeft > 0 {
 			waiting = append(waiting, row)
 		}
 	}
@@ -159,7 +168,7 @@ func Verify(read, exported *File) ([]string, error) {
 			if keys[header] || !ok {
 				continue // A column not read is a difference of its own, above.
 			}
-			if value := got.Cells[readHeader]; !sameValue(value, row.Cells[header]) {
+			if value := got.Cells[readHeader]; !SameValue(value, row.Cells[header]) {
 				differences = append(differences, fmt.Sprintf("%s!%s %s, %s: %s in the tab, %s at the export",
 					tabName(exported.Tab), a1(got.Number, columns[header]), name, header, text(value), text(row.Cells[header])))
 			}

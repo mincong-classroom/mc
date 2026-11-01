@@ -20,7 +20,7 @@ go build -o dist/mc     # binary is gitignored under dist/
 ```
 
 CI (`.github/workflows/mincong-classroom.yaml`, runs on every push) does: `go mod tidy`,
-`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/`, `e2e/`, `sheet/` and
+`golangci-lint`, then `go test ./... -v`. Tests exist only for `common/`, `cmd/team/`, `e2e/`, `evaluation/`, `sheet/` and
 the Pods of Lab 2 in `rules/` so far; add `_test.go` files alongside the package under test. The team unit tests use an
 in-memory `github.Client` (`cmd/team/team_test.go`), so they never call GitHub.
 
@@ -61,6 +61,7 @@ mc rule render -o evaluation-rules.md  # the Markdown page of the rules
 mc evidence -l L1 [-t red] [--late] [--force] [--template DIR]  # the evidence report of each team, from the rules of the year
 mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
 mc eval run -l L2 [-t teal] [--check-only] [--dir DIR]  # the agent of agents.eval_run (sh, in the repo of the rules), then the checks of its files: one problem per line, exit 1 if any
+mc eval sync -l L2 [-t teal] [--sheet-dir DIR]  # the checks, then the cells of the files in ~/.mc/{year}/sheet/evaluation.json for mc sheet; without a read of the tab since the last export, writes evaluation.read.js and exits 1
 mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
 mc sheet blocks|copy|pasted|verify|snippet TAB  # the data of a tab of the evaluation sheet, in ~/.mc/{year}/sheet/TAB*.json
@@ -103,7 +104,7 @@ assume exists at runtime. Nothing here works without it:
 - `~/.mc/assignments-L1.yaml` … `assignments-L4.yaml` — per-lab, per-team structured data
   (`common.TeamAssignmentL*`), loaded in `rules.NewGrader()`.
 - `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml` — the evaluation of a lab for a team, written
-  by the evaluator (an AI agent) and read by `mc eval ls` and `mc eval run` (`evaluation.Load`). The files of
+  by the evaluator (an AI agent) and read by `mc eval ls`, `run` and `sync` (`evaluation.Load`). The files of
   `mc evidence` are next to it, in `~/.mc/{year}/teacher/`.
 
 Gotcha: `NewGrader()` only reads the **L1–L4** assignment files. `assignmentsL5` is never populated,
@@ -166,11 +167,25 @@ name of the file, the commit (a prefix of `opts.Commit`, the facts of `mc eviden
 facts), the action items, each mandatory rule of the lab, the completeness by steps of 0.1,
 `done_well` and `to_improve`, the analysis level, the writing style, and the penalty: a key of
 `scoring.penalties` with its `remove`, `rule` (`PenaltyRule`) with a `remove` of the rule's own
-penalties, or `late` (`PenaltyLate`) within `scoring.late_penalty`. It imports `rubric` only:
+penalties, or `late` (`PenaltyLate`) within `scoring.late_penalty`. It imports `rubric` and `sheet` only:
 `cmd/eval.go` finds the worktree of the team by its repository in the registry, and reads the facts
 with `evidence.ReadFacts(evidence.ReportPath(worktree, lab))`. It checks the content of the rules
 only (`loadRules` with no root): the files of the teacher don't change an evaluation. The tests use
 the made-up rules of `rubric/testdata/`.
+
+`Sync(opts)` (`sync.go`) computes the rows of the tab Evaluation, a `sheet.File`, from the files
+of a lab, the tab read, the last export and what waits. Its layout is `sheetColumns` (A, D to U;
+never B or C, the students), the one of `SheetFile()`, which `cmd/eval_sync.go` passes to
+`sheet.Snippet` for `evaluation.read.js`; a read with another header is an error. A row is found by
+Team, Lab and Rule; a missing one is `_new`, numbered after the last row of the tab or of what
+waits, with the formulas F, H and R (B and C are filled down by hand: `FillFrom`, `LastNewRow`).
+The completeness is written when the read cell is empty, or when it is the exported value (mc's
+own) and the new one is higher, with the TA Comment; otherwise it is kept, with a sentence in TA To
+Check. Another cell is written when it differs, with a `_check` when the tab holds a value that mc
+didn't write (`sheet.SameValue` against the export). A formula is in the tab when the export has
+the same text and the cell is not empty. The rows that wait for the lab and the teams are replaced,
+reusing the numbers of the new ones; a row that waits for another lab must still match the tab.
+`cmd/eval_sync.go` requires `evaluation.read.json` newer than `evaluation.exported.json`.
 
 **Annotate** (`annotate/`) — `Read(ctx, img)` runs `tesseract --psm 11` on the image enlarged twice
 (the filter Mitchell, as ImageMagick does), then groups its words in lines (`groupLines`): by row,
@@ -185,7 +200,8 @@ read, `TAB.exported.json` the last export). `mc` never calls the API of Google S
 or a browser agent pastes the blocks, and reads the tab with the script of `mc sheet snippet`. A
 `File` holds one object per row, its attributes the columns by header (`Columns` gives the
 letters), found by its `Keys`; `_row` is its number in the tab, `_check` the cells to look at
-before writing them. A row holds the cells to write only, never an empty text, which would clear
+before writing them, and `_new` a row that the tab doesn't have yet, whose keys `Blocks` writes too
+(`RecordPasted` clears it once its keys are pasted). A row holds the cells to write only, never an empty text, which would clear
 a cell. `UnmarshalJSON` decodes the rows by hand (an unknown `_` attribute is an error);
 `MarshalJSON` orders the attributes like the columns, and `Save` calls it directly, since
 `json.Marshal` would escape `<`, `>` and `&` again. `Blocks` splits the cells to write into
