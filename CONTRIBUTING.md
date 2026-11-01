@@ -45,8 +45,15 @@ classDiagram
     }
     class evidence {
         Gather(team, opts) Result
+        ReadFacts(report) Facts
         Template
         DockerHub
+    }
+    class evaluation {
+        File
+        Load(path) File
+        Check(opts) Problems
+        Teams(labDir) []string
     }
     class annotate {
         Mark
@@ -58,6 +65,7 @@ classDiagram
     cmd ..> rules
     cmd ..> common
     cmd ..> evidence
+    cmd ..> evaluation
     cmd ..> annotate
     cmd ..> github
     cmd ..> rubric
@@ -67,6 +75,7 @@ classDiagram
     rules ..> common
     evidence ..> github
     evidence ..> rubric
+    evaluation ..> rubric
 ```
 
 What each package does, in the order of the diagram:
@@ -77,6 +86,7 @@ What each package does, in the order of the diagram:
 | `cmd/git` | The commands on the clones of the teams: `mc git clone`, `pull`, `show` and `exec`. |
 | `cmd/team` | The commands on the teams: `mc team ls`, `mc team <team> provision`, etc. The only package that changes GitHub. |
 | `evidence` | Gathers the evidence of a lab for a team: the rules of the lab from `rubric`, the pushes from `github`, the files of the clone with `git`, and the tags on Docker Hub. It takes the rules and the team as arguments, so it doesn't import `common`. |
+| `evaluation` | Reads the evaluation of a lab for a team, one YAML file per team and lab, as the evaluator writes it. It checks it against the rules of `rubric`, and against the commit of the facts of `mc evidence`, which `cmd` reads and passes to it. |
 | `annotate` | Finds a text in a screenshot with `tesseract`, and draws numbered boxes around what the evaluator found. It imports no package of `mc`. |
 | `rules` | The grading engine of 2025, which `mc grade` runs. Deprecated. |
 | `common` | What every command shares: the settings of `~/.mc/settings.yaml`, the year, the commit of `mc` that runs, the team registry and the paths of the clones. It imports no package of `mc`. |

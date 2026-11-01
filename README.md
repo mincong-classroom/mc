@@ -73,7 +73,7 @@ rules: ~/github/my-org/course/{year}/evaluation-rules.yaml  # the evaluation rul
 The year selects the files of the cohort, such as the team registry `~/.mc/teams-{year}.yaml`. It
 is the environment variable `MC_YEAR` if set, e.g. `MC_YEAR=2025 mc grade`, then the key `year`,
 then the current year. `rules` is the YAML of the evaluation rules, where `{year}` is the year:
-`mc rule` and `mc evidence` read it. An unknown key is an error, so that a typo doesn't go unnoticed.
+`mc rule`, `mc evidence` and `mc eval` read it. An unknown key is an error, so that a typo doesn't go unnoticed.
 
 ## Team
 
@@ -290,6 +290,67 @@ flag `--force` gathers the evidence again anyway, e.g. after a new image on Dock
 version of the generated report. A local build of `mc` with changes never skips a team, since its
 commit doesn't tell which code ran.
 
+## Evaluation
+
+The evaluator writes what it found for each team in a YAML file, one per team and lab, so that
+several evaluators can work at once: `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml`. `mc eval
+check` checks these files against the evaluation rules, before they become the rows of the
+evaluation sheet. Here is the file of a made-up team, `teal`, in Lab 2:
+
+```yaml
+team: teal
+commit: 0a1b2c3                # the commit evaluated, the one of the facts of mc evidence
+time_spent: Session only, done at 11:21
+action_items: Run it yourself  # or Talk with them, Less attention, Late work to decide
+rules:
+  L2_POD:
+    completeness: 0.8          # from 0 to 1, by steps of 0.1
+    done_well: The Pod runs the image of Lab 1.
+    to_improve: The report doesn't show the logs of the Pod.
+    to_check: ""               # what the teacher should check, if anything
+    analysis: short            # a key of analysis_levels in the rules
+    writing_style: own words
+    penalty: null              # or {kind: secret, remove: 0.3, why: The report shows a token.}
+```
+
+The comment of the sheet joins `done_well` and `to_improve`, so that it always says what the team
+did well and what it can improve: the check asks for both. To check the files of a lab:
+
+```sh
+mc eval check -l L2             # every file of ~/.mc/{year}/evaluations/lab-2/
+mc eval check -l 2 -t teal      # one team
+mc eval check -l 2 --dir DIR    # the files of DIR/lab-2/
+```
+
+The rules come from the settings, or the file of the flag `--rules-file`, as for `mc rule`. Each
+mandatory rule of the lab must be there once, and an optional rule may be absent. The commit must
+be the one of the facts that `mc evidence` gathered for the team: the commit in the front matter
+of its report, such as `~/.mc/{year}/teacher/k8s-teal/docs/lab-2.evidence.md`. A short hash
+matches the full one. Without facts, the check says to run `mc evidence` first.
+
+A penalty removes a share of the score of a rule. Its `kind` is one of 3:
+
+- a penalty of every rule, by its name in `scoring.penalties`, such as `secret`: `remove` is the
+  share that the rules give
+- `rule`, the penalty of the rule itself, when the rule has one: `remove` is one of its shares
+- `late`, for work pushed after the deadline: `remove` goes from the `min` to the `max` of
+  `scoring.late_penalty`
+
+A problem gives the file and its line, and the command exits with 1 if there is any, like `mc rule
+check`:
+
+```
+/Users/me/.mc/2026/evaluations/lab-2/coral.yaml:8: L2_POD: unknown key "to_chek"
+/Users/me/.mc/2026/evaluations/lab-2/teal.yaml:7: L2_POD: the completeness 0.85 is not from 0 to 1 by steps of 0.1
+/Users/me/.mc/2026/evaluations/lab-2/teal.yaml:9: L2_POD: no to_improve: what the team can improve, which the comment of the sheet ends with
+/Users/me/.mc/2026/evaluations/lab-2/teal.yaml:13: L2_POD: the penalty secret removes 0.3 of the score: got 0.2
+Error: 4 problems in 2 of 2 files
+```
+
+A file with an unknown key, a key twice or a value of the wrong type stops at these problems: the
+other checks of the file run once they are fixed. Without a problem, the command prints how many
+files it checked.
+
 ## Annotate
 
 `mc annotate` puts numbered boxes on a screenshot, around what the evaluator found: a green box
@@ -327,6 +388,9 @@ page from the template `rubric/page.md.tmpl`.
 
 The `evidence` directory gathers the evidence of a lab for a team, on the local branch `teacher`
 of its clone.
+
+The `evaluation` directory reads the evaluation of a lab for a team, as the evaluator writes it,
+and checks it against the evaluation rules.
 
 The `annotate` directory finds a text in a screenshot with tesseract, and draws numbered boxes on
 it.

@@ -173,8 +173,18 @@ func runRuleRender(cmd *cobra.Command, _ []string) error {
 var errInvalidRules = errors.New("the rules have problems")
 
 // loadAndCheck reads the file of rules and checks it, printing each problem prefixed by the path
-// of the file.
+// of the file. The files of the teacher are checked in root, or in the Git repository of the file
+// when root is empty.
 func loadAndCheck(path, root string, stderr io.Writer) (*rubric.Rubric, error) {
+	if root == "" {
+		root = repositoryRoot(filepath.Dir(path))
+	}
+	return loadRules(path, rubric.CheckOptions{Root: root, MaxWidth: maxRuleLineWidth}, stderr)
+}
+
+// loadRules reads the file of rules and checks it with the options, printing each problem
+// prefixed by the path of the file.
+func loadRules(path string, opts rubric.CheckOptions, stderr io.Writer) (*rubric.Rubric, error) {
 	r, err := rubric.Load(path)
 	var problems rubric.Problems
 	if errors.As(err, &problems) {
@@ -184,10 +194,7 @@ func loadAndCheck(path, root string, stderr io.Writer) (*rubric.Rubric, error) {
 	if err != nil {
 		return nil, err
 	}
-	if root == "" {
-		root = repositoryRoot(filepath.Dir(path))
-	}
-	if problems := r.Check(rubric.CheckOptions{Root: root, MaxWidth: maxRuleLineWidth}); len(problems) > 0 {
+	if problems := r.Check(opts); len(problems) > 0 {
 		printProblems(stderr, path, problems)
 		return nil, errInvalidRules
 	}

@@ -6,9 +6,12 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/mincong-classroom/mc/rubric"
 )
 
 // metadata tells what a report was made from, in its front matter. The report of the evidence
@@ -50,6 +53,27 @@ func readMetadata(p string) (metadata, bool, error) {
 		return metadata{}, false, nil
 	}
 	return m, true, nil
+}
+
+// Facts are what the front matter of a report of the evidence tells of its pass.
+type Facts struct {
+	Commit string // The commit of the team evaluated, in full.
+	MC     string // The commit of mc that gathered the evidence.
+}
+
+// ReportPath returns the report of the evidence of a lab in the worktree of a team, such as
+// ~/.mc/2026/teacher/k8s-red/docs/lab-1.evidence.md for the report docs/lab-1.md of the lab.
+func ReportPath(worktree string, lab rubric.Lab) string {
+	report, _ := evidencePaths(lab.Report)
+	return filepath.Join(worktree, filepath.FromSlash(report))
+}
+
+// ReadFacts reads the facts in the front matter of a report of the evidence. It reports false
+// when the report doesn't exist, or has no front matter with both commits: mc evidence hasn't
+// gathered the evidence yet.
+func ReadFacts(report string) (Facts, bool, error) {
+	m, ok, err := readMetadata(report)
+	return Facts{Commit: m.Commit, MC: m.MC}, ok, err
 }
 
 // generatedPath returns the report that an evaluator generates from the evidence, next to the
