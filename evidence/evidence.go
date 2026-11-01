@@ -1,14 +1,15 @@
-// Package evidence gathers the evidence of each rule of a lab for a team, in a report for the
-// teacher. It holds facts, not a score, of 3 kinds: what the team wrote in its report, the files
-// of its repository, and what the evaluator made, such as screenshots and logs.
+// Package evidence gathers the facts of each rule of a lab for a team, in a file for the teacher,
+// such as docs/lab-1.facts.md. It holds facts, not a score, of 3 kinds: what the team wrote in its
+// report, the files of its repository, and the evidence that the evaluator made, such as
+// screenshots and logs.
 //
-// The report goes to the local branch "teacher" of the clone of the team, checked out in a
-// worktree: the branch starts from the commit evaluated, and the next pass merges the new commit
-// into it. It is never pushed.
+// The facts go to the local branch "teacher" of the clone of the team, checked out in a worktree:
+// the branch starts from the commit evaluated, and the next pass merges the new commit into it. It
+// is never pushed.
 //
-// The front matter of the report holds the commit evaluated and the commit of mc. An evaluator
-// that generates a report from the evidence, such as docs/lab-1.generated.md, copies it: while
-// both commits stay the same, the generated report is up to date, and a new pass skips the team.
+// The front matter of the facts holds the commit evaluated and the commit of mc. An evaluator that
+// writes a report from the facts, such as docs/lab-1.report.md, copies it: while both commits stay
+// the same, the report is up to date, and a new pass skips the team.
 package evidence
 
 import (
@@ -24,10 +25,10 @@ import (
 	"github.com/mincong-classroom/mc/rubric"
 )
 
-// Branch is the local branch of the clone of a team that holds the reports.
+// Branch is the local branch of the clone of a team that holds the facts and the reports.
 const Branch = "teacher"
 
-// Team is a team whose evidence is gathered.
+// Team is a team whose facts are gathered.
 type Team struct {
 	Name  string // The name of the team, which replaces {team} in the images of a rule.
 	Repo  string // The name of its repository, such as k8s-red.
@@ -56,10 +57,10 @@ type Options struct {
 	Rev      string // Evaluate this commit instead.
 	Pushes   Pushes // When nil, the commit at the deadline is found from the dates of the commits.
 	Registry Registry
-	// Revision is the commit of mc that runs, written in the front matter of the report. When
-	// empty, the generated report is never up to date.
+	// Revision is the commit of mc that runs, written in the front matter of the facts. When
+	// empty, the report is never up to date.
 	Revision string
-	// Force gathers the evidence again even when the generated report is up to date.
+	// Force gathers the facts again even when the report is up to date.
 	Force bool
 }
 
@@ -67,15 +68,18 @@ type Options struct {
 type Result struct {
 	Commit    string // The commit evaluated.
 	How       string // How the commit was chosen, e.g. "the head of main at the deadline".
-	Report    string // The file of the report, in the worktree.
-	Committed bool   // Whether the report changed, and was committed to the branch teacher.
-	// UpToDate tells that the generated report is at the commit evaluated, from the same commit
-	// of mc: nothing was gathered, and Report is the generated report.
+	File      string // The file of the facts in the worktree, or the one of the report when up to date.
+	Committed bool   // Whether the facts changed, and were committed to the branch teacher.
+	// UpToDate tells that the report is at the commit evaluated, from the same commit of mc:
+	// nothing was gathered, and File is the report.
 	UpToDate bool
+	// Renamed are the files of the former names that this pass renamed in the worktree, such as
+	// docs/lab-1.evidence.md to docs/lab-1.facts.md.
+	Renamed []Rename
 }
 
-// Gather writes the report of the evidence of the lab for the team, and commits it to the local
-// branch teacher of its clone.
+// Gather writes the facts of the lab for the team, and commits them to the local branch teacher of
+// its clone.
 func Gather(team Team, opts Options) (Result, error) {
 	lab, ok := opts.Rubric.Lab(opts.Lab)
 	if !ok {
@@ -93,14 +97,19 @@ func Gather(team Team, opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	// Before the check below, which reads the report under its name of now.
+	renamed, err := renameFormerFiles(filepath.Join(opts.Dir, team.Repo), lab)
+	if err != nil {
+		return Result{}, err
+	}
 	if !opts.Force && opts.Revision != "" {
-		generated := filepath.Join(opts.Dir, team.Repo, filepath.FromSlash(generatedPath(lab.Report)))
-		m, ok, err := readMetadata(generated)
+		report := filepath.Join(opts.Dir, team.Repo, filepath.FromSlash(reportPath(lab.Report)))
+		m, ok, err := readMetadata(report)
 		if err != nil {
 			return Result{}, err
 		}
 		if ok && m == (metadata{Commit: commit.hash, MC: opts.Revision}) {
-			return Result{Commit: commit.hash, How: commit.how, Report: generated, UpToDate: true}, nil
+			return Result{Commit: commit.hash, How: commit.how, File: report, UpToDate: true, Renamed: renamed}, nil
 		}
 	}
 	worktree, err := prepareWorktree(clone, filepath.Join(opts.Dir, team.Repo), commit.hash)
@@ -135,18 +144,18 @@ func Gather(team Team, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
-	reportPath := filepath.Join(worktree.dir, filepath.FromSlash(r.evidencePath))
-	if err := os.MkdirAll(filepath.Dir(reportPath), 0o755); err != nil {
+	facts := filepath.Join(worktree.dir, filepath.FromSlash(r.factsPath))
+	if err := os.MkdirAll(filepath.Dir(facts), 0o755); err != nil {
 		return Result{}, err
 	}
-	if err := os.WriteFile(reportPath, []byte(r.markdown()), 0o644); err != nil {
+	if err := os.WriteFile(facts, []byte(r.markdown()), 0o644); err != nil {
 		return Result{}, err
 	}
-	committed, err := commitReport(worktree, r, lab)
+	committed, err := commitFacts(worktree, r, lab)
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{Commit: commit.hash, How: commit.how, Report: reportPath, Committed: committed}, nil
+	return Result{Commit: commit.hash, How: commit.how, File: facts, Committed: committed, Renamed: renamed}, nil
 }
 
 // commitInfo is the commit evaluated, and the pushes around it.
@@ -227,9 +236,8 @@ func prepareWorktree(clone git, dir, hash string) (git, error) {
 	_, err := os.Stat(dir)
 	switch {
 	case err == nil:
-		branch, err := wt.text("rev-parse", "--abbrev-ref", "HEAD")
-		if err != nil || branch != Branch {
-			return wt, fmt.Errorf("%s is not a worktree of the branch %s: %q", dir, Branch, branch)
+		if err := checkBranch(wt); err != nil {
+			return wt, err
 		}
 	case errors.Is(err, os.ErrNotExist):
 		if err := os.MkdirAll(filepath.Dir(dir), 0o755); err != nil {
@@ -256,9 +264,18 @@ func prepareWorktree(clone git, dir, hash string) (git, error) {
 	return wt, nil
 }
 
-// commitReport commits the report and the files of the evaluator, if they changed.
-func commitReport(wt git, r *report, lab rubric.Lab) (bool, error) {
-	paths := []string{r.evidencePath}
+// checkBranch returns an error unless the worktree has the branch teacher checked out.
+func checkBranch(wt git) error {
+	branch, err := wt.text("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil || branch != Branch {
+		return fmt.Errorf("%s is not a worktree of the branch %s: %q", wt.dir, Branch, branch)
+	}
+	return nil
+}
+
+// commitFacts commits the facts and the files of the evaluator, if they changed.
+func commitFacts(wt git, r *labFacts, lab rubric.Lab) (bool, error) {
+	paths := []string{r.factsPath}
 	if _, err := os.Stat(filepath.Join(wt.dir, filepath.FromSlash(r.evidenceDir))); err == nil {
 		paths = append(paths, r.evidenceDir)
 	}
@@ -270,18 +287,18 @@ func commitReport(wt git, r *report, lab rubric.Lab) (bool, error) {
 	if wt.ok("diff", "--cached", "--quiet") {
 		return false, nil
 	}
-	message := fmt.Sprintf("[%s] Evidence at %s", lab.ID, short(r.commit.hash))
+	message := fmt.Sprintf("[%s] Facts at %s", lab.ID, short(r.commit.hash))
 	if _, err := wt.run("-c", "commit.gpgsign=false", "commit", "--quiet", "--no-verify", "-m", message); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// evidencePaths returns the report of the evidence and the directory of the evaluator, next to the
-// report of the team: docs/lab-1.evidence.md and docs/lab-1.evidence/ for docs/lab-1.md.
-func evidencePaths(report string) (string, string) {
+// factsPaths returns the facts and the directory of the evaluator, next to the report of the team:
+// docs/lab-1.facts.md and docs/lab-1.evidence/ for docs/lab-1.md.
+func factsPaths(report string) (string, string) {
 	base := strings.TrimSuffix(report, path.Ext(report))
-	return base + ".evidence.md", base + ".evidence"
+	return base + ".facts.md", base + ".evidence"
 }
 
 func short(hash string) string {

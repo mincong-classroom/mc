@@ -17,8 +17,8 @@ type CheckOptions struct {
 	Rubric *rubric.Rubric
 	Lab    string // The ID of the lab of the file, such as L2.
 	Team   string // The team of the file, from its name: teal for teal.yaml.
-	// Commit is the commit of the facts that mc evidence gathered for the team and the lab, in
-	// full. When empty, there are no facts: the check says to gather them first.
+	// Commit is the commit of the facts that mc eval gather-facts gathered for the team and the
+	// lab, in full. When empty, there are no facts: the check says to gather them first.
 	Commit string
 }
 
@@ -66,16 +66,16 @@ func (c *checker) checkCommit() {
 	commit := c.file.Commit
 	switch {
 	case commit == "":
-		c.add("commit", "", "no commit: the commit evaluated, the one of the facts of mc evidence")
+		c.add("commit", "", "no commit: the commit evaluated, the one of the facts")
 	case !commitPattern.MatchString(commit):
 		c.add("commit", "", "the commit %q is not a hash of at least 7 hexadecimal digits, such as 0a1b2c3", commit)
 	}
 	switch {
 	case c.opts.Commit == "":
-		c.add("commit", "", "no facts of mc evidence for the team %s in %s: run mc evidence -l %s -t %s first",
+		c.add("commit", "", "no facts for the team %s in %s: run mc eval gather-facts -l %s -t %s first",
 			c.opts.Team, c.opts.Lab, c.opts.Lab, c.opts.Team)
 	case commitPattern.MatchString(commit) && !strings.HasPrefix(c.opts.Commit, commit):
-		c.add("commit", "", "the commit %s is not the one of the facts of mc evidence, %s: evaluate that commit, or gather the facts again",
+		c.add("commit", "", "the commit %s is not the one of the facts, %s: evaluate that commit, or gather the facts again",
 			commit, short(c.opts.Commit))
 	}
 }

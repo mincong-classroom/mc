@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -176,17 +177,17 @@ func TestGather(t *testing.T) {
 		}},
 		Revision: "0a1b2c3d4e5f",
 	}
-	reportPath := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.evidence.md")
+	facts := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.facts.md")
 
 	// The first pass: the commit at the deadline.
 	result, err := Gather(team, opts)
 	if err != nil {
 		t.Fatalf("Gather(): %v", err)
 	}
-	if result.Commit != before || !result.Committed || result.Report != reportPath {
-		t.Errorf("Gather() = %+v, want the commit %s committed to %s", result, before, reportPath)
+	if result.Commit != before || !result.Committed || result.File != facts || len(result.Renamed) != 0 {
+		t.Errorf("Gather() = %+v, want the commit %s committed to %s, and nothing renamed", result, before, facts)
 	}
-	assertGolden(t, reportPath, "lab-1.evidence.md")
+	assertGolden(t, facts, "lab-1.facts.md")
 
 	// The evaluator adds its notes and its files, then runs it again.
 	evaluatorDir := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.evidence")
@@ -201,14 +202,14 @@ func TestGather(t *testing.T) {
 	if out := run(t, filepath.Join(root, "teacher", "k8s-red"), "ls-files", "docs/lab-1.evidence/l1-bld-run.log"); out == "" {
 		t.Errorf("the log of the evaluator is not committed: the .gitignore of the team ignores *.log")
 	}
-	content := readFile(t, reportPath)
+	content := readFile(t, facts)
 	for _, want := range []string{
 		"The image 1.0.0 runs, and the home page answers on port 8080.",
 		"#### [`l1-bld-run.log`](lab-1.evidence/l1-bld-run.log)\n\n```text\nStarted App in 3.2 seconds\n```",
 		"## Other Files of the Evaluator\n\n#### [`home.png`](lab-1.evidence/home.png)\n\n![home.png](lab-1.evidence/home.png)",
 	} {
 		if !strings.Contains(content, want) {
-			t.Errorf("the report lacks %q:\n%s", want, content)
+			t.Errorf("the facts lack %q:\n%s", want, content)
 		}
 	}
 
@@ -217,27 +218,27 @@ func TestGather(t *testing.T) {
 		t.Errorf("Gather() again = %+v, %v, want nothing committed", result, err)
 	}
 
-	// The evaluator generates its report from the evidence, with its front matter: the next pass
+	// The evaluator writes its report from the facts, with their front matter: the next pass
 	// skips the team, unless it is forced, or mc changed.
-	generated := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.generated.md")
-	writeFiles(t, filepath.Dir(generated), map[string]string{
-		"lab-1.generated.md": "---\ncommit: " + before + "\nmc: 0a1b2c3d4e5f\n---\n\n# Lab 1, Team Red\n",
+	report := filepath.Join(root, "teacher", "k8s-red", "docs", "lab-1.report.md")
+	writeFiles(t, filepath.Dir(report), map[string]string{
+		"lab-1.report.md": "---\ncommit: " + before + "\nmc: 0a1b2c3d4e5f\n---\n\n# Lab 1, Team Red\n",
 	})
-	if !strings.HasPrefix(readFile(t, reportPath), "---\ncommit: "+before+"\nmc: 0a1b2c3d4e5f\n---\n") {
-		t.Errorf("the report of the evidence lacks the front matter of the generated report")
+	if !strings.HasPrefix(readFile(t, facts), "---\ncommit: "+before+"\nmc: 0a1b2c3d4e5f\n---\n") {
+		t.Errorf("the facts lack the front matter of the report")
 	}
-	if result, err = Gather(team, opts); err != nil || !result.UpToDate || result.Report != generated {
-		t.Errorf("Gather() with a generated report up to date = %+v, %v, want it up to date", result, err)
+	if result, err = Gather(team, opts); err != nil || !result.UpToDate || result.File != report {
+		t.Errorf("Gather() with a report up to date = %+v, %v, want it up to date", result, err)
 	}
 	forced := opts
 	forced.Force = true
 	if result, err = Gather(team, forced); err != nil || result.UpToDate {
-		t.Errorf("Gather() forced = %+v, %v, want the evidence gathered", result, err)
+		t.Errorf("Gather() forced = %+v, %v, want the facts gathered", result, err)
 	}
 	newMC := opts
 	newMC.Revision = "9f8e7d6c5b4a"
 	if result, err = Gather(team, newMC); err != nil || result.UpToDate || !result.Committed {
-		t.Errorf("Gather() with another mc = %+v, %v, want the evidence gathered and committed", result, err)
+		t.Errorf("Gather() with another mc = %+v, %v, want the facts gathered and committed", result, err)
 	}
 
 	// A late pass merges origin/main into the branch.
@@ -245,7 +246,7 @@ func TestGather(t *testing.T) {
 	if result, err = Gather(team, opts); err != nil || result.Commit != after || !result.Committed {
 		t.Fatalf("Gather() late = %+v, %v, want the commit %s committed", result, err, after)
 	}
-	if !strings.Contains(readFile(t, reportPath), "docker push sample/app-red:1.0.0") {
+	if !strings.Contains(readFile(t, facts), "docker push sample/app-red:1.0.0") {
 		t.Errorf("the late report lacks the work pushed after the deadline")
 	}
 	if out := run(t, filepath.Join(root, "teacher", "k8s-red"), "merge-base", "--is-ancestor", after, "HEAD"); out != "" {
@@ -255,6 +256,92 @@ func TestGather(t *testing.T) {
 	// The branch teacher stays local.
 	if out := run(t, clone, "ls-remote", "--heads", "origin", Branch); out != "" {
 		t.Errorf("the remote has the branch %s: %q", Branch, out)
+	}
+}
+
+func TestGatherRenamesTheFormerFiles(t *testing.T) {
+	root := gitEnv(t)
+	deadline := time.Date(2030, 3, 4, 7, 30, 0, 0, time.UTC)
+	work := filepath.Join(root, "work")
+	commitFiles(t, work, "Initial commit", map[string]string{"docs/lab-1.md": statement})
+	commit := commitFiles(t, work, "Lab 1", map[string]string{"docs/lab-1.md": answer})
+	clone := filepath.Join(root, "k8s-red")
+	run(t, root, "clone", "--quiet", work, clone)
+	r, err := rubric.Parse([]byte(rules))
+	if err != nil {
+		t.Fatalf("rubric.Parse(): %v", err)
+	}
+	team := Team{Name: "red", Repo: "k8s-red", Clone: clone}
+	opts := Options{
+		Rubric:   r,
+		Lab:      "L1",
+		Dir:      filepath.Join(root, "teacher"),
+		Pushes:   fakePushes{{Time: deadline.Add(-time.Hour), After: commit, Type: "push"}},
+		Registry: fakeRegistry{},
+		Revision: "0a1b2c3d4e5f",
+	}
+	if _, err := Gather(team, opts); err != nil {
+		t.Fatalf("Gather(): %v", err)
+	}
+
+	// Given the files of a former version of mc, committed to the branch teacher: the facts, and the
+	// report that links to them.
+	worktree := filepath.Join(root, "teacher", "k8s-red")
+	run(t, worktree, "mv", "docs/lab-1.facts.md", "docs/lab-1.evidence.md")
+	writeFiles(t, worktree, map[string]string{
+		"docs/lab-1.generated.md": "---\ncommit: " + commit + "\nmc: 0a1b2c3d4e5f\n---\n\n# Lab 1, Team Red\n\n" +
+			"From the facts: [`lab-1.evidence.md`](lab-1.evidence.md), and the evidence of [`lab-1.evidence/`](lab-1.evidence/).\n",
+	})
+	run(t, worktree, "add", "--all")
+	run(t, worktree, "commit", "--quiet", "-m", "[L1] Generated report")
+
+	// When the next pass runs, with the same commits.
+	result, err := Gather(team, opts)
+	if err != nil {
+		t.Fatalf("Gather() with the former files: %v", err)
+	}
+
+	// Then the files have their names of now, and the report is still up to date.
+	report := filepath.Join(worktree, "docs", "lab-1.report.md")
+	want := []Rename{
+		{From: "docs/lab-1.evidence.md", To: "docs/lab-1.facts.md"},
+		{From: "docs/lab-1.generated.md", To: "docs/lab-1.report.md"},
+	}
+	if !result.UpToDate || result.File != report || !slices.Equal(result.Renamed, want) {
+		t.Errorf("Gather() with the former files = %+v, want the report up to date, and %+v renamed", result, want)
+	}
+	if got, want := readFile(t, report), "From the facts: [`lab-1.facts.md`](lab-1.facts.md), and the evidence of [`lab-1.evidence/`](lab-1.evidence/).\n"; !strings.HasSuffix(got, want) {
+		t.Errorf("the report after the rename =\n%s\nwant it to end with\n%s", got, want)
+	}
+	if got, want := run(t, worktree, "log", "-1", "--format=%s"), "[L1] Rename docs/lab-1.evidence.md to lab-1.facts.md, and docs/lab-1.generated.md to lab-1.report.md"; got != want {
+		t.Errorf("the last commit of the branch teacher = %q, want %q", got, want)
+	}
+	if got := run(t, worktree, "log", "--follow", "--format=%s", "--", "docs/lab-1.facts.md"); !strings.Contains(got, "[L1] Facts at") {
+		t.Errorf("the history of the facts = %q, want the commits of their former name", got)
+	}
+	if got := run(t, worktree, "status", "--porcelain"); got != "" {
+		t.Errorf("the worktree after the rename has changes: %q", got)
+	}
+
+	// A pass after the rename has nothing to rename.
+	if result, err = Gather(team, opts); err != nil || !result.UpToDate || len(result.Renamed) != 0 {
+		t.Errorf("Gather() after the rename = %+v, %v, want the report up to date, and nothing renamed", result, err)
+	}
+}
+
+func TestGatherRenamesAnUntrackedReport(t *testing.T) {
+	root := gitEnv(t)
+	dir := filepath.Join(root, "k8s-red")
+	commitFiles(t, dir, "Initial commit", map[string]string{"docs/lab-1.md": statement})
+	run(t, dir, "checkout", "--quiet", "-b", Branch)
+	writeFiles(t, dir, map[string]string{"docs/lab-1.generated.md": "# Lab 1, Team Red\n"})
+
+	renamed, err := renameFormerFiles(dir, rubric.Lab{ID: "L1", Report: "docs/lab-1.md"})
+	if want := []Rename{{From: "docs/lab-1.generated.md", To: "docs/lab-1.report.md"}}; err != nil || !slices.Equal(renamed, want) {
+		t.Errorf("renameFormerFiles() = %+v, %v, want %+v", renamed, err, want)
+	}
+	if got, want := run(t, dir, "status", "--porcelain"), "?? docs/lab-1.report.md"; got != want {
+		t.Errorf("git status after the rename = %q, want %q: the report stays untracked", got, want)
 	}
 }
 
@@ -446,13 +533,13 @@ func TestReadMetadata(t *testing.T) {
 func TestReadFacts(t *testing.T) {
 	worktree := filepath.Join(t.TempDir(), "k8s-teal")
 	lab := rubric.Lab{ID: "L2", Report: "docs/lab-2.md"}
-	report := ReportPath(worktree, lab)
-	if want := filepath.Join(worktree, "docs", "lab-2.evidence.md"); report != want {
-		t.Errorf("ReportPath() = %q, want %q", report, want)
+	report := FactsPath(worktree, lab)
+	if want := filepath.Join(worktree, "docs", "lab-2.facts.md"); report != want {
+		t.Errorf("FactsPath() = %q, want %q", report, want)
 	}
 
 	if got, ok, err := ReadFacts(report); err != nil || ok {
-		t.Errorf("ReadFacts() before mc evidence = %+v, %v, %v, want no facts", got, ok, err)
+		t.Errorf("ReadFacts() before mc eval gather-facts = %+v, %v, %v, want no facts", got, ok, err)
 	}
 
 	content := `---

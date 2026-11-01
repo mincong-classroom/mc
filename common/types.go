@@ -49,8 +49,8 @@ func (t Team) GetMembersAsString() string {
 }
 
 // GetRepoPath returns the path of the team's local clone, such as
-// "$HOME/github/mincong-classroom/k8s-red": mc git clones the repository there, and mc evidence
-// reads it from there.
+// "$HOME/github/mincong-classroom/k8s-red": mc git clones the repository there, and mc eval
+// gather-facts reads it from there.
 func (t Team) GetRepoPath() string {
 	return filepath.Join(os.Getenv("HOME"), "github", "mincong-classroom", t.GetLocalRepoDirName())
 }

@@ -90,7 +90,7 @@ func TestTeamToProvision(t *testing.T) {
 		{[]string{"team", "purple", "status"}, ""},
 		{[]string{"team", "provision"}, ""},
 		{[]string{"team", "purple", "provision", "extra"}, ""},
-		{[]string{"evidence", "-t", "red", "-l", "L1"}, ""},
+		{[]string{"eval", "gather-facts", "-t", "red", "-l", "L1"}, ""},
 		{nil, ""},
 	}
 	for _, tt := range tests {

@@ -2,8 +2,8 @@
 
 The package `cmd` wires the commands of `mc` with [Cobra](https://github.com/spf13/cobra). A command
 reads its flags and the settings, calls the package that does the work, and prints the result. The
-work itself lives in the other packages, such as `evidence`, which gathers the evidence of a lab,
-or `evaluation`, which checks an evaluation: `cmd` is the only package that knows the command line.
+work itself lives in the other packages, such as `evidence`, which gathers the facts of a lab, or
+`evaluation`, which checks an evaluation: `cmd` is the only package that knows the command line.
 The [README](../README.md) describes the commands; this page explains how the package is organized.
 
 ## How a Command Runs
@@ -26,8 +26,8 @@ Each command has its own file, with its subcommands, their flags and their `RunE
 | File | Commands | Packages that do the work |
 |---|---|---|
 | `eval.go` | `mc eval ls`, `mc eval run` | `evaluation`, `rubric`, and `evidence` for the facts |
+| `eval_gather_facts.go` | `mc eval gather-facts` | `evidence`, `rubric`, `github` |
 | `eval_sync.go` | `mc eval sync` | `evaluation`, `sheet` |
-| `evidence.go` | `mc evidence` | `evidence`, `rubric`, `github` |
 | `rule.go` | `mc rule ls`, `check`, `render` | `rubric` |
 | `rule_sync.go` | `mc rule sync` | `evaluation`, `rubric`, `sheet` |
 | `sheet.go` | `mc sheet snippet`, `blocks`, `copy`, `pasted`, `verify` | `sheet` |
@@ -55,7 +55,7 @@ config:
 flowchart LR
   run["mc eval run -l L2"]
   agent["Agent of agents.eval_run<br>with MC_EVAL_AGENT=1"]
-  evidence["mc evidence -l L2<br>the facts of each team"]
+  evidence["mc eval gather-facts -l L2<br>the facts of each team"]
   files["lab-2/{team}.yaml<br>one file per team"]
   checkonly["mc eval run --check-only<br>its own check"]
   check["The checks<br>package evaluation"]
@@ -70,7 +70,7 @@ flowchart LR
 1. `mc eval run` replaces `{lab}` and `{teams}` in the line, then runs it with `sh`, in the Git
    repository of the rules. A team goes into the line as it is, so its name must be lowercase
    letters, digits and dashes.
-2. The agent gathers the facts of the teams with `mc evidence`.
+2. The agent gathers the facts of the teams with `mc eval gather-facts`.
 3. It writes the evaluation of each team, one YAML file per team.
 4. It checks its own files with `mc eval run --check-only`. Without `--check-only`, `mc eval run`
    refuses to run while `MC_EVAL_AGENT` is set, so that an agent never starts another one.

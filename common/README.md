@@ -91,8 +91,8 @@ as `k8s-red`, and its clone, such as `~/github/mincong-classroom/k8s-red`.
 ## The Commit of `mc`
 
 `Revision` returns the commit of `mc` that runs, from the build information of Go, such as
-`8e39f42dfb73`, with `-dirty` for a local build with uncommitted changes. `mc evidence` writes it in
-the front matter of its facts, and gathers the facts again when it changes. `StableRevision` tells
+`8e39f42dfb73`, with `-dirty` for a local build with uncommitted changes. `mc eval gather-facts`
+writes it in the front matter of the facts, and gathers the facts again when it changes. `StableRevision` tells
 a commit without local changes, or a tag, whose two runs run the same code.
 
 ## Code

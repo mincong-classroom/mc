@@ -21,21 +21,21 @@ import (
 // longer one is linked: the evaluator writes an excerpt of its key lines.
 const maxImportLines = 80
 
-// report is the evidence of a lab for a team.
-type report struct {
-	lab          rubric.Lab
-	deadline     time.Time
-	team         string
-	commit       commitInfo
-	reportFound  bool
-	teamLines    int // The lines that the team wrote in its report.
-	statement    bool
-	rules        []ruleEvidence
-	otherFiles   []fileEvidence // The files of the team that no rule names, and the report doesn't link.
-	otherByEval  []evaluatorFile
-	evidencePath string // The report of the evidence, e.g. docs/lab-1.evidence.md.
-	evidenceDir  string // The directory of the evaluator, e.g. docs/lab-1.evidence.
-	revision     string // The commit of mc, "unknown" when not given.
+// labFacts are the facts of a lab for a team.
+type labFacts struct {
+	lab         rubric.Lab
+	deadline    time.Time
+	team        string
+	commit      commitInfo
+	reportFound bool
+	teamLines   int // The lines that the team wrote in its report.
+	statement   bool
+	rules       []ruleEvidence
+	otherFiles  []fileEvidence // The files of the team that no rule names, and the report doesn't link.
+	otherByEval []evaluatorFile
+	factsPath   string // The file of the facts, e.g. docs/lab-1.facts.md.
+	evidenceDir string // The directory of the evaluator, e.g. docs/lab-1.evidence.
+	revision    string // The commit of mc, "unknown" when not given.
 }
 
 // ruleEvidence is the evidence of a rule.
@@ -108,12 +108,12 @@ type buildInput struct {
 	revision string
 }
 
-func build(in buildInput) (*report, error) {
-	r := &report{lab: in.lab, deadline: in.deadline, team: in.team.Name, commit: in.commit, revision: in.revision}
+func build(in buildInput) (*labFacts, error) {
+	r := &labFacts{lab: in.lab, deadline: in.deadline, team: in.team.Name, commit: in.commit, revision: in.revision}
 	if r.revision == "" {
 		r.revision = "unknown"
 	}
-	r.evidencePath, r.evidenceDir = evidencePaths(in.lab.Report)
+	r.factsPath, r.evidenceDir = factsPaths(in.lab.Report)
 	tree, err := in.clone.tree(in.commit.hash)
 	if err != nil {
 		return nil, err

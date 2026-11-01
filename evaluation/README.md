@@ -38,7 +38,7 @@ have a file.
 ## What a Check Reads
 
 A check compares the file with 2 other sources: the rules of the year, and the facts that
-`mc evidence` gathered for the team, which give the commit to evaluate:
+`mc eval gather-facts` gathered for the team, which give the commit to evaluate:
 
 ```mermaid
 ---
@@ -51,7 +51,7 @@ flowchart LR
   evaluator["Evaluator<br>an agent, or the teacher"]
   file["lab-2/teal.yaml<br>the evaluation of the team"]
   rules["evaluation-rules.yaml<br>the rules of the year"]
-  facts["docs/lab-2.evidence.md<br>the facts of mc evidence"]
+  facts["docs/lab-2.facts.md<br>the facts of the team"]
   check["Check<br>package evaluation"]
   problems["teal.yaml:12: L2_POD: ...<br>one problem per line"]
   evaluator -- "writes" --> file

@@ -46,6 +46,13 @@ func teamFileFromArgs(args []string) string {
 
 const teamFileFlag = "team-file"
 
+// The groups of the commands in mc --help: those that the teacher runs, and those that the agents
+// run for the skills, such as the boxes on a screenshot or the cells of the spreadsheet.
+const (
+	teacherGroup = "teacher"
+	agentGroup   = "agent"
+)
+
 func init() {
 	RootCmd.PersistentFlags().StringVar(&common.TeamRegistryFile, teamFileFlag, "",
 		"Team registry to use instead of ~/.mc/teams-{year}.yaml, e.g. a test registry to try the commands")
@@ -55,4 +62,15 @@ func init() {
 	RootCmd.AddCommand(k8sCmd)
 	RootCmd.AddCommand(ruleCmd)
 	RootCmd.AddCommand(team.TeamCmd)
+
+	RootCmd.AddGroup(
+		&cobra.Group{ID: teacherGroup, Title: "Commands of the teacher:"},
+		&cobra.Group{ID: agentGroup, Title: "Commands of the agents:"},
+	)
+	for _, c := range []*cobra.Command{evalCmd, ruleCmd, team.TeamCmd, git.GitCmd, infoCmd, k8sCmd} {
+		c.GroupID = teacherGroup
+	}
+	for _, c := range []*cobra.Command{annotateCmd, sheetCmd} {
+		c.GroupID = agentGroup
+	}
 }

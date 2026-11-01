@@ -12,18 +12,18 @@ import (
 
 const timeLayout = "Mon 2 Jan 2006, 15:04 (UTC-07:00)"
 
-// markdown returns the report of the evidence. Its links are relative to its directory, the one
+// markdown returns the Markdown of the facts. Its links are relative to its directory, the one
 // of the report of the team.
-func (r *report) markdown() string {
+func (r *labFacts) markdown() string {
 	var b strings.Builder
-	dir := path.Dir(r.evidencePath)
+	dir := path.Dir(r.factsPath)
 	link := func(p string) string { return relativeLink(dir, p) }
 	evalDir := path.Base(r.evidenceDir)
 	at := func(t time.Time) string { return t.In(r.deadline.Location()).Format(timeLayout) }
 
 	b.WriteString(metadata{Commit: r.commit.hash, MC: r.revision}.frontMatter())
 	fmt.Fprintf(&b, "# Lab %s: %s, Team %s\n\n", r.lab.Number(), r.lab.Title, r.team)
-	fmt.Fprintf(&b, "The evidence of each rule, for the teacher: what the team wrote in its report, the files of its repository, and what the evaluator made. It gathers facts, not a score. `mc evidence` generates this file: the evaluator writes in [`%s/`](%s/), and `mc evidence` runs again.\n\n", evalDir, evalDir)
+	fmt.Fprintf(&b, "The facts of each rule, for the teacher: what the team wrote in its report, the files of its repository, and the evidence that the evaluator made. Facts, not a score. `mc eval gather-facts` generates this file: the evaluator writes in [`%s/`](%s/), and `mc eval gather-facts` runs again.\n\n", evalDir, evalDir)
 
 	c := r.commit
 	commit := fmt.Sprintf("- Commit evaluated: `%s`, %s", short(c.hash), c.how)
@@ -196,7 +196,7 @@ func writeEvaluatorFile(b *strings.Builder, f evaluatorFile, dir string) {
 }
 
 func writeImages(b *strings.Builder, images []imageEvidence, at func(time.Time) string) {
-	b.WriteString("\nOn Docker Hub, read by `mc evidence`:\n\n| Image | Last pushed | Platforms | Digest |\n|---|---|---|---|\n")
+	b.WriteString("\nOn Docker Hub, read by `mc eval gather-facts`:\n\n| Image | Last pushed | Platforms | Digest |\n|---|---|---|---|\n")
 	for _, ie := range images {
 		switch {
 		case ie.err != "":
