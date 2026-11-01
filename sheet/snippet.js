@@ -1,4 +1,4 @@
-(async (config) => {
+(async (config, consoleCopy) => {
   const page = location.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
   if (!page) {
     return "Not a spreadsheet: run it in the tab of the spreadsheet.";
@@ -43,14 +43,33 @@
     if (config.keys.every((key) => row[key])) { rows.push(row); }
   });
   const json = JSON.stringify({ tab: config.tab, keys: config.keys, columns, rows }, null, 2) + "\n";
+  const copied = `Copied ${rows.length} rows of the tab ${config.tab}, the columns ${letters.join(", ")} only, ` +
+    `to the clipboard. Save them with: pbpaste > ${config.path}`;
+  // In the console of the DevTools, which has the focus, the page can't write to the clipboard, but
+  // the copy() of the console can: the script took it when it started, since it is gone after an
+  // await.
+  if (consoleCopy) {
+    consoleCopy(json);
+    return copied;
+  }
   try {
     await navigator.clipboard.writeText(json);
+    return copied;
   } catch (error) {
-    if (typeof copy !== "function") {
-      return `The rows could not be copied to the clipboard (${error}): click in the page, then run the script again.`;
-    }
-    copy(json); // The console of the DevTools has its own copy.
+    // Run from an extension, the page needs a click first: a button gives it one.
+    const button = document.createElement("button");
+    button.textContent = `Copy the ${rows.length} rows of the tab ${config.tab} for mc`;
+    Object.assign(button.style, {
+      position: "fixed", top: "12px", right: "12px", zIndex: "2147483647", padding: "12px 16px",
+      font: "bold 14px sans-serif", color: "#fff", background: "#1a73e8", border: "none", borderRadius: "6px",
+    });
+    button.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(json);
+      button.remove();
+      console.log(copied);
+    });
+    document.body.appendChild(button);
+    return `The page can't write to the clipboard without a click (${error.name}): click the button ` +
+      `"${button.textContent}" at the top right of the page, then save the rows with: pbpaste > ${config.path}`;
   }
-  return `Copied ${rows.length} rows of the tab ${config.tab}, the columns ${letters.join(", ")} only, to the clipboard. ` +
-    `Save them with: pbpaste > ${config.path}`;
-})(CONFIG);
+})(CONFIG, typeof copy === "function" ? copy : null);

@@ -334,7 +334,7 @@ func TestSnippet(t *testing.T) {
 		`  columns: { "A": "Team", "D": "Lab", "E": "Rule", "G": "Completeness", "K": "TA To Check", "N": "TA Screenshots", "O": "TA Analysis", "S": "TA Action Items" },`,
 		`  sheet: "0123456789",`,
 		`  path: "~/.mc/2026/sheet/evaluation.read.json",`,
-		"\n});\n",
+		"\n}, typeof copy === \"function\" ? copy : null);\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("Snippet misses %q:\n%s", want, got)
