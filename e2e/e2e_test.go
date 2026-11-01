@@ -1030,52 +1030,280 @@ func TestEvalRun(t *testing.T) {
 	}
 }
 
-func TestEvalRunStartsTheAgent(t *testing.T) {
-	e := newEnv(t)
-	flags := e.writeEvaluations(t, []string{"teal"}, map[string]string{"teal": "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567"})
-	// The agent writes its arguments in its directory, the one of the rules, outside of Git here.
-	e.writeFile(t, ".mc/settings.yaml", "agents:\n  eval_run: echo \"{lab} {teams} $MC_EVAL_AGENT\" >> agent.log\n")
-	log := filepath.Join(e.home, "agent.log")
+// The commits of the facts of teal and coral: the evaluation of teal, at 0a1b2c3, matches both.
+const (
+	commitOfTeal  = "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567"
+	commitOfCoral = "0a1b2c3ffffffffffffffffffffffffffffffff"
+)
 
-	r := e.run(t, "", append([]string{"eval", "run", "-l", "2"}, flags...)...)
-	if r.exitCode != 0 || !strings.Contains(r.stdout, "1 file of L2 checked") {
-		t.Errorf("mc eval run -l 2 = %d, %q, stderr %q, want 0 and the checks", r.exitCode, r.stdout, r.stderr)
+// writeAgents writes the settings with made-up agents, which run in the home, the directory of the
+// rules: the report copies the facts of each team, so that it has their front matter, and the
+// grades copy the evaluation of teal. Both log their arguments in agents.log. The skills are their
+// inputs.
+func (e *env) writeAgents(t *testing.T) {
+	t.Helper()
+	e.writeFile(t, "skills/report-lab/SKILL.md", "# Report\n")
+	e.writeFile(t, "skills/grade-lab/SKILL.md", "# Grade\n")
+	e.writeFile(t, "evaluation.yaml", evaluationOfTeal)
+	e.writeFile(t, ".mc/settings.yaml", `agents:
+  report:
+    run: 'for t in {teams}; do cp .mc/2026/teacher/k8s-$t/docs/lab-2.facts.md .mc/2026/teacher/k8s-$t/docs/lab-2.report.md; done; echo "report {lab} {teams} [{late}] $MC_EVAL_AGENT" >> agents.log'
+    inputs: [skills/report-lab]
+  grade:
+    run: 'mkdir -p .mc/2026/evaluations/lab-2; for t in {teams}; do sed "s/team: teal/team: $t/" evaluation.yaml > .mc/2026/evaluations/lab-2/$t.yaml; done; echo "grade {lab} {teams} [{late}] $MC_EVAL_AGENT" >> agents.log'
+    inputs: [skills/grade-lab]
+`)
+}
+
+// agentRuns returns the runs of the agents since the last call, one line each, and empties the log.
+func (e *env) agentRuns(t *testing.T) []string {
+	t.Helper()
+	file := filepath.Join(e.home, "agents.log")
+	data, err := os.ReadFile(file)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
 	}
-	r = e.run(t, "", append([]string{"eval", "run", "-l", "2", "-t", "teal", "-t", "coral"}, flags...)...)
-	if r.exitCode != 1 || !strings.Contains(r.stderr, "coral.yaml: no such file") {
-		t.Errorf("mc eval run -t teal -t coral = %d, stderr %q, want 1 and the missing file of coral", r.exitCode, r.stderr)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if data, err := os.ReadFile(log); err != nil || string(data) != "L2 all 1\nL2 teal coral 1\n" {
-		t.Errorf("the arguments of the agent = %q, %v, want L2 all, then L2 teal coral", data, err)
+	if err := os.Remove(file); err != nil {
+		t.Fatal(err)
+	}
+	return strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+}
+
+func TestEvalRunRunsEachStepWhenItsInputsChange(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, nil, map[string]string{"teal": commitOfTeal, "coral": commitOfCoral})
+	e.writeAgents(t)
+	run := func(args ...string) result {
+		t.Helper()
+		return e.run(t, "", append(append([]string{"eval", "run", "-l", "2", "--skip", "facts"}, args...), flags...)...)
+	}
+	worktrees := filepath.Join(e.home, ".mc", "2026", "teacher")
+	dir := filepath.Join(e.home, ".mc", "2026", "evaluations", "lab-2")
+
+	// The first run: no report and no evaluation yet.
+	r := run()
+	want := `The facts: skipped (--skip facts)
+[team: teal] report: to run, no report yet
+[team: coral] report: to run, no report yet
+[team: coral] report: done at 0a1b2c3
+[team: teal] report: done at 0a1b2c3
+[team: teal] grade: to run, no evaluation yet
+[team: coral] grade: to run, no evaluation yet
+[team: coral] grade: done at 0a1b2c3
+[team: teal] grade: done at 0a1b2c3
+2 files of L2 checked in ` + dir + `: no problem
+`
+	wantStderr := "Running the agent of agents.report in " + e.home + `: for t in coral teal; do cp .mc/2026/teacher/k8s-$t/docs/lab-2.facts.md .mc/2026/teacher/k8s-$t/docs/lab-2.report.md; done; echo "report L2 coral teal [] $MC_EVAL_AGENT" >> agents.log` + "\n" +
+		"Running the agent of agents.grade in " + e.home + `: mkdir -p .mc/2026/evaluations/lab-2; for t in coral teal; do sed "s/team: teal/team: $t/" evaluation.yaml > .mc/2026/evaluations/lab-2/$t.yaml; done; echo "grade L2 coral teal [] $MC_EVAL_AGENT" >> agents.log` + "\n"
+	if r.exitCode != 0 || r.stdout != want || r.stderr != wantStderr {
+		t.Errorf("the first mc eval run = %d, stdout\n%s\nstderr\n%s\nwant 0, stdout\n%s\nstderr\n%s", r.exitCode, r.stdout, r.stderr, want, wantStderr)
+	}
+	if got, want := e.agentRuns(t), []string{"report L2 coral teal [] 1", "grade L2 coral teal [] 1"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("the agents of the first run = %q, want %q", got, want)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".steps", "teal.json")); err != nil {
+		t.Errorf("no record of the steps of teal: %v", err)
+	}
+
+	// Nothing changed: no agent runs.
+	r = run()
+	want = `The facts: skipped (--skip facts)
+[team: teal] report: up to date
+[team: coral] report: up to date
+[team: teal] grade: up to date
+[team: coral] grade: up to date
+2 files of L2 checked in ` + dir + `: no problem
+`
+	if r.exitCode != 0 || r.stdout != want || r.stderr != "" {
+		t.Errorf("mc eval run without a change = %d, stdout\n%s\nstderr %q, want 0, stdout\n%s", r.exitCode, r.stdout, r.stderr, want)
+	}
+	if got := e.agentRuns(t); got != nil {
+		t.Errorf("the agents of a run without a change = %q, want none", got)
+	}
+
+	// The skill of the report changed: the report runs again, but writes the same file, so the
+	// grades are up to date.
+	e.writeFile(t, "skills/report-lab/SKILL.md", "# Report, version 2\n")
+	r = run()
+	if !strings.Contains(r.stdout, "[team: teal] report: to run, skills/report-lab/SKILL.md changed\n") ||
+		!strings.Contains(r.stdout, "[team: teal] grade: up to date\n") || r.exitCode != 0 {
+		t.Errorf("mc eval run after a change of the skill = %d, stdout\n%s\nstderr %q, want the report only", r.exitCode, r.stdout, r.stderr)
+	}
+	if got, want := e.agentRuns(t), []string{"report L2 coral teal [] 1"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("the agents after a change of the skill = %q, want %q", got, want)
+	}
+
+	// A coefficient changes no completeness, whereas a description runs the grades again.
+	rules := filepath.Join(e.home, "rules.yaml")
+	data, err := os.ReadFile(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.writeFile(t, "rules.yaml", strings.Replace(string(data), "    coefficient: 0.1\n", "    coefficient: 0.2\n", 1))
+	if r = run(); r.exitCode != 0 || e.agentRuns(t) != nil {
+		t.Errorf("mc eval run after a change of a coefficient = %d, stdout\n%s\nstderr %q, want 0 and no agent", r.exitCode, r.stdout, r.stderr)
+	}
+	e.writeFile(t, "rules.yaml", strings.Replace(string(data), "run the image of Lab 1 in a Pod.", "run the image of Lab 1 in a Pod, with its logs.", 1))
+	r = run()
+	if !strings.Contains(r.stdout, "[team: coral] grade: to run, the rules of the lab changed\n") || r.exitCode != 0 {
+		t.Errorf("mc eval run after a change of a description = %d, stdout\n%s\nstderr %q, want the grades again", r.exitCode, r.stdout, r.stderr)
+	}
+	if got, want := e.agentRuns(t), []string{"grade L2 coral teal [] 1"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("the agents after a change of a description = %q, want %q", got, want)
+	}
+
+	// coral pushed a new commit: its steps only run, and its evaluation, at the commit of teal,
+	// stops it at the grades.
+	e.writeFile(t, ".mc/2026/teacher/k8s-coral/docs/lab-2.facts.md", "---\ncommit: 9f8e7d6c5b4a39281706f5e4d3c2b1a098765432\nmc: 949d7aa740ab\n---\n\n# Lab 2\n")
+	r = run()
+	if !strings.Contains(r.stdout, "[team: coral] report: to run, the facts changed\n[team: coral] report: done at 9f8e7d6\n") ||
+		!strings.Contains(r.stdout, "[team: coral] grade: to run, the facts changed, the report changed\n") || r.exitCode != 1 ||
+		!strings.Contains(r.stderr, "[team: coral] stopped at the grades: 1 problem in "+filepath.Join(dir, "coral.yaml")+"\n") ||
+		!strings.HasSuffix(r.stderr, "Error: 1 team stopped: coral at the grades\n") {
+		t.Errorf("mc eval run after a new commit of coral = %d, stdout\n%s\nstderr\n%s\nwant coral only, stopped at the grades", r.exitCode, r.stdout, r.stderr)
+	}
+	if got, want := e.agentRuns(t), []string{"report L2 coral [] 1", "grade L2 coral [] 1"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("the agents after a new commit of coral = %q, want %q", got, want)
+	}
+	// A grade that failed records nothing: it runs again.
+	if r = run("-t", "coral"); !strings.Contains(r.stdout, "[team: coral] grade: to run, the facts changed, the report changed\n") {
+		t.Errorf("mc eval run -t coral after its grades failed = %d, stdout\n%s\nwant the grades again", r.exitCode, r.stdout)
+	}
+	e.agentRuns(t)
+
+	// --force runs a step that is up to date, and {late} is late with --late.
+	r = run("-t", "teal", "--force", "report", "--skip", "grade", "--late")
+	if !strings.Contains(r.stdout, "[team: teal] report: to run, --force report\n") || !strings.Contains(r.stdout, "The grades: skipped (--skip grade)\n") || r.exitCode != 0 {
+		t.Errorf("mc eval run --force report = %d, stdout\n%s\nstderr %q, want the report of teal", r.exitCode, r.stdout, r.stderr)
+	}
+	if got, want := e.agentRuns(t), []string{"report L2 teal [late] 1"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("the agents of mc eval run --force report --late = %q, want %q", got, want)
+	}
+	if _, err := os.Stat(filepath.Join(worktrees, "k8s-teal", "docs", "lab-2.report.md")); err != nil {
+		t.Errorf("no report of teal: %v", err)
+	}
+}
+
+func TestEvalRunStopsATeamAndGoesOn(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, nil, map[string]string{"teal": commitOfTeal, "coral": commitOfCoral})
+	e.writeAgents(t)
+	settings, err := os.ReadFile(filepath.Join(e.home, ".mc", "settings.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The agent of the report forgets coral.
+	e.writeFile(t, ".mc/settings.yaml", strings.Replace(string(settings), "for t in {teams}; do cp", "for t in teal; do cp", 1))
+	args := append([]string{"eval", "run", "-l", "2", "--skip", "facts"}, flags...)
+
+	r := e.run(t, "", args...)
+	report := filepath.Join(e.home, ".mc", "2026", "teacher", "k8s-coral", "docs", "lab-2.report.md")
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "[team: coral] stopped at the report: no report at the commit of the facts, 0a1b2c3, in "+report+"\n") ||
+		!strings.HasSuffix(r.stderr, "Error: 1 team stopped: coral at the report\n") ||
+		!strings.Contains(r.stdout, "1 file of L2 checked in ") {
+		t.Errorf("mc eval run with a report missing = %d, stdout\n%s\nstderr\n%s\nwant 1, coral stopped and teal checked", r.exitCode, r.stdout, r.stderr)
+	}
+	if got, want := e.agentRuns(t), []string{"report L2 coral teal [] 1", "grade L2 teal [] 1"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("the agents with a report missing = %q, want the grades of teal only, %q", got, want)
+	}
+
+	// A failed agent stops every team of its step, and records nothing.
+	e.writeFile(t, ".mc/settings.yaml", strings.Replace(string(settings), "run: 'mkdir -p", "run: 'exit 3; mkdir -p", 1))
+	r = e.run(t, "", append(args, "--force", "grade")...)
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "[team: teal] stopped at the grades: the agent failed: exit status 3\n") ||
+		!strings.HasSuffix(r.stderr, "Error: 2 teams stopped: teal at the grades, coral at the grades\n") {
+		t.Errorf("mc eval run with a failed agent = %d, stdout\n%s\nstderr\n%s\nwant 1 and both teams stopped", r.exitCode, r.stdout, r.stderr)
+	}
+
+	// A rule with an image whose facts have none, as when Docker Hub couldn't be read.
+	rules := filepath.Join(e.home, "rules.yaml")
+	data, err := os.ReadFile(rules)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.writeFile(t, "rules.yaml", strings.Replace(string(data), "        - k8s/lab-2/pod.yaml\n", "        - k8s/lab-2/pod.yaml\n    images:\n      - sample/app-{team}:1.0.0\n", 1))
+	r = e.run(t, "", append(args, "-t", "teal")...)
+	facts := filepath.Join(e.home, ".mc", "2026", "teacher", "k8s-teal", "docs", "lab-2.facts.md")
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "[team: teal] stopped at the facts: no images of L2_POD in "+facts+", as when Docker Hub couldn't be read: gather the facts again\n") {
+		t.Errorf("mc eval run with the images missing = %d, stderr\n%s\nwant teal stopped at the facts", r.exitCode, r.stderr)
 	}
 }
 
 func TestEvalRunWithoutAgent(t *testing.T) {
 	e := newEnv(t)
-	flags := e.writeEvaluations(t, []string{"teal"}, nil)
+	flags := e.writeEvaluations(t, []string{"teal"}, map[string]string{"teal": commitOfTeal})
+	args := append([]string{"eval", "run", "-l", "2", "-t", "teal"}, flags...)
+	settings := filepath.Join(e.home, ".mc", "settings.yaml")
 
-	r := e.run(t, "", append([]string{"eval", "run", "-l", "2"}, flags...)...)
-	if r.exitCode != 1 || !strings.Contains(r.stderr, "no agent to evaluate the lab: set agents.eval_run in "+filepath.Join(e.home, ".mc", "settings.yaml")) {
-		t.Errorf("mc eval run without an agent = %d, stderr %q, want 1 and the key to set", r.exitCode, r.stderr)
+	r := e.run(t, "", args...)
+	if want := "no agent for the report: set agents.report.run in " + settings + `, such as claude -p "/report-lab {lab} {teams}", or pass --skip report`; r.exitCode != 1 || !strings.Contains(r.stderr, want) {
+		t.Errorf("mc eval run without an agent = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
+	}
+	r = e.run(t, "", append(args, "--skip", "report")...)
+	if want := "no agent for the grades: set agents.grade.run in " + settings; r.exitCode != 1 || !strings.Contains(r.stderr, want) {
+		t.Errorf("mc eval run --skip report without an agent = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
+	}
+	// Every step skipped: the checks only.
+	r = e.run(t, "", append(args, "--skip", "facts", "--skip", "report", "--skip", "grade")...)
+	if r.exitCode != 0 || !strings.HasSuffix(r.stdout, "1 file of L2 checked in "+filepath.Join(e.home, ".mc", "2026", "evaluations", "lab-2")+": no problem\n") {
+		t.Errorf("mc eval run with every step skipped = %d, stdout\n%s\nstderr %q, want 0 and the checks", r.exitCode, r.stdout, r.stderr)
+	}
+
+	// An input that doesn't exist.
+	e.writeAgents(t)
+	data, err := os.ReadFile(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.writeFile(t, ".mc/settings.yaml", strings.Replace(string(data), "inputs: [skills/grade-lab]", "inputs: [skills/grade-lba]", 1))
+	if r = e.run(t, "", args...); r.exitCode != 1 || !strings.Contains(r.stderr, "agents.grade.inputs of "+settings+", in "+e.home+": the input skills/grade-lba") {
+		t.Errorf("mc eval run with an input missing = %d, stderr %q, want 1 and the input", r.exitCode, r.stderr)
 	}
 
 	// From an agent: it checks its files, and never starts another agent.
-	e.writeFile(t, ".mc/settings.yaml", "agents:\n  eval_run: touch started\n")
+	e.writeAgents(t)
 	e.vars = []string{"MC_EVAL_AGENT=1"}
-	r = e.run(t, "", append([]string{"eval", "run", "-l", "2"}, flags...)...)
-	if r.exitCode != 1 || !strings.Contains(r.stderr, "can't start another one") {
+	if r = e.run(t, "", args...); r.exitCode != 1 || !strings.Contains(r.stderr, "can't start another one") {
 		t.Errorf("mc eval run from an agent = %d, stderr %q, want 1", r.exitCode, r.stderr)
 	}
-	if _, err := os.Stat(filepath.Join(e.home, "started")); err == nil {
-		t.Error("mc eval run from an agent started another agent")
+	if got := e.agentRuns(t); got != nil {
+		t.Errorf("mc eval run from an agent started %q", got)
 	}
+	if r = e.run(t, "", append(args, "--check-only")...); r.exitCode != 0 {
+		t.Errorf("mc eval run --check-only from an agent = %d, stderr %q, want 0", r.exitCode, r.stderr)
+	}
+}
 
-	// A failed agent: no check of files that it may have left half written.
-	e.vars = nil
-	e.writeFile(t, ".mc/settings.yaml", "agents:\n  eval_run: exit 3\n")
-	r = e.run(t, "", append([]string{"eval", "run", "-l", "2"}, flags...)...)
-	if r.exitCode != 1 || !strings.Contains(r.stderr, "the agent failed, so its files are not checked: exit status 3") || r.stdout != "" {
-		t.Errorf("mc eval run with a failed agent = %d, %q, stderr %q, want 1 and no check", r.exitCode, r.stdout, r.stderr)
+func TestEvalRunRefusesItsFlags(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, []string{"teal"}, map[string]string{"teal": commitOfTeal})
+	e.writeAgents(t)
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--skip", "lint"}, `--skip "lint" is not a step: facts, report, grade`},
+		{[]string{"--skip", "report", "--force", "report"}, "--skip report and --force report are exclusive"},
+		{[]string{"--check-only", "--force", "grade"}, "--check-only runs no step: drop --skip, --force, --late and --template"},
+	} {
+		r := e.run(t, "", append(append([]string{"eval", "run", "-l", "2"}, c.args...), flags...)...)
+		if r.exitCode != 1 || !strings.Contains(r.stderr, c.want) {
+			t.Errorf("mc eval run %s = %d, stderr %q, want 1 and %q", strings.Join(c.args, " "), r.exitCode, r.stderr, c.want)
+		}
+	}
+}
+
+func TestTheFormerAgentOfEvalRun(t *testing.T) {
+	e := newEnv(t)
+	e.writeFile(t, ".mc/settings.yaml", "agents:\n  eval_run: claude -p \"/evaluate-lab {lab} {teams}\"\n")
+
+	// The settings are read before any command.
+	r := e.run(t, "", "info")
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "the key agents.eval_run is replaced by one agent per step") || !strings.Contains(r.stderr, "    report:\n      run: claude -p") {
+		t.Errorf("mc info with agents.eval_run = %d, stderr %q, want 1 and what to write instead", r.exitCode, r.stderr)
 	}
 }
 

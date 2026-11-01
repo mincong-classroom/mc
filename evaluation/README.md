@@ -169,6 +169,35 @@ The column J, Troubleshooting Instructions, belongs to the teacher: `mc` never r
   is written again with a `_check`.
 - A row whose rule the YAML no longer has is listed in the result, `Extra`, and never deleted.
 
+## The Record of the Steps
+
+`mc eval run` runs a step for a team only when one of its inputs changed since the step last
+succeeded. The record of the team, `lab-{n}/.steps/{team}.json`, holds the SHA-256 of each input,
+and when the step was done:
+
+```json
+{
+  "report": {
+    "inputs": {
+      "facts": "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
+      "files": {".claude/skills/report-lab/SKILL.md": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"}
+    },
+    "done": "2030-03-04T09:30:00+01:00"
+  }
+}
+```
+
+- `Digest` gives the facts, from their front matter without the commit of `mc`, which `cmd` reads.
+- `DigestFile` gives the report, and `DigestFiles` the `inputs` of an agent: a file, or every file
+  of a directory, without the hidden files, such as `.DS_Store`.
+- `DigestRules` gives the rules of a lab, without their coefficients, and with what applies to
+  every rule, such as the penalties of `scoring`.
+- `Changes` says what changed since the record, such as "the facts changed", for the output of
+  `mc eval run`.
+
+The directory `.steps` starts with a dot, so `Teams` doesn't take it for a team. `WriteSteps`
+writes a temporary file, then renames it, so that a run that stops never leaves half a record.
+
 ## Code
 
 The files of the package:
@@ -179,5 +208,6 @@ The files of the package:
 | `check.go` | `Check` and `CheckOptions`: the problems of a file against the rules and the commit of the facts |
 | `sync.go` | `Sync`, its options and its result: the cells of the tab Evaluation, and `SheetFile`, its columns |
 | `rules.go` | `SyncRules`, its options and its result: the cells of the tab Rules, and `RulesSheetFile`, its columns |
+| `steps.go` | `Steps`, the record of the steps of `mc eval run` for a team, `ReadSteps` and `WriteSteps`; `Changes`, and the digests of the inputs |
 
 The package imports `rubric` and `sheet` only, and its tests use made-up teams and rules.

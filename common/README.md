@@ -70,12 +70,19 @@ passes them what they need, such as a team or the rules, so they never read `~/.
 year: 2026
 rules: ~/course/{year}/evaluation-rules.yaml
 agents:
-  eval_run: claude -p "/evaluate-lab {lab} {teams}"
+  report:
+    run: claude -p "/report-lab {lab} {teams}"
+    inputs: [.claude/skills/report-lab]
+  grade:
+    run: claude -p "/grade-lab {lab} {teams}"
+    inputs: [.claude/skills/grade-lab]
 ```
 
 An unknown key is an error, so that a typo doesn't go unnoticed, and `CheckSettings` runs before
-every command. `CurrentSettings` reads the file once per run. The key `agents` holds the command
-lines of the AI agents that `mc` starts, such as the one of `mc eval run`.
+every command. `CurrentSettings` reads the file once per run. The key `agents` holds the AI agents
+of the steps of `mc eval run`: the command line of each one, and the files that it reads. The
+former key `agents.eval_run`, a single agent for every step, is an error that says what to write
+instead.
 
 ## The Team Registry
 

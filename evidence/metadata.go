@@ -128,6 +128,13 @@ func ReadFacts(file string) (Facts, bool, error) {
 	return Facts(m), ok, err // The same fields: a conversion, which the tags don't prevent.
 }
 
+// ReportPath returns the report that the evaluator writes from the facts of a lab, in the worktree
+// of a team, such as ~/.mc/2026/teacher/k8s-red/docs/lab-1.report.md. Its front matter is the one
+// of the facts, so ReadFacts reads it too.
+func ReportPath(worktree string, lab rubric.Lab) string {
+	return filepath.Join(worktree, filepath.FromSlash(reportPath(lab.Report)))
+}
+
 // reportPath returns the report that an evaluator writes from the facts, next to the report of the
 // team: docs/lab-1.report.md for docs/lab-1.md.
 func reportPath(report string) string {

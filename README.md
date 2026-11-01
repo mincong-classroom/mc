@@ -44,7 +44,7 @@ Usage:
   mc [command]
 
 Commands of the teacher:
-  eval        Gather the facts of the labs, then list, check and sync their evaluations
+  eval        Evaluate the labs, then list, check and sync their evaluations
   git         Perform Git operations in bulk
   info        Display CLI information
   k8s         Perform Kubernetes operations
@@ -72,16 +72,21 @@ are optional:
 ```yaml
 year: 2026                                                  # the year of the cohort
 rules: ~/github/my-org/course/{year}/evaluation-rules.yaml  # the evaluation rules of each year
-agents:
-  eval_run: claude -p "/evaluate-lab {lab} {teams}"         # the AI agent of mc eval run
+agents:                                                     # the AI agents of mc eval run
+  report:
+    run: claude -p "/report-lab {lab} {teams}"
+    inputs: [.claude/skills/report-lab]
+  grade:
+    run: claude -p "/grade-lab {lab} {teams}"
+    inputs: [.claude/skills/grade-lab]
 ```
 
 The year selects the files of the cohort, such as the team registry `~/.mc/teams-{year}.yaml`. It
 is the environment variable `MC_YEAR` if set, e.g. `MC_YEAR=2025 mc rule ls`, then the key `year`,
 then the current year. `rules` is the YAML of the evaluation rules, where `{year}` is the year:
-`mc rule` and `mc eval` read it. `agents` are the command lines of the AI agents
-that `mc` starts, see [Evaluation](#evaluation). An unknown key is an error, so that a typo doesn't
-go unnoticed.
+`mc rule` and `mc eval` read it. `agents` are the AI agents of the steps of `mc eval run`, see
+[Evaluation](#evaluation). An unknown key is an error, so that a typo doesn't go unnoticed. The
+former key `agents.eval_run` is an error too, which says what to write instead.
 
 ## Team
 
@@ -348,20 +353,35 @@ name, and the link of the report to the facts follows them.
 ## Evaluation
 
 `mc eval` is the command of the teacher for the evaluation of a lab, and `mc rule` the one for
-its rules. `mc eval run` starts an AI agent, which does the work: it gathers the facts with `mc
-eval gather-facts`, puts boxes on the screenshots with `mc annotate`, and evaluates each rule. The agent is
-a command line of the settings, run with `sh` in the Git repository of the rules, where `{lab}` is
-the lab, such as `L2`, and `{teams}` the teams of `-t`, or `all`:
+its rules. `mc eval run` runs the steps of an evaluation, so that one command gives the facts, a
+report and a draft of the grades of each team:
+
+1. **The facts:** `mc eval gather-facts`, see [Facts](#facts).
+2. **The report:** an AI agent writes the report of each team from its facts, such as
+   `docs/lab-2.report.md` on its branch `teacher`. It replays the work of the team for the
+   evidence that is missing, and puts boxes on the screenshots with `mc annotate`.
+3. **The grades:** an AI agent evaluates each rule, and writes the evaluation of each team.
+4. **The checks** of the evaluations, which are never skipped.
+
+An agent is a command line of the settings, run with `sh` in the Git repository of the rules, where
+`{lab}` is the lab, such as `L2`, `{teams}` the teams whose step runs, separated by spaces, and
+`{late}` is `late` with `--late`, empty otherwise. Its `inputs` are the files and the directories
+that it reads besides the facts, such as its skill, relative to that repository:
 
 ```yaml
 agents:
-  eval_run: claude -p "/evaluate-lab {lab} {teams}"
+  report:
+    run: claude -p "/report-lab {lab} {teams} {late}"
+    inputs: [.claude/skills/report-lab]
+  grade:
+    run: claude -p "/grade-lab {lab} {teams} {late}"
+    inputs: [.claude/skills/grade-lab]
 ```
 
-The agent writes what it found for each team in a YAML file, one per team and lab, so that several
-agents can work at once: `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml`. Then `mc eval run`
-checks these files against the evaluation rules, before they become the rows of the evaluation
-sheet, and `mc eval ls` lists them. Here is the file of a made-up team, `teal`, in Lab 2:
+The agent of the grades writes what it found for each team in a YAML file, one per team and lab,
+so that several agents can work at once: `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml`. Then
+`mc eval run` checks these files against the evaluation rules, before they become the rows of the
+evaluation sheet, and `mc eval ls` lists them. Here is the file of a made-up team, `teal`, in Lab 2:
 
 ```yaml
 team: teal
@@ -403,15 +423,53 @@ A file that can't be read is listed with dashes, and the standard error says to 
 for its problems. To evaluate a lab, then check its files:
 
 ```sh
-mc eval run -l L2               # the agent for all, then every file of ~/.mc/{year}/evaluations/lab-2/
-mc eval run -l 2 -t teal        # one team
-mc eval run -l 2 --check-only   # the checks only, without the agent
-mc eval run -l 2 --dir DIR      # the files of DIR/lab-2/
+mc eval run -l L2                # every team of the registry, then the checks of their files
+mc eval run -l 2 -t teal         # one team
+mc eval run -l 2 --skip report   # the facts and the grades, with the reports as they are
+mc eval run -l 2 --force grade   # the grades again, even when their inputs didn't change
+mc eval run -l 1 --late -t teal  # a late pass: the facts of origin/main
+mc eval run -l 2 --template DIR  # the facts with the template of the team repositories in DIR
+mc eval run -l 2 --check-only    # the checks only, without the steps
+mc eval run -l 2 --dir DIR       # the files of DIR/lab-2/
 ```
 
-A failed agent stops the command before the checks. The agent runs with the variable
-`MC_EVAL_AGENT` set: `mc eval run` refuses to start another agent from it, so the agent checks its
-own files with `--check-only`. With `claude -p`, a tool that the settings of Claude Code don't
+The flags `--skip` and `--force` take a step, `facts`, `report` or `grade`, and repeat.
+
+### Each Step When Its Inputs Change
+
+A step is costly to run again: the report replays the work of each team with Docker and `kubectl`,
+and the grades read every answer. So a step runs for a team only when one of its inputs changed
+since it last succeeded, or when its file is missing. `mc` records the digests of the inputs, in
+SHA-256, in `~/.mc/{year}/evaluations/lab-{n}/.steps/{team}.json`:
+
+| Step | Its inputs | It succeeds when |
+|---|---|---|
+| The facts | The commit evaluated, the commit of `mc` and the images on Docker Hub, as `mc eval gather-facts` compares them with the front matter of the report | The facts are gathered |
+| The report | The front matter of the facts, without the commit of `mc`, and the `inputs` of its agent | The agent wrote the report at the commit of the facts |
+| The grades | The same, the report, and the rules of the lab without their coefficients | The evaluation passes the checks |
+
+The commit of `mc` is left out of the inputs of the report, so that a new version of `mc` that
+gathers the same facts writes no new report, and so is the body of the facts, which changes with
+each push after the deadline. The coefficients are left out of the inputs of the grades: the
+teacher tunes them after the grades, and they change no completeness. Here is a run after a change
+of the skill of the report, whose new version writes the same report:
+
+```
+[team: teal] facts: 0a1b2c3, the head of main at the deadline: .../docs/lab-2.report.md, up to date with mc 949d7aa740ab (--force facts to gather again)
+[team: teal] report: to run, .claude/skills/report-lab/SKILL.md changed
+[team: teal] report: done at 0a1b2c3
+[team: teal] grade: up to date
+1 file of L2 checked in ~/.mc/2026/evaluations/lab-2: no problem
+```
+
+A team whose step fails stops there, and the others go on: `mc eval run` exits with 1 at the end.
+A failed step records nothing, so the next run tries it again, and a failed agent stops every team
+of its step. A team stops at the facts too when Docker Hub didn't give the images of a rule, so that
+no report says that an image is missing. A record lost, such as `~/.mc` cleaned, runs every step
+again: safe, but costly.
+
+The agents run with the variable `MC_EVAL_AGENT` set: `mc eval run` refuses to start another agent
+from it, so the agent checks its own files with `--check-only`. With `claude -p`, a tool that the settings of Claude Code don't
 allow is refused, since nobody is there to approve it: allow the commands of the skill in its
 settings, or pass the options of `claude` in the command line of the agent.
 

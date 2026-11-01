@@ -25,7 +25,8 @@ Each command has its own file, with its subcommands, their flags and their `RunE
 
 | File | Commands | Packages that do the work |
 |---|---|---|
-| `eval.go` | `mc eval ls`, `mc eval run` | `evaluation`, `rubric`, and `evidence` for the facts |
+| `eval.go` | `mc eval ls`, and the checks of the evaluations | `evaluation`, `rubric`, and `evidence` for the facts |
+| `eval_run.go` | `mc eval run`: its steps, their agents and their record | `evaluation`, `evidence`, `rubric` |
 | `eval_gather_facts.go` | `mc eval gather-facts` | `evidence`, `rubric`, `github` |
 | `eval_sync.go` | `mc eval sync` | `evaluation`, `sheet` |
 | `rule.go` | `mc rule ls`, `check`, `render` | `rubric` |
@@ -39,45 +40,47 @@ Each command has its own file, with its subcommands, their flags and their `RunE
 
 Every command but `annotate` reads `common`, for the year, the settings or the team registry.
 
-## A Command That Starts an Agent
+## A Command That Starts Agents
 
-`mc eval run` is the first command that starts an AI agent: `mc` orchestrates, and the agent does
-the work of a skill. The command line of the agent is the key `agents.eval_run` of the settings,
-such as `claude -p "/evaluate-lab {lab} {teams}"`. Here is what happens for Lab 2:
+`mc eval run` is the command that starts AI agents: `mc` orchestrates, and each agent does the
+work of a skill. The agents are the keys `agents.report` and `agents.grade` of the settings, such
+as `claude -p "/report-lab {lab} {teams}"`, with the files that they read, their `inputs`. Here is
+what happens for Lab 2:
 
 ```mermaid
 ---
-title: "mc eval run -l L2: mc starts the agent, then checks its files"
+title: "mc eval run -l L2: each step when its inputs changed, then the checks"
 config:
   flowchart:
     wrappingWidth: 200
 ---
 flowchart LR
-  run["mc eval run -l L2"]
-  agent["Agent of agents.eval_run<br>with MC_EVAL_AGENT=1"]
-  evidence["mc eval gather-facts -l L2<br>the facts of each team"]
-  files["lab-2/{team}.yaml<br>one file per team"]
-  checkonly["mc eval run --check-only<br>its own check"]
-  check["The checks<br>package evaluation"]
-  run -- "1. starts" --> agent
-  agent -- "2. gathers" --> evidence
-  agent -- "3. writes" --> files
-  agent -- "4. runs" --> checkonly
-  run -- "5. once the agent is done" --> check
-  check -- "reads" --> files
+  facts["1. The facts<br>package evidence"]
+  report["2. Agent of agents.report<br>with MC_EVAL_AGENT=1"]
+  grade["3. Agent of agents.grade<br>with MC_EVAL_AGENT=1"]
+  check["4. The checks<br>package evaluation"]
+  record[".steps/{team}.json<br>the digests of the inputs"]
+  facts --> report --> grade --> check
+  record -. "the teams<br>whose inputs changed" .-> report
+  record -.-> grade
 ```
 
-1. `mc eval run` replaces `{lab}` and `{teams}` in the line, then runs it with `sh`, in the Git
-   repository of the rules. A team goes into the line as it is, so its name must be lowercase
-   letters, digits and dashes.
-2. The agent gathers the facts of the teams with `mc eval gather-facts`.
-3. It writes the evaluation of each team, one YAML file per team.
-4. It checks its own files with `mc eval run --check-only`. Without `--check-only`, `mc eval run`
-   refuses to run while `MC_EVAL_AGENT` is set, so that an agent never starts another one.
-5. Once the agent is done, `mc eval run` checks the files itself, and exits with 1 on a problem. If
-   the agent fails, its files are not checked.
+1. `mc eval run` gathers the facts of each team with the package `evidence`, as
+   `mc eval gather-facts` does.
+2. For each team, it compares the digests of the inputs of the report with those of
+   `.steps/{team}.json`, the record of the last run that succeeded. It replaces `{lab}`, `{teams}`
+   and `{late}` in the line of the agent, `{teams}` with the teams whose inputs changed, then runs
+   it with `sh`, in the Git repository of the rules. A team goes into the line as it is, so its
+   name must be lowercase letters, digits and dashes. Once the agent is done, each team whose
+   report is at the commit of the facts gets its record, and the others stop.
+3. The same for the grades, whose inputs add the report and the rules of the lab.
+4. `mc eval run` checks the evaluations, then records the grades of the teams whose file has no
+   problem. It exits with 1 if a team stopped, or if a file has a problem.
 
-The steps 2 to 4 are the work of the skill, not of `mc`: another agent could do them differently.
+The agents run with `MC_EVAL_AGENT` set: without `--check-only`, `mc eval run` refuses to run
+then, so that an agent never starts another one. What an agent does, such as gathering the facts
+again once it adds its evidence, is the work of its skill, not of `mc`: another agent could do it
+differently.
 
 ## Tests
 

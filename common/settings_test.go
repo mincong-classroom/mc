@@ -3,6 +3,7 @@ package common
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -22,12 +23,26 @@ func TestReadSettings(t *testing.T) {
 			want:    Settings{Year: 2030, Rules: "~/course/{year}/evaluation-rules.yaml"},
 		},
 		{
-			name:    "agents",
-			content: "agents:\n  eval_run: claude -p \"/evaluate-lab {lab} {teams}\"\n",
-			want:    Settings{Agents: Agents{EvalRun: `claude -p "/evaluate-lab {lab} {teams}"`}},
+			name: "agents",
+			content: `agents:
+  report:
+    run: claude -p "/report-lab {lab} {teams}"
+    inputs: [.claude/skills/report-lab]
+  grade:
+    run: claude -p "/grade-lab {lab} {teams}"
+`,
+			want: Settings{Agents: Agents{
+				Report: Agent{Run: `claude -p "/report-lab {lab} {teams}"`, Inputs: []string{".claude/skills/report-lab"}},
+				Grade:  Agent{Run: `claude -p "/grade-lab {lab} {teams}"`},
+			}},
 		},
 		{name: "unknown key", content: "yaer: 2030\n", wantErr: "field yaer not found"},
-		{name: "unknown agent", content: "agents:\n  eval_rnu: claude\n", wantErr: "field eval_rnu not found"},
+		{name: "unknown agent", content: "agents:\n  reprot:\n    run: claude\n", wantErr: "field reprot not found"},
+		{
+			name:    "the former agent",
+			content: "agents:\n  eval_run: claude -p \"/evaluate-lab {lab} {teams}\"\n",
+			wantErr: "the key agents.eval_run is replaced by one agent per step, since mc eval run runs the steps itself:\n  agents:\n    report:",
+		},
 		{name: "not a year", content: "year: -1\n", wantErr: "the year -1 is not a year"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -48,7 +63,7 @@ func TestReadSettings(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || got != c.want {
+			if err != nil || !reflect.DeepEqual(got, c.want) {
 				t.Errorf("ReadSettings() = %+v, %v, want %+v", got, err, c.want)
 			}
 		})

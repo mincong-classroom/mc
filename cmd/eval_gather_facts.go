@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -104,50 +105,92 @@ func runGatherFacts(cmd *cobra.Command, _ []string) error {
 	if dir == "" {
 		dir = teacherDir()
 	}
+	pass := factsPass{
+		rubric:   r,
+		lab:      labID,
+		dir:      dir,
+		late:     gatherFactsLate,
+		rev:      gatherFactsRev,
+		template: gatherFactsTemplate,
+		force:    gatherFactsForce,
+	}
+	failed, err := pass.gather(cmd.OutOrStdout(), teams)
+	if err != nil {
+		return err
+	}
+	for _, team := range teams {
+		if err, ok := failed[team.Name]; ok {
+			fmt.Fprintf(cmd.ErrOrStderr(), "[team: %s] %v\n", team.Name, err)
+		}
+	}
+	if len(failed) > 0 {
+		fmt.Fprintf(cmd.ErrOrStderr(), "%d of %d teams failed\n", len(failed), len(teams))
+		os.Exit(1)
+	}
+	return nil
+}
+
+// factsPass is a pass of the facts of a lab, for mc eval gather-facts and the first step of mc
+// eval run.
+type factsPass struct {
+	rubric   *rubric.Rubric
+	lab      string // The ID of the lab, such as L1.
+	dir      string // The directory of the worktrees of the branch teacher, one per team.
+	late     bool   // Gather the facts of origin/main, for a late pass.
+	rev      string // Gather the facts of this commit instead, for one team.
+	template string // The clone of the template of the team repositories, if any.
+	force    bool   // Gather the facts again, even when the report is up to date.
+	prefix   string // The start of each line after the team, such as "facts: " in mc eval run.
+	// forceFlag is the flag that gathers the facts again: --force by default.
+	forceFlag string
+}
+
+// gather gathers the facts of each team, prints one line per team, and returns the error of each
+// team that failed, by its name. Its error is one that stops every team, such as a broken template.
+func (p factsPass) gather(out io.Writer, teams []common.Team) (map[string]error, error) {
 	revision := common.Revision()
 	opts := evidence.Options{
-		Rubric:   r,
-		Lab:      labID,
-		Dir:      dir,
-		Late:     gatherFactsLate,
-		Rev:      gatherFactsRev,
+		Rubric:   p.rubric,
+		Lab:      p.lab,
+		Dir:      p.dir,
+		Late:     p.late,
+		Rev:      p.rev,
 		Pushes:   github.CLI{},
 		Registry: evidence.DockerHub{},
 		Revision: revision,
 		// A local build with changes doesn't tell which code ran: its reports are never up to date.
-		Force: gatherFactsForce || !common.StableRevision(revision),
+		Force: p.force || !common.StableRevision(revision),
 	}
-	if gatherFactsTemplate != "" {
-		if opts.Template, err = evidence.LoadTemplate(gatherFactsTemplate); err != nil {
-			return err
+	if p.template != "" {
+		var err error
+		if opts.Template, err = evidence.LoadTemplate(p.template); err != nil {
+			return nil, err
 		}
 	}
 
-	out := cmd.OutOrStdout()
-	failed := 0
+	forceFlag := p.forceFlag
+	if forceFlag == "" {
+		forceFlag = "--force"
+	}
+	failed := map[string]error{}
 	for _, team := range teams {
 		result, err := evidence.Gather(evidence.Team{Name: team.Name, Repo: team.GetRepoName(), Clone: team.GetRepoPath()}, opts)
 		if err != nil {
-			failed++
-			fmt.Fprintf(cmd.ErrOrStderr(), "[team: %s] %v\n", team.Name, err)
+			failed[team.Name] = err
 			continue
 		}
 		for _, r := range result.Renamed {
-			fmt.Fprintf(out, "[team: %s] renamed %s to %s\n", team.Name, r.From, r.To)
+			fmt.Fprintf(out, "[team: %s] %srenamed %s to %s\n", team.Name, p.prefix, r.From, r.To)
 		}
 		if result.UpToDate {
-			fmt.Fprintf(out, "[team: %s] %s, %s: %s, up to date with mc %s (--force to gather again)\n", team.Name, result.Commit[:7], result.How, result.File, revision)
+			fmt.Fprintf(out, "[team: %s] %s%s, %s: %s, up to date with mc %s (%s to gather again)\n", team.Name, p.prefix, result.Commit[:7], result.How, result.File, revision, forceFlag)
 			continue
 		}
 		change := "unchanged"
 		if result.Committed {
 			change = "committed to the branch " + evidence.Branch
 		}
-		fmt.Fprintf(out, "[team: %s] %s, %s: %s, %s\n", team.Name, result.Commit[:7], result.How, result.File, change)
+		fmt.Fprintf(out, "[team: %s] %s%s, %s: %s, %s\n", team.Name, p.prefix, result.Commit[:7], result.How, result.File, change)
 	}
-	if failed > 0 {
-		fmt.Fprintf(cmd.ErrOrStderr(), "%d of %d teams failed\n", failed, len(teams))
-		os.Exit(1)
-	}
-	return nil
+	return failed, nil
 }

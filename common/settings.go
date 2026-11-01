@@ -26,18 +26,43 @@ type Settings struct {
 	// ~/github/my-org/course/{year}/evaluation-rules.yaml. Without it, the commands that read the
 	// rules need the flag --rules-file.
 	Rules string `yaml:"rules"`
-	// Agents are the commands of the AI agents that mc starts, such as the one of mc eval run.
+	// Agents are the AI agents that mc eval run starts, one per step.
 	Agents Agents `yaml:"agents"`
 }
 
-// Agents are the command lines that mc runs with sh for the steps of an AI agent, such as
-// claude -p "/evaluate-lab {lab} {teams}": mc orchestrates, and the agent does the work of a
-// skill.
+// Agents are the AI agents that mc eval run starts for the steps of the evaluation of a lab: mc
+// orchestrates, and the agent does the work of a skill.
 type Agents struct {
-	// EvalRun evaluates a lab for mc eval run, in the Git repository of the rules, where {lab} is
-	// the lab, such as L2, and {teams} the teams separated by spaces, or all.
+	// Report writes the report of each team from its facts.
+	Report Agent `yaml:"report"`
+	// Grade writes the evaluation of each team, one YAML file per team.
+	Grade Agent `yaml:"grade"`
+	// EvalRun is the former agent of mc eval run, replaced by Report and Grade: ReadSettings
+	// refuses it, with what to write instead.
 	EvalRun string `yaml:"eval_run"`
 }
+
+// Agent is an AI agent of a step.
+type Agent struct {
+	// Run is the command line that mc runs with sh in the Git repository of the rules, such as
+	// claude -p "/report-lab {lab} {teams}", where {lab} is the lab, such as L2, {teams} the teams
+	// whose step runs, separated by spaces, and {late} is "late" for a late pass, empty otherwise.
+	Run string `yaml:"run"`
+	// Inputs are the files and the directories that the agent reads besides the facts, such as its
+	// skill, relative to the Git repository of the rules: a change of one of them runs the step
+	// again.
+	Inputs []string `yaml:"inputs"`
+}
+
+// formerEvalRun says what replaces the key agents.eval_run.
+const formerEvalRun = `the key agents.eval_run is replaced by one agent per step, since mc eval run runs the steps itself:
+  agents:
+    report:
+      run: claude -p "/report-lab {lab} {teams}"
+      inputs: [.claude/skills/report-lab]
+    grade:
+      run: claude -p "/grade-lab {lab} {teams}"
+      inputs: [.claude/skills/grade-lab]`
 
 // SettingsPath returns the file of the settings, ~/.mc/settings.yaml.
 func SettingsPath() string {
@@ -62,6 +87,9 @@ func ReadSettings() (Settings, error) {
 	}
 	if s.Year < 0 {
 		return s, fmt.Errorf("%s: the year %d is not a year", SettingsPath(), s.Year)
+	}
+	if s.Agents.EvalRun != "" {
+		return s, fmt.Errorf("%s: %s", SettingsPath(), formerEvalRun)
 	}
 	return s, nil
 }

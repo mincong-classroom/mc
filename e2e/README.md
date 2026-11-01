@@ -48,7 +48,9 @@ flowchart LR
 The clones of the teams are Git repositories that a test creates in its home, with `initTeamRepo`
 or `cloneRedRepo`: `mc git` reads them as it reads the real ones. The facts of
 `mc eval gather-facts` are written by hand, as `writeEvaluations` does: the package `evidence` has
-its own tests of a pass.
+its own tests of a pass. The agents of `mc eval run` are made-up command lines of the settings,
+written by `writeAgents`: the report copies the facts of each team, and the grades the evaluation
+of teal. They log their arguments, which `agentRuns` returns.
 
 ## The Cache of `go test`
 
