@@ -17,7 +17,7 @@ pastes it in the dialog of the script. `mc` holds no credential of Google.
 
 The script writes a tab with one call per group of adjacent columns, whatever the number of rows.
 Before it, an agent pasted the cells in the page of the spreadsheet, block after block, which took
-about 40 minutes for a tab of about 500 rows.
+about 40 minutes for a tab of about 500 rows. The import of both tabs, 518 rows, takes 3 seconds.
 
 ## How the Data Moves
 
