@@ -1,0 +1,5 @@
+#!/bin/sh
+# A fake pbcopy for the end-to-end tests, put first in the PATH of mc: it writes its standard input
+# to the file $FAKE_CLIPBOARD, so that a test reads what mc copied, and the clipboard of the
+# machine stays as it is.
+cat > "$FAKE_CLIPBOARD"

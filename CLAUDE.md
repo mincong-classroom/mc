@@ -58,14 +58,13 @@ mc team red validate|status [--json]  # the actions on one team of the registry
 mc rule ls [-l L1]            # the evaluation rules of the year (key rules of ~/.mc/settings.yaml), or --rules-file
 mc rule check                 # one problem per line, with its line; exit 1 if any
 mc rule render -o evaluation-rules.md  # the Markdown page of the rules
-mc rule sync [--sheet-dir DIR]  # the checks, then the cells of the rules in ~/.mc/{year}/sheet/rules.json for mc sheet; without a read of the tab Rules since the last export, writes rules.read.js and exits 1
 mc eval gather-facts -l L1 [-t red] [--late] [--force] [--template DIR] [--dir DIR]  # the facts of each team, docs/lab-1.facts.md on its branch teacher; --dir is the worktrees here
 mc eval ls [-l L2] [--dir DIR]  # the evaluations, one line per team and lab: commit, rules evaluated, to check, penalties
 mc eval run -l L2 [-t teal] [--skip|--force facts|report|grade] [--late] [--template DIR] [--check-only] [--dir DIR]  # the facts, then the agents of agents.report and agents.grade (sh, in the repo of the rules), each step when its inputs changed (.steps/{team}.json), then the checks: one problem per line, exit 1 if any
-mc eval sync -l L2 [-t teal] [--sheet-dir DIR]  # the checks, then the cells of the files in ~/.mc/{year}/sheet/evaluation.json for mc sheet; without a read of the tab since the last export, writes evaluation.read.js and exits 1
+mc eval export [-l L2]... [-t teal]... [--sheet-dir DIR]  # the checks, then the range of mc in the tabs Rules and Evaluation, from the YAML and the evaluations, against the last export: ~/.mc/{year}/sheet/export.json, copied to the clipboard
 mc annotate find IMAGE TEXT [--all]  # the box of each line of a screenshot with the text, with tesseract
 mc annotate draw IMAGE OUT BOX... [--evaluator] [--padding N]  # a copy with numbered boxes x,y,w,h,green|red,label
-mc sheet blocks|copy|pasted|verify|snippet TAB  # the data of a tab of the evaluation sheet, in ~/.mc/{year}/sheet/TAB*.json
+mc sheet script [--copy]      # the Apps Script of the spreadsheet: the menu mc > Import, where the export is pasted
 mc info                       # the CLI, its commit and the registry: number of teams, URL of the evaluation sheet
 mc git clone|show             # bulk git ops over all team repos, e.g. `mc git show main:k8s/lab-2/pod-nginx.yaml`
 mc git pull                   # git pull --ff-only; a rewritten history (force-push) is a warning for that team, never merged
@@ -74,7 +73,7 @@ mc k8s create-namespaces      # kubectl create one namespace per team
 ```
 
 `mc --help` lists the commands in 2 Cobra groups (`cmd/root.go`): those of the teacher (`eval`,
-`rule`, `team`, `git`, `info`, `k8s`) and those of the agents (`annotate`, `sheet`). A new
+`rule`, `sheet`, `team`, `git`, `info`, `k8s`) and those of the agents (`annotate`). A new
 top-level command takes its group there, or `TestEveryCommandHasAGroup` fails. Its name follows
 "Commands" in `CONTRIBUTING.md`.
 
@@ -106,7 +105,7 @@ assume exists at runtime. Nothing here works without it:
   year are evaluated: `mc` never reads the spreadsheet, `mc info` only prints the URL, so that a
   tool can find it without opening the registry, which holds the names of the students.
 - `~/.mc/{year}/evaluations/lab-{n}/{team}.yaml` — the evaluation of a lab for a team, written
-  by the evaluator (an AI agent) and read by `mc eval ls`, `run` and `sync` (`evaluation.Load`). The files of
+  by the evaluator (an AI agent) and read by `mc eval ls`, `run` and `export` (`evaluation.Load`). The files of
   `mc eval gather-facts` are next to it, in `~/.mc/{year}/teacher/`.
 
 ## Architecture
@@ -114,7 +113,7 @@ assume exists at runtime. Nothing here works without it:
 Eight packages: `cmd/` (CLI wiring), `common/` (domain types + team registry), `rubric/` (the YAML
 of the evaluation rules), `evidence/` (the facts of a lab for a team), `evaluation/`
 (the evaluation of a lab for a team, by the evaluator), `annotate/` (the
-numbered boxes on a screenshot), `sheet/` (the data of a tab of the evaluation sheet), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
+numbered boxes on a screenshot), `sheet/` (the export of the evaluation sheet, and its import script), `github/` (the GitHub organization, through the `gh` CLI). `CONTRIBUTING.md` draws them and their imports: update its
 diagram when a package is added, or imports another. `cmd/`, `common/`, `e2e/`, `evaluation/`,
 `evidence/` and `sheet/` have a `README.md`, with a diagram: update it with its package. The readers
 of every `README.md`, the root one included, are the users of `mc`: for now, the teacher. Write
@@ -147,7 +146,7 @@ on Docker Hub (`DockerHub`, with the later patches of a tag). `markdown()` write
 with a front matter (`metadata`): the commit evaluated, the commit of mc (`opts.Revision`, from
 `common.Revision`, which reads the build info: the pseudo-version of `go run ...@{commit}`, or
 `vcs.revision` of a local build, `-dirty` with changes), and `rules`, the `RuleFacts` of each rule
-for the columns M and N of the sheet (`imagesCell`: tag and 12 characters of digest, or `none`; the
+for the columns N and O of the sheet (`imagesCell`: tag and 12 characters of digest, or `none`; the
 screenshots of the team in the section). The report that the evaluator writes from them,
 `docs/lab-{n}.report.md`, copies the front matter: when its commits and its images equal those of
 now (`metadata.upToDate`, after `lookUpImages`, so Docker Hub is read before the check),
@@ -177,21 +176,23 @@ with `evidence.ReadFacts(evidence.FactsPath(worktree, lab))`. It checks the cont
 only (`loadRules` with no root): the files of the teacher don't change an evaluation. The tests use
 the made-up rules of `rubric/testdata/`.
 
-`Sync(opts)` (`sync.go`) computes the rows of the tab Evaluation, a `sheet.File`, from the files
-of a lab, the tab read, the last export and what waits. Its layout is `sheetColumns` (A, D to U;
-never B or C, the students), the one of `SheetFile()`, which `cmd/eval_sync.go` passes to
-`sheet.Snippet` for `evaluation.read.js`; a read with another header is an error. A row is found by
-Team, Lab and Rule; a missing one is `_new`, numbered after the last row of the tab or of what
-waits, with the formulas F, H and R (B and C are filled down by hand: `FillFrom`, `LastNewRow`).
-The completeness is written when the read cell is empty, or when it is the exported value (mc's
-own) and the new one is higher, with the TA Comment; otherwise it is kept, with a sentence in TA To
-Check. Another cell is written when it differs, with a `_check` when the tab holds a value that mc
-didn't write (`sheet.SameValue` against the export). A formula is in the tab when the export has
-the same text and the cell is not empty. The rows that wait for the lab and the teams are replaced,
-reusing the numbers of the new ones; a row that waits for another lab must still match the tab.
-`cmd/eval_sync.go` requires `evaluation.read.json` newer than `evaluation.exported.json`, and
-passes the facts of each team (`readFacts`, `SyncOptions.Facts`) for TA Docker Images and TA
-Screenshots.
+`Export(opts)` (`export.go`) computes the whole export, a `sheet.Export`: the tab Rules from the
+YAML (`exportRules`, `rules.go`, layout `RulesLayout`: A to I, formulas C, F and H, J is the
+teacher's) and the tab Evaluation from the files (`exportEvaluations`, layout `EvaluationLayout`:
+`sheetColumns` A, D to G, I, L to V; B and C, the students, are `Fill`, copied from the row above
+by the script; H, J and K are the teacher's, never in the export). The rows start from the last
+export (`ExportOptions.Last`), whose tab must have the same layout (`sameLayout`), or it is an
+error: migrate the file first. A row is found by Team, Lab and Rule (`rowKey`); a new one is
+appended. The rules of a pass (`pass`): the TA Completeness is written when the last cell is empty
+or the new one higher, with the TA Comment; a lower one is kept (`keep`, a `Change` with `Kept`),
+with a sentence in TA To Check; a former penalty that the pass doesn't give is kept, with a
+sentence too; the other TA cells are set when not empty (`setText`: never cleared, never a text
+starting with `=`). The Score is `=IF(ISBLANK(H{row}),G{row},H{row})*F{row}+T{row}`, the penalty
+`=-x*IF(ISBLANK(H{row}),G{row},H{row})*F{row}` (`penaltyFormula`). `ExportResult` lists the
+`Changes` against the last export, the `Added` keys per tab (none without a last export) and the
+`Removed` rules. `cmd/eval_export.go` passes the facts of each team (`readFacts`,
+`LabEvaluations.Facts`) for TA Docker Images and TA Screenshots, saves the export to
+`~/.mc/{year}/sheet/export.json` and copies it to the clipboard (`toClipboard`).
 
 **Annotate** (`annotate/`) — `Read(ctx, img)` runs `tesseract --psm 11` on the image enlarged twice
 (the filter Mitchell, as ImageMagick does), then groups its words in lines (`groupLines`): by row,
@@ -200,24 +201,21 @@ dash. `Draw(img, marks, opts)` draws the boxes in pure Go, with the font Go Bold
 `golang.org/x/image`: no ImageMagick. The tests parse a made-up TSV of tesseract; `TestRead` runs
 tesseract only when it is installed, so the CI skips it.
 
-**Sheet** (`sheet/`) — the data of a tab of the evaluation spreadsheet, in JSON files of
-`~/.mc/{year}/sheet/` (`cmd/sheet.go`: `TAB.json` waits to be written, `TAB.read.json` is the tab as
-read, `TAB.exported.json` the last export). `mc` never calls the API of Google Sheets: the teacher
-or a browser agent pastes the blocks, and reads the tab with the script of `mc sheet snippet`. A
-`File` holds one object per row, its attributes the columns by header (`Columns` gives the
-letters), found by its `Keys`; `_row` is its number in the tab, `_check` the cells to look at
-before writing them, and `_new` a row that the tab doesn't have yet, whose keys `Blocks` writes too
-(`RecordPasted` clears it once its keys are pasted). A row holds the cells to write only, never an empty text, which would clear
-a cell. `UnmarshalJSON` decodes the rows by hand (an unknown `_` attribute is an error);
-`MarshalJSON` orders the attributes like the columns, and `Save` calls it directly, since
-`json.Marshal` would escape `<`, `>` and `&` again. `Blocks` splits the cells to write into
-rectangles where every cell is written (`rectangles`: the runs of rows of each column, merged
-across adjacent columns), the `_check` ones last; `pasteText` adds the apostrophe that keeps a
-text a text (a number such as `2e88112`, a date, `-0.2`). `RecordPasted` moves the cells of the
-blocks pasted to the export; `Verify` compares the tab read with it, cell by cell at the same
-letter, never a formula. The script (`snippet.js`, its `CONFIG` replaced by `Snippet`) queries gviz
-from the page, numbers the rows from 2 (gviz keeps the empty rows above the last one), and copies
-the rows to the clipboard. The tests use made-up teams only.
+**Sheet** (`sheet/`) — the export of the evaluation spreadsheet and the script that imports it.
+`mc` never calls the API of Google Sheets: the teacher, or a browser agent, pastes the export in the
+dialog of the script (the menu mc > Import), which `mc sheet script` prints (`ImportScript`, the
+embedded `import.gs`). An `Export` has the `Spreadsheet` ID (from `evaluation_sheet`, checked by
+the script) and its `Tabs`; a `Tab` has its `Keys`, `Columns` (letter → header: the range of mc,
+rewritten on every row), `Formulas` (header → formula with `{row}`, `RowPlaceholder`), `Fill`
+(letters copied from the row above for a new row) and `Rows` (header → value: `json.Number`, a
+text, or a formula with `{row}`; a cell not given is cleared). `LoadExport` decodes strictly
+(`DisallowUnknownFields`, `UseNumber`) and checks `Problems`; `Save` writes it indented, 0600,
+through a temporary file, without escaping `<`, `>` and `&`, the rows in the order of the columns.
+The script (`import.gs`) checks the headers of row 1 and the keys before any write (`mcPlan`),
+appends the new keys, copies the `Fill` columns, writes each group of adjacent columns with
+`setValues` (`mcGrid`: a text starts with `'`), reads back and compares (`mcCompare`), then shows a
+summary (`mcSummary`) and a toast. Its pure functions are tested with node (`import_test.js`, run
+by `TestImportScript`, skipped without node). The tests use made-up teams only.
 
 **Team management** (`cmd/team/`, `github/`) — replaces GitHub Classroom. Each team gets a private
 repo `k8s-<name>` generated from the template and a secret GitHub team `<name>` with `push` on it.

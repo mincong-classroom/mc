@@ -67,10 +67,10 @@ func init() {
 		&cobra.Group{ID: teacherGroup, Title: "Commands of the teacher:"},
 		&cobra.Group{ID: agentGroup, Title: "Commands of the agents:"},
 	)
-	for _, c := range []*cobra.Command{evalCmd, ruleCmd, team.TeamCmd, git.GitCmd, infoCmd, k8sCmd} {
+	for _, c := range []*cobra.Command{evalCmd, ruleCmd, sheetCmd, team.TeamCmd, git.GitCmd, infoCmd, k8sCmd} {
 		c.GroupID = teacherGroup
 	}
-	for _, c := range []*cobra.Command{annotateCmd, sheetCmd} {
+	for _, c := range []*cobra.Command{annotateCmd} {
 		c.GroupID = agentGroup
 	}
 }

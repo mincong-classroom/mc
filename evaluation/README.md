@@ -4,11 +4,10 @@ The package `evaluation` reads the evaluation of a lab for a team, as the evalua
 checks it against the evaluation rules. The evaluator is an AI agent that `mc eval run` starts, or
 the teacher. The checks catch its mistakes before the evaluation goes any further: a rule
 forgotten, a completeness of 0.85, a penalty that the rules don't give, or another commit than the
-one of the facts. Then the package computes the cells that write the evaluations in the evaluation
-spreadsheet, and those that write the rules of the year. The commands are `mc eval ls`,
-`mc eval run` and `mc eval sync`, described in the section [Evaluation](../README.md#evaluation)
-of the README, and `mc rule sync`, in the section [Rule](../README.md#rule): this page explains the
-package behind them.
+one of the facts. Then the package computes the export of the evaluation spreadsheet: the rules
+of the year in the tab Rules, and the evaluations in the tab Evaluation. The commands are
+`mc eval ls`, `mc eval run` and `mc eval export`, described in the section
+[Evaluation](../README.md#evaluation) of the README: this page explains the package behind them.
 
 ## One File per Team and Lab
 
@@ -91,60 +90,85 @@ Besides the keys, `Check` looks at:
 
 ## From the Evaluations to the Sheet
 
-`Sync` turns the evaluations of a lab into the cells of the tab Evaluation of the evaluation
-spreadsheet. It writes nothing in the spreadsheet: it computes the file of the package `sheet` that
-waits to be pasted, from 3 inputs:
+`Export` computes the export of the evaluation spreadsheet, a `sheet.Export`: the range of `mc` in
+the tab Rules and in the tab Evaluation, every row of it. It writes nothing in the spreadsheet: the
+script of `mc sheet script` imports the export, see [the README of `sheet`](../sheet/README.md).
+It starts from 3 inputs:
 
 ```mermaid
 ---
-title: "mc eval sync -l L2: the evaluations become the cells to write"
+title: "mc eval export: the evaluations become the range of mc in the sheet"
 config:
   flowchart:
     wrappingWidth: 200
 ---
 flowchart LR
-  files["lab-2/{team}.yaml<br>the evaluations, checked"]
-  read["evaluation.read.json<br>the tab, as read"]
-  exported["evaluation.exported.json<br>what mc wrote last"]
-  sync["Sync<br>package evaluation"]
-  pending["evaluation.json<br>the cells to write"]
-  tab["Evaluation<br>tab of the spreadsheet"]
-  files -- "1. the evaluations" --> sync
-  read -- "2. the rows of the tab" --> sync
-  exported -- "3. what mc wrote" --> sync
-  sync -- "4. the cells to write" --> pending
-  pending -. "5. mc sheet, through the browser" .-> tab
+  files["lab-{n}/{team}.yaml<br>the evaluations, checked"]
+  facts["lab-{n}.facts.md<br>the facts of mc"]
+  last["export.json<br>the last export"]
+  export["Export<br>package evaluation"]
+  next["export.json<br>the new export"]
+  tab["Rules, Evaluation<br>tabs of the spreadsheet"]
+  files -- "1. the evaluations" --> export
+  facts -- "2. the images, the screenshots" --> export
+  last -- "3. the former passes" --> export
+  export -- "4. the range of mc" --> next
+  next -. "5. mc > Import, in the spreadsheet" .-> tab
 ```
 
-1. **The evaluations** of the lab, which `mc eval sync` checks first, as `mc eval run` does.
-2. **The tab, as read** after the last paste. A row is found by its team, its lab and its rule. A
-   missing row is new: it goes after the last row of the tab, with its keys and the formulas of
-   Rule Score, Score and TA Lab Flag.
-3. **What `mc` wrote last.** A cell of the tab that differs from it was changed by someone else,
-   such as the teacher: the sync never overwrites it without a `_check`.
-4. **The cells to write**, in `evaluation.json`. The rows of the lab and the teams that waited there
-   are replaced, and the others wait still.
-5. **The paste**, with the commands of `mc sheet`: see [its README](../sheet/README.md).
+1. **The evaluations** of the labs, which `mc eval export` checks first, as `mc eval run` does.
+2. **The facts** of `mc eval gather-facts`, which `cmd` reads and passes in
+   `LabEvaluations.Facts`: the tags of the images of each rule, and the number of screenshots of
+   the team.
+3. **The last export.** Its rows are the former passes: a row is found by its team, its lab and its
+   rule. A tab of another layout is an error, since its cells would land in other columns: migrate
+   it first.
+4. **The new export**, which holds the rows of the last one, with the rows of the evaluations
+   computed again. The rows of the labs and the teams that the options don't give stay as they
+   are.
+5. **The import**, with the script of the spreadsheet.
 
 The rules of a pass decide each cell:
 
-- The completeness goes to an empty cell, or over the one that `mc` wrote last when it is higher.
-  A lower one keeps the former value, and so does a completeness that `mc` didn't write: TA To
-  Check says why.
+- A row that the last export doesn't have is added after the last row.
+- The TA Completeness goes to an empty cell, or over the former one when it is higher, with its TA
+  Comment. A lower one keeps the former value, since the work of a team only grows: TA To Check
+  says why.
 - The other TA columns follow the evaluation, but a cell is never cleared.
-- TA Docker Images and TA Screenshots follow the facts of `mc eval gather-facts`, which `cmd` reads
-  and passes in `SyncOptions.Facts`: the tags of the images of the rule, and the number of
-  screenshots of the team. A rule without images leaves TA Docker Images alone.
+- TA Docker Images and TA Screenshots follow the facts the same way. A rule without images leaves
+  TA Docker Images alone.
 - TA Comment says "Done well: ... To improve: ...", and the reason of a penalty, if any. The
-  penalty itself becomes the formula of TA Penalty, such as `=-0.1*G80*F80`.
+  penalty itself becomes the formula of TA Penalty, such as
+  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`. A penalty of a former pass that the pass
+  doesn't give is kept, and TA To Check says so.
 - A text that starts with `=` is an error, since Sheets would read it as a formula.
+
+`ExportResult` gives what changed since the last export, cell by cell, the cells kept, the new rows,
+and the rules of the last export that the YAML no longer has, for the output of `mc eval export`.
+
+Here are the columns of the tab Evaluation. The range of `mc` is A, D to G, I, and L to V:
+
+| Column | Header | What it holds |
+|---|---|---|
+| A | Team | The team, a key |
+| B, C | The students | Formulas of the teacher, which find the students of the team: a new row copies them from the row above, and `mc` never reads them |
+| D | Lab | The lab, a key |
+| E | Rule | The ID of the rule, a key |
+| F | Rule Score | The points of the rule, a formula that looks up the tab Rules, `=VLOOKUP(E2,Rules!C:F,4,FALSE)` |
+| G | TA Completeness | The completeness of the evaluation, from 0 to 1 |
+| H | Completeness | The completeness of the teacher, which `mc` never writes: once filled, the Score takes it instead of G |
+| I | Score | A formula, `=IF(ISBLANK(H2),G2,H2)*F2+T2` |
+| J, K | Comment, Troubleshooting Instructions | The teacher's |
+| L to R | TA To Check, TA Commit, TA Docker Images, TA Screenshots, TA Analysis, TA Writing Style, TA Time Spent | The evaluation and the facts |
+| S | TA Lab Flag | A formula, which flags a lab below 12 of 20 points |
+| T | TA Penalty | The formula of a penalty, if any |
+| U, V | TA Action Items, TA Comment | The evaluation |
 
 ## From the Rules to the Sheet
 
-`SyncRules` turns the rules of the YAML into the cells of the tab Rules, where the Rule Score of
-the tab Evaluation looks up the score of each rule. It works as `Sync`, from the tab as read and
-what `mc` wrote last, and computes `rules.json`. Here are the columns of the tab, with the rules
-`L1_BLD` and `L2_LOG` of the made-up file of the tests,
+The tab Rules of the export holds the rules of the YAML, where the Rule Score of the tab
+Evaluation looks up the score of each rule. Here are its columns, with the rules `L1_BLD` and
+`L2_LOG` of the made-up file of the tests,
 [`rubric/testdata/evaluation-rules.yaml`](../rubric/testdata/evaluation-rules.yaml), as examples:
 
 | Column | Header | What it holds | Examples |
@@ -159,15 +183,15 @@ what `mc` wrote last, and computes `rules.json`. Here are the columns of the tab
 | H | Exercise ID | The ID of the exercise, a formula that joins A and G, `=CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2))` | `L1_EX1`, `L2_EX2.1` |
 | I | Rule Description | What the team is expected to deliver, the key `description` of the YAML, on one line | "The team is expected to follow the logs of the Pod. This rule is a bonus." |
 
-The column J, Troubleshooting Instructions, belongs to the teacher: `mc` never reads it.
+The column J, Troubleshooting Instructions, belongs to the teacher: `mc` never writes it.
 
 - A row is found by A and B, whose values the YAML gives, rather than by C, which is a formula. A
-  rule that the tab doesn't have gets a new row after the last one, with the formulas of C, F and H.
-- D, E, G and I follow the YAML. A cell that `mc` didn't write, such as a coefficient tuned in the
-  tab, gets a `_check`, and waits in a block to check first.
-- A formula whose value is not the one that it gives from its row, such as a Rule ID typed over it,
-  is written again with a `_check`.
-- A row whose rule the YAML no longer has is listed in the result, `Extra`, and never deleted.
+  rule that the last export doesn't have gets a new row after the last one.
+- D, E, G and I follow the YAML, which is the source of truth: a coefficient tuned in the tab is
+  written over at the next import, so tune it in the YAML.
+- C, F and H are formulas, written on every row.
+- A row whose rule the YAML no longer has is listed in the result, `Removed`, and never deleted:
+  the import keeps its keys, and clears its other cells.
 
 ## The Record of the Steps
 
@@ -206,8 +230,8 @@ The files of the package:
 |---|---|
 | `evaluation.go` | `File`, `Rule` and `Penalty`; `Load`, with the line of each key; `LabDir`, `Path` and `Teams` |
 | `check.go` | `Check` and `CheckOptions`: the problems of a file against the rules and the commit of the facts |
-| `sync.go` | `Sync`, its options and its result: the cells of the tab Evaluation, and `SheetFile`, its columns |
-| `rules.go` | `SyncRules`, its options and its result: the cells of the tab Rules, and `RulesSheetFile`, its columns |
+| `export.go` | `Export`, its options and its result: the tabs of the export, the rules of a pass, and `EvaluationLayout`, the layout of the tab Evaluation |
+| `rules.go` | The tab Rules of the export, and `RulesLayout`, its layout |
 | `steps.go` | `Steps`, the record of the steps of `mc eval run` for a team, `ReadSteps` and `WriteSteps`; `Changes`, and the digests of the inputs |
 
 The package imports `rubric` and `sheet` only, and its tests use made-up teams and rules.

@@ -44,16 +44,16 @@ Usage:
   mc [command]
 
 Commands of the teacher:
-  eval        Evaluate the labs, then list, check and sync their evaluations
+  eval        Evaluate the labs, then list, check and export their evaluations
   git         Perform Git operations in bulk
   info        Display CLI information
   k8s         Perform Kubernetes operations
-  rule        List, check, render and sync the evaluation rules of the year
+  rule        List, check and render the evaluation rules of the year
+  sheet       Set up the evaluation spreadsheet, which imports the export of mc eval export
   team        Manage the teams
 
 Commands of the agents:
   annotate    Find a text in a screenshot, then draw numbered boxes around what the evaluator found
-  sheet       Move the data of a tab between ~/.mc/{year}/sheet/ and the evaluation spreadsheet
 
 Additional Commands:
   completion  Generate the autocompletion script for the specified shell
@@ -231,14 +231,12 @@ The local clone keeps the history it had: compare it with the new one
 
 The evaluation rules of a program are in a YAML file with two maps: `labs`, the lab sessions of
 the module with their deadline, and `rules`, one entry per rule keyed by its ID, such as `L1_DKF`.
-`mc` lists the rules of the year, checks them, renders them as a Markdown page, and writes them to
-the evaluation sheet:
+`mc` lists the rules of the year, checks them, and renders them as a Markdown page:
 
 ```sh
 mc rule ls -l L1                       # the rules of Lab 1
 mc rule check                          # one problem per line, exit 1 if any
 mc rule render -o evaluation-rules.md  # the page, wrapped at 96 characters
-mc rule sync                           # the cells of the tab Rules, in ~/.mc/{year}/sheet/rules.json
 ```
 
 The file of the year comes from the key `rules` of the settings, `~/.mc/settings.yaml`, where
@@ -258,36 +256,12 @@ The made-up file of the tests shows the format,
 [`rubric/testdata/evaluation-rules.yaml`](rubric/testdata/evaluation-rules.yaml), and its page,
 [`rubric/testdata/evaluation-rules.md`](rubric/testdata/evaluation-rules.md).
 
-`mc rule sync` computes the cells that write the rules in the tab "Rules" of the evaluation sheet,
-where the tab "Evaluation" looks up the score of each rule. It works as `mc eval sync` (see
-"Evaluation"): without a read of the tab since the last export, it writes the script that reads
-the tab, `rules.read.js`, and stops. With a read, it saves the cells to write in `rules.json`, for
-`mc sheet` (see "Sheet"). Here is a sync of the made-up rules of the tests, with a tab that has
-another coefficient for `L2_POD`, misses `L1_BLD` and `L2_LOG`, and still has a rule `L2_OLD`:
-
-```
-$ mc rule sync --rules-file rubric/testdata/evaluation-rules.yaml
-Synced 4 rules of rubric/testdata/evaluation-rules.yaml with the tab Rules, as read in /Users/me/.mc/2026/sheet/rules.read.json.
-
-CELL      RULE    COLUMN       CHANGE
-Rules!E3  L2_POD  Coefficient  0.5 -> 1, check first: the tab has "0.5", which mc didn't write
-
-New 2 rows: L1_BLD (row 5), L2_LOG (row 6).
-
-In the tab, not in the rules: L2_OLD (row 4). mc never deletes a row: delete it by hand if the rule is gone.
-
-3 rows wait in /Users/me/.mc/2026/sheet/rules.json. Next, in the page of the spreadsheet:
-
-  mc sheet blocks rules  list the blocks to paste
-  mc sheet copy rules 1  copy a block, then paste it at its range, block after block
-  mc sheet pasted rules  record the blocks pasted, such as 1 2 3, or every block
-  mc sheet verify rules  after a new read of the tab, compare it with what was written
-```
-
-A row is found by its Lab Session and its Rule, the end of the Rule ID. A new rule gets a new row,
-with the formulas of the tab. A cell that `mc` didn't write, such as a coefficient tuned in the tab,
-waits in a block to check first, and a row whose rule is gone is listed, never deleted. The
-[README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives the columns.
+`mc eval export` writes the rules to the tab "Rules" of the evaluation sheet, where the tab
+"Evaluation" looks up the score of each rule: see [Evaluation](#evaluation) and [Sheet](#sheet). A
+row is found by its Lab Session and its Rule, the end of the Rule ID. A new rule gets a new row,
+with the formulas of the tab. A rule that the file no longer has is listed, and its row is never
+deleted. The [README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives the
+columns.
 
 ## Facts
 
@@ -502,62 +476,51 @@ A file with an unknown key, a key twice or a value of the wrong type stops at th
 other checks of the file run once they are fixed. Without a problem, the command prints how many
 files it checked.
 
-Once the files have no problem, `mc eval sync` computes the cells that write them in the tab
-"Evaluation" of the evaluation sheet. `mc` has no access to the spreadsheet: an agent in the
-browser, such as Claude in Chrome, reads the tab and pastes the cells with the commands of
-[Sheet](#sheet). Without such an agent, the evaluations stay in their files, and nothing is
-written:
+Once the files have no problem, `mc eval export` writes them to the export of the evaluation
+sheet, `~/.mc/{year}/sheet/export.json`, with the rules, and copies it to the clipboard. `mc` has
+no access to the spreadsheet: a script of the spreadsheet imports the export, see [Sheet](#sheet).
 
 ```sh
-mc eval sync -l L2                 # every file of ~/.mc/{year}/evaluations/lab-2/
-mc eval sync -l 2 -t teal          # one team
-mc eval sync -l 2 --sheet-dir DIR  # the files of the tabs in DIR, instead of ~/.mc/{year}/sheet/
+mc eval export                  # every lab with evaluations in ~/.mc/{year}/evaluations/
+mc eval export -l L2 -t teal    # one lab and one team: the other rows stay as in the last export
+mc eval export --sheet-dir DIR  # export.json in DIR, instead of ~/.mc/{year}/sheet/
 ```
 
-The sync checks the files first, as `mc eval run --check-only` does. Then it needs the tab as read
-since the last export, `evaluation.read.json`. Without it, the sync writes the script that reads
-the tab, `evaluation.read.js`, says how to run it, and exits with 1. The script reads the columns A
-and D to U only: B and C hold the names of the students.
+The export checks the files first, as `mc eval run --check-only` does. Then it starts from the last
+export, and follows the rules of a pass:
 
-A sync follows the rules of a pass:
-
-- a row is found by its team, its lab and its rule. A missing row is added after the last row of
-  the tab, with its keys and its formulas (Rule Score, Score and TA Lab Flag). Its columns B and C
-  are filled down from the last row of the tab, and the sync gives the range
-- the completeness goes to an empty cell, or over the one that `mc` wrote last when it is higher,
-  with its TA Comment: "Done well: ... To improve: ...". A lower one keeps the former value, since
-  the work of a team only grows, and so does a completeness that `mc` didn't write, such as one of
-  the teacher. TA To Check says why
-- the other TA columns follow the files, but a cell is never cleared. A cell that `mc` didn't
-  write, and that the files change, waits in a block of its own, to check first
+- a row is found by its team, its lab and its rule. A new row comes after the last one, with the
+  formulas of Rule Score, Score and TA Lab Flag
+- the TA Completeness goes to an empty cell, or over the former one when it is higher, with its
+  TA Comment: "Done well: ... To improve: ...". A lower one keeps the former value, since the work
+  of a team only grows, and TA To Check says why. The Score takes the completeness of the teacher,
+  in the column H, once the teacher fills it
+- the other TA columns follow the files, but a cell is never cleared
 - TA Docker Images and TA Screenshots follow the facts of `mc eval gather-facts` the same way: the
   tags of the images of the rule, and the number of screenshots of the team for its exercise
-- a penalty becomes the formula of TA Penalty, such as `=-0.1*G80*F80`, and its reason goes to the
-  TA Comment
+- a penalty becomes the formula of TA Penalty, such as
+  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`, and its reason goes to the TA Comment. A
+  penalty of a former pass that the pass doesn't give is kept, and TA To Check says so
 
-The rows of the lab and the teams that waited in `evaluation.json` are replaced, at the same
-numbers, and the others wait still. The sync prints each cell that it writes or keeps, the new
-rows, then the next commands. For a made-up team `teal`, whose second pass gives a higher
-completeness to a rule and a lower one to another, and a new team `coral`:
+The export prints each cell that changed since the last export, or that it kept, then the new rows.
+For a made-up team `teal`, whose second pass gives a higher completeness to a rule and a lower one
+to another, and a new team `coral`:
 
 ```
-Synced 2 evaluations of L2 with the tab Evaluation, as read in /Users/me/.mc/2026/sheet/evaluation.read.json.
+$ mc eval export -l L2
+Exported 4 rules and 4 rows of the tab Evaluation to /Users/me/.mc/2026/sheet/export.json, from 2 evaluations of L2.
 
-CELL            ROW             COLUMN        CHANGE
-Evaluation!G80  teal L2 L2_POD  Completeness  0.6 -> 0.8
-Evaluation!U80  teal L2 L2_POD  TA Comment    "Done well: The Pod runs. To improve: Sho..." -> "Done well: The Pod runs the image of Lab..."
-Evaluation!G81  teal L2 L2_LOG  Completeness  kept 1, not 0.5: lower than the former pass
-Evaluation!K81  teal L2 L2_LOG  TA To Check   nothing -> "The pass of 0a1b2c3 gives 0.5, lower tha..."
+TAB         ROW             COLUMN           CHANGE
+Evaluation  teal L2 L2_POD  TA Completeness  0.6 -> 0.8
+Evaluation  teal L2 L2_POD  TA Comment       "Done well: The Pod runs. To improve: Sho..." -> "Done well: The Pod runs the image of Lab..."
+Evaluation  teal L2 L2_LOG  TA Completeness  kept 1, not 0.5: lower than the former pass
+Evaluation  teal L2 L2_LOG  TA To Check      nothing -> "The pass of 0a1b2c3 gives 0.5, lower tha..."
 
-New 2 rows: coral, rows 82 to 83.
+New 2 rows of the tab Evaluation: coral L2 L2_POD, coral L2 L2_LOG.
 
-4 rows wait in /Users/me/.mc/2026/sheet/evaluation.json. Next, in the page of the spreadsheet:
-
-  mc sheet blocks evaluation  list the blocks to paste
-  mc sheet copy evaluation 1  copy a block, then paste it at its range, block after block
-  fill down B81:C83           the columns B and C of the new rows: type the range in the Name Box, then Cmd+D
-  mc sheet pasted evaluation  record the blocks pasted, such as 1 2 3, or every block
-  mc sheet verify evaluation  after a new read of the tab, compare it with what was written
+Copied the export to the clipboard, 5 KB.
+Next, in the spreadsheet: the menu "mc", then "Import", paste it in the text box, then Import.
+The first time, add the script of mc sheet script: "Extensions", then "Apps Script".
 ```
 
 ## Annotate
@@ -590,72 +553,70 @@ its box, e.g. `--padding 1` when the box crosses the lines around it.
 
 ## Sheet
 
-`mc sheet` moves the data of a tab of the evaluation spreadsheet between JSON files and the
-spreadsheet, by hand or through a browser. It never calls the API of Google Sheets, so it needs no
-project of Google Cloud. Each tab has its files in `~/.mc/{year}/sheet/`, named after the tab, such
-as `evaluation` for the tab "Evaluation":
+The evaluation spreadsheet imports the export of `mc eval export` with a script of its own, written
+with [Apps Script](https://developers.google.com/apps-script). `mc` never calls the API of Google
+Sheets, so it needs no project of Google Cloud and no token: the teacher, or an agent in the
+browser, pastes the export in a dialog of the spreadsheet. To add the script, once per
+spreadsheet:
 
-| File | What it holds |
-|---|---|
-| `evaluation.json` | What waits to be written in the tab |
-| `evaluation.read.json` | The tab, as read in the browser by the script of `mc sheet snippet` |
-| `evaluation.exported.json` | What was written last, to tell a cell that the teacher changed |
+```sh
+mc sheet script --copy   # or mc sheet script, to print it
+```
 
-A file holds one object per row, like the documents of a collection in MongoDB: each attribute is
-a column, named by its header. Here is a file with a made-up team:
+Paste it in "Extensions", then "Apps Script", in place of the code there, save it, then reload the
+spreadsheet. The menu "mc", then "Import", opens a dialog with a text box: paste the export, then
+click "Import". The first import asks to authorize the script, for this spreadsheet only.
+
+The export holds one object per tab, and one object per row, like the documents of a collection in
+MongoDB: each attribute is a column, named by its header. Here is the tab "Evaluation" of an
+export, with a made-up team, and some columns only:
 
 ```json
 {
-  "tab": "Evaluation",
-  "keys": ["Team", "Lab", "Rule"],
-  "columns": {"A": "Team", "D": "Lab", "E": "Rule", "G": "Completeness", "L": "TA Commit", "O": "TA Analysis"},
-  "rows": [
-    {"_row": 81, "Team": "teal", "Lab": "L2", "Rule": "L2_RUN", "TA Commit": "2e88112", "TA Analysis": "detailed"},
-    {"_row": 82, "Team": "teal", "Lab": "L2", "Rule": "L2_FBP", "Completeness": 0.9,
-     "_check": {"Completeness": "0.7 at the last export, and no read of the tab since"}}
+  "spreadsheet": "0123456789",
+  "tabs": [
+    {
+      "name": "Evaluation",
+      "keys": ["Team", "Lab", "Rule"],
+      "columns": {"A": "Team", "D": "Lab", "E": "Rule", "F": "Rule Score", "G": "TA Completeness", "I": "Score", "M": "TA Commit", "V": "TA Comment"},
+      "formulas": {"Rule Score": "=VLOOKUP(E{row},Rules!C:F,4,FALSE)", "Score": "=IF(ISBLANK(H{row}),G{row},H{row})*F{row}+T{row}"},
+      "fill": ["B", "C"],
+      "rows": [
+        {"Team": "teal", "Lab": "L2", "Rule": "L2_POD", "TA Completeness": 0.8, "TA Commit": "0a1b2c3",
+         "TA Comment": "Done well: The Pod runs the image of Lab 1. To improve: Show the logs of the Pod."}
+      ]
+    }
   ]
 }
 ```
 
 As you can see:
 
-- the keys, Team, Lab and Rule, find a row, and `_row` is its number in the tab
-- a row holds the cells to write only: an attribute absent is a cell left alone, never cleared
-- `columns` gives the letter of each header. A column out of it is never read nor written, such as
-  a column of personal data
-- `_check` names the cells to look at before writing them, which the teacher may have changed
-  since the last export
-- `"_new": true` marks a row that the tab doesn't have yet, such as a row that `mc eval sync` adds:
-  its keys are written too
+- `columns` is the range of `mc` in the tab: the letter of each header. The other columns are
+  never written, such as B and C, which hold the students, and H, J and K, which are the teacher's
+- the keys, Team, Lab and Rule, find a row
+- `formulas` gives the formula of a column on every row, where `{row}` is the number of the row
+- `fill` names the columns that a new row copies from the row above, such as the formulas that
+  find the students of its team
+- a row holds the values of its cells, and a cell not given becomes empty: the export holds the
+  whole range of `mc`, not the changes
+- `spreadsheet` is the ID of the `evaluation_sheet` of the team registry: the script refuses an
+  export for another spreadsheet
 
-To write a tab by hand:
+The import runs in 4 steps, for each tab:
 
-```sh
-mc sheet blocks evaluation       # the blocks of cells to paste
-mc sheet copy evaluation 1       # the block 1 to the clipboard, --print to print it instead
-# In the spreadsheet: type the range of the block in the Name Box, press Enter, then paste.
-mc sheet pasted evaluation       # every block was pasted: they become the last export
-mc sheet pasted evaluation 1 2   # or the blocks 1 and 2 only: the others wait still
-```
+1. It reads the headers of the first row, and the columns of the keys. When a header of the export
+   is not at its letter, it stops before any write.
+2. It finds the row of each key, and gives a new key a new row at the end, whose `fill` columns it
+   copies from the row above.
+3. It writes the columns of `mc` on every row, with one call per group of adjacent columns. A text
+   that Sheets would read as something else, such as the commit `2e88112` (a number), starts with
+   an apostrophe, which keeps it a text.
+4. It reads the cells back, compares them with the export, and shows a summary: the rows imported,
+   the new ones, and each cell that differs.
 
-A block is a rectangle of adjacent cells, every one of them written, since a paste of an empty cell
-would clear it. The keys are written for a new row only. A text that Sheets would read as something else, such
-as the commit `2e88112` (a number), starts with an apostrophe, which keeps it a text. The blocks
-with a `_check` come last.
-
-To check the tab afterwards, read it in the browser:
-
-```sh
-mc sheet snippet evaluation | pbcopy   # then run it in the console of the page of the spreadsheet
-pbpaste > ~/.mc/2026/sheet/evaluation.read.json
-mc sheet verify evaluation             # one difference per line, and an exit code of 1 if any
-```
-
-The script reads the columns of the files only, with the query language of
-[Google Visualization](https://developers.google.com/chart/interactive/docs/querylanguage) (gviz),
-and refuses to run in another spreadsheet than the `evaluation_sheet` of the team registry. gviz
-types a column by the majority of its values: a value of another type, such as a text in a column
-of numbers, comes back empty. `verify` never compares a formula, since the tab gives its result.
+A row of the tab whose keys are not in the export keeps its keys, and its other cells of `mc`
+become empty: the summary lists it, to delete by hand.
 
 ## Key Components
 
@@ -669,14 +630,14 @@ The `evidence` directory gathers the facts of a lab for a team, on the local bra
 its clone: [its README](evidence/README.md) shows where the facts come from.
 
 The `evaluation` directory reads the evaluation of a lab for a team, as the evaluator writes it,
-checks it against the evaluation rules, and computes the cells that write it in the evaluation
-sheet: [its README](evaluation/README.md) shows what a check reads, and what a sync writes.
+checks it against the evaluation rules, and computes the export of the evaluation sheet: [its
+README](evaluation/README.md) shows what a check reads, and what an export holds.
 
 The `annotate` directory finds a text in a screenshot with tesseract, and draws numbered boxes on
 it.
 
-The `sheet` directory keeps the data of the tabs of the evaluation spreadsheet in JSON files, and
-moves it through a browser: [its README](sheet/README.md) explains why, with a diagram.
+The `sheet` directory holds the export of the evaluation spreadsheet, and the script of the
+spreadsheet that imports it: [its README](sheet/README.md) explains why, with a diagram.
 
 The `github` directory manages the GitHub organization (repositories, GitHub teams and their members) through the `gh` CLI.
 

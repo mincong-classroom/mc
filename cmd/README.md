@@ -28,10 +28,9 @@ Each command has its own file, with its subcommands, their flags and their `RunE
 | `eval.go` | `mc eval ls`, and the checks of the evaluations | `evaluation`, `rubric`, and `evidence` for the facts |
 | `eval_run.go` | `mc eval run`: its steps, their agents and their record | `evaluation`, `evidence`, `rubric` |
 | `eval_gather_facts.go` | `mc eval gather-facts` | `evidence`, `rubric`, `github` |
-| `eval_sync.go` | `mc eval sync` | `evaluation`, `sheet` |
+| `eval_export.go` | `mc eval export` | `evaluation`, `evidence`, `sheet` |
 | `rule.go` | `mc rule ls`, `check`, `render` | `rubric` |
-| `rule_sync.go` | `mc rule sync` | `evaluation`, `rubric`, `sheet` |
-| `sheet.go` | `mc sheet snippet`, `blocks`, `copy`, `pasted`, `verify` | `sheet` |
+| `sheet.go` | `mc sheet script` | `sheet` |
 | `annotate.go` | `mc annotate find`, `draw` | `annotate` |
 | `info.go` | `mc info` | `common` |
 | `k8s.go` | `mc k8s create-namespaces` | `common` |

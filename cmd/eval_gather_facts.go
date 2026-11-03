@@ -44,8 +44,8 @@ merges the new one into it, and a change of the facts is committed. The branch i
 Run it again once the evaluator adds its files.
 
 The front matter of the facts holds the commit evaluated and the commit of mc, then the images of
-each rule on Docker Hub and the number of screenshots of the team, which mc eval sync writes in the
-evaluation sheet. The evaluator copies it into the report that it writes from the facts, such as
+each rule on Docker Hub and the number of screenshots of the team, which mc eval export writes to
+the evaluation sheet. The evaluator copies it into the report that it writes from the facts, such as
 docs/lab-1.report.md. While both commits and the images stay the same, the report is up to date:
 the team is skipped, unless --force is given, or mc is a local build with changes.
 

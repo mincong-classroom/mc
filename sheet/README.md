@@ -1,106 +1,122 @@
 # Package `sheet`
 
-The package `sheet` keeps the data of the tabs of a Google Spreadsheet in JSON files, and moves it
-between these files and the spreadsheet. `mc` uses it for the evaluation spreadsheet of the year,
-whose tab Evaluation has one row per team, lab and rule. The commands are those of `mc sheet`,
-described in the section [Sheet](../README.md#sheet) of the README: this page explains the package
-behind them.
+The package `sheet` writes the data of `mc` in a Google Spreadsheet: the export, a JSON file with
+the range of `mc` in each tab, and the script of the spreadsheet that imports it. `mc` uses it for
+the evaluation spreadsheet of the year, whose tab Evaluation has one row per team, lab and rule.
+The commands are `mc eval export` and `mc sheet script`, described in the section
+[Sheet](../README.md#sheet) of the README: this page explains the package behind them.
 
 ## Why Not the API of Google Sheets
 
 The package never calls the API of Google Sheets. The API needs a project of Google Cloud, an OAuth
 client, and a token of the teacher's Google account kept on the machine, for one spreadsheet that
-is written a few times per lab. The browser needs none of it, since the teacher is signed in to
-Google there. So the teacher, or an agent in the browser such as Claude in Chrome, carries the
-data between the files and the page of the spreadsheet, through the clipboard. The package prepares
-what to paste, and checks what was read: `mc` holds no credential of Google.
+is written a few times per lab. A script bound to the spreadsheet needs none of it: it runs in
+Google, as the teacher, who authorizes it once, for this spreadsheet only (`@OnlyCurrentDoc`). So
+`mc` writes the export, and the teacher, or an agent in the browser such as Claude in Chrome,
+pastes it in the dialog of the script. `mc` holds no credential of Google.
+
+The script writes a tab with one call per group of adjacent columns, whatever the number of rows.
+Before it, an agent pasted the cells in the page of the spreadsheet, block after block, which took
+about 40 minutes for a tab of about 500 rows. The import of both tabs, 518 rows, takes 3 seconds.
 
 ## How the Data Moves
 
-Each tab has 3 files in `~/.mc/{year}/sheet/`, named after the tab. Here are those of the tab
-Evaluation, and the steps that move the data between them and the spreadsheet:
+Here are the steps of an import, from the evaluations to the tabs of the spreadsheet:
 
 ```mermaid
 ---
-title: "The tab Evaluation and its files"
+title: "An export, from the evaluations to the spreadsheet"
 ---
 flowchart LR
-  subgraph files["~/.mc/{year}/sheet/"]
-    pending["evaluation.json<br>the cells to write"]
-    exported["evaluation.exported.json<br>the cells written last"]
-    read["evaluation.read.json<br>the tab, as read"]
+  subgraph mc["mc eval export"]
+    files["evaluations<br>and rules"]
+    export["export.json<br>the range of mc"]
   end
-  page["Page of the spreadsheet<br>in the browser"]
   subgraph google["Google"]
-    tab["Evaluation<br>tab of the spreadsheet"]
+    script["mc > Import<br>script of the spreadsheet"]
+    tabs["Rules, Evaluation<br>tabs"]
     api["API of Google Sheets"]
   end
-  pending -- "1. Blocks: copy, then paste" --> page
-  pending -- "2. RecordPasted" --> exported
-  page -- "3. Snippet: a script copies the tab" --> read
-  read -. "4. Verify" .- exported
-  page <-- "edits, gviz" --> tab
-  files --x|"never called"| api
+  files -- "1. Export" --> export
+  export -- "2. clipboard, then paste" --> script
+  script -- "3. finds the rows, writes the range" --> tabs
+  tabs -- "4. reads back, compares" --> script
+  mc --x|"never called"| api
   classDef secondary stroke-dasharray:5 5,color:#868e96
   class api secondary
 ```
 
-1. **Write.** `Blocks` splits the cells of `evaluation.json` into blocks: rectangles of adjacent
-   cells, every one of them written. A block goes to the clipboard as tab-separated values, and a
-   paste at its range spreads it on the cells of the tab. A new row is written the same way, after
-   the last row of the tab, with its keys.
-2. **Record.** `RecordPasted` moves the cells of the blocks pasted from `evaluation.json` to
-   `evaluation.exported.json`, the last export. The cells of a block not pasted wait still.
-3. **Read.** `Snippet` writes a script to run in the page of the spreadsheet. The script reads the
-   tab with gviz, the query language of Google Visualization, which answers the page with the
-   session of the browser. Then it copies the rows to the clipboard, in the format of the files,
-   to save as `evaluation.read.json`.
-4. **Verify.** `Verify` compares the tab, as read, with the last export: a header renamed, a row
-   moved or deleted, and a cell whose value is no longer the one written, such as a completeness
-   that the teacher changed by hand.
+1. **Export.** `mc eval export` computes the range of `mc` in each tab, from the rules and the
+   evaluations, against the last export. Then it saves it with `Save`, and copies it to the
+   clipboard.
+2. **Paste.** The menu "mc", then "Import", opens a dialog with a text box, where the export is
+   pasted.
+3. **Write.** The script reads the headers of each tab and its columns of keys, and stops before
+   any write if a header is not at its letter. Then it finds the row of each key, adds the new rows
+   at the end, and rewrites the range of `mc` on every row.
+4. **Check.** The script reads the cells back and compares them with the export. Its summary gives
+   the rows imported, the new ones, and each cell that differs.
 
-The read and the export serve the next write too. A cell of the tab that differs from the export
-was changed by someone else, so the tool that writes `evaluation.json`, such as `mc eval sync`,
-marks it with `_check`: its block comes last, for the teacher to look at before pasting it.
+The export is the whole range of `mc`, not the changes since the last one: an import that stops
+halfway is fixed by the next import of the same file.
 
-## A File
+## An Export
 
-A file holds one tab: one object per row, like the documents of a collection in MongoDB, whose
-attributes are the columns, named by their headers. Here is a row with a made-up team:
+An export holds one object per tab, whose rows hold one object each, like the documents of a
+collection in MongoDB: each attribute is a column, named by its header. Here is a tab with a
+made-up team, and some columns only:
 
 ```json
-{"_row": 82, "Team": "teal", "Lab": "L2", "Rule": "L2_FBP", "Completeness": 0.9,
- "_check": {"Completeness": "0.7 at the last export"}}
+{
+  "name": "Evaluation",
+  "keys": ["Team", "Lab", "Rule"],
+  "columns": {"A": "Team", "D": "Lab", "E": "Rule", "F": "Rule Score", "G": "TA Completeness", "T": "TA Penalty"},
+  "formulas": {"Rule Score": "=VLOOKUP(E{row},Rules!C:F,4,FALSE)"},
+  "fill": ["B", "C"],
+  "rows": [
+    {"Team": "teal", "Lab": "L2", "Rule": "L2_POD", "TA Completeness": 0.8,
+     "TA Penalty": "=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}"}
+  ]
+}
 ```
 
-The keys of the file, Team, Lab and Rule, find the row, and `_row` is its number in the tab. The
-other attributes are the cells to write, and `_check` says why to look at a cell first. A row that
-the tab doesn't have yet has `"_new": true`: its keys are written too, at its number. The section
-[Sheet](../README.md#sheet) of the README shows a whole file.
+- `columns` gives the letter of each header: the range of `mc`. A column out of it is never
+  written, and never read but for the keys.
+- `keys` find a row. They are texts, never formulas.
+- `formulas` gives the formula of a column on every row, where `{row}` is the number of the row. A
+  row gives no cell of such a column.
+- `fill` names the columns that a new row copies from the row above, such as the formulas that
+  find the students of its team. They are out of `columns`.
+- A cell of a row is a number, a text, or a formula of its own, such as a penalty. A cell not given
+  becomes empty.
 
 ## What Keeps the Tab Safe
 
-**A paste never clears a cell.** A row holds the cells to write only: an attribute absent is a cell
-left alone. A block has no hole, since the paste of an empty cell clears it, and `Load` refuses an
-empty text for the same reason.
+**The headers are checked before any write.** If a column was inserted or renamed, the import
+stops with the header that differs, and writes nothing.
 
-**A text stays a text.** Sheets reads a pasted text as if it was typed, so the commit `2e88112`
-would become a number. `pasteText` starts such a text with an apostrophe, which Sheets keeps out of
-the value.
+**The columns of the teacher are never written.** The script writes the columns of the export
+only, and reads none of the others, the keys aside. In the tab Evaluation, the completeness of the
+teacher stands next to the one of `mc`, and the score takes the one of the teacher once it is
+filled.
 
-**The script reads the columns of the file only.** A column out of `columns`, such as one of
-personal data, never leaves the spreadsheet.
+**A text stays a text.** Sheets reads a text written with `setValues` as if it was typed, so the
+commit `2e88112` would become a number. The script starts each text with an apostrophe, which
+Sheets keeps out of the value.
 
-**A formula is never compared.** The tab gives the result of a formula, not the formula itself:
-`Verify` skips it.
+**Two rows with the same keys stop the import.** The script can't tell which one to write.
+
+**The export is private.** `Save` writes it for its owner only, since it holds the evaluations of
+the teams.
 
 ## Limits
 
-**The number of a row comes from the last read.** If the teacher inserts or sorts rows, read the
-tab again before a paste: `Verify` reports a row moved, but a block is pasted at its range.
+**A row of the tab whose keys are not in the export loses its cells of `mc`.** It keeps its keys,
+and the summary lists it, to delete by hand. It happens when a rule is gone, or when a row was
+added by hand.
 
-**gviz types a column by the majority of its values.** A value of another type, such as a text in
-a column of numbers, comes back empty, and `Verify` reports it as a difference.
+**The script is a copy.** `mc sheet script` prints the version of `mc`: after a change of
+`import.gs`, paste it again in the spreadsheet.
 
 ## Code
 
@@ -108,11 +124,10 @@ The files of the package:
 
 | File | What it holds |
 |---|---|
-| `file.go` | `File` and `Row`, `Load` and `Save`, the checks of `Problems`, and the JSON of a file |
-| `blocks.go` | `Block` and `Blocks`, the rectangles of cells to paste |
-| `export.go` | `RecordPasted` and `Verify`, the last export and the check of the tab against it |
-| `snippet.go`, `snippet.js` | `Snippet`, the script that reads a tab in the browser |
-| `value.go` | The text to paste for a value, and the comparison of a value read with the one written |
-| `column.go` | The letters of a column and the A1 notation of a cell, such as `G82` |
+| `import.go` | `Export` and `Tab`, `LoadExport` and `Save`, the checks of `Problems`, the JSON of an export, and `ImportScript` |
+| `import.gs` | The script of the spreadsheet, in Apps Script: the menu, the dialog, the import and its checks |
+| `import_test.js` | The tests of the functions of the script that use no service of Apps Script, run with `node --test` |
+| `column.go` | The index of a column from its letters, such as `G` |
 
-The package imports no other package of `mc`, and its tests use made-up teams only.
+`TestImportScript` runs the tests of the script with `node`, and is skipped where `node` is
+missing. The package imports no other package of `mc`, and its tests use made-up teams only.

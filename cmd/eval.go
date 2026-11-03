@@ -20,10 +20,10 @@ import (
 
 var evalCmd = &cobra.Command{
 	Use:   "eval",
-	Short: "Evaluate the labs, then list, check and sync their evaluations",
+	Short: "Evaluate the labs, then list, check and export their evaluations",
 	Long: `Evaluate a lab with mc eval run: the facts of each team, then its report and its grades, which AI
 agents write, each step when its inputs changed. mc eval gather-facts gathers the facts only. Then
-list, check and sync the evaluations of the labs, as the evaluator writes them: one YAML file per
+list, check and export the evaluations of the labs, as the evaluator writes them: one YAML file per
 team and lab, so that several evaluators can work at once, in
 ~/.mc/{year}/evaluations/lab-{n}/{team}.yaml:
 
@@ -44,7 +44,8 @@ team and lab, so that several evaluators can work at once, in
   mc eval run -l 2 -t teal --skip report
   mc eval run -l 2 --check-only
   mc eval gather-facts -l L2
-  mc eval ls -l L2`,
+  mc eval ls -l L2
+  mc eval export`,
 }
 
 var (
