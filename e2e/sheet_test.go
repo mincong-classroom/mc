@@ -1,115 +1,203 @@
 package e2e
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-// TestSheetPasteThenVerify writes a tab by blocks, records the paste, then compares the tab read
-// again with the last export, in ~/.mc/2026/sheet/.
-func TestSheetPasteThenVerify(t *testing.T) {
-	e := newEnv(t)
-	dir := filepath.Join(e.home, ".mc", "2026", "sheet")
-	pending := `{
-  "tab": "Evaluation",
-  "keys": ["Team", "Lab", "Rule"],
-  "columns": {"A": "Team", "D": "Lab", "E": "Rule", "G": "Completeness", "L": "TA Commit", "O": "TA Analysis"},
-  "rows": [
-    {"_row": 2, "Team": "red", "Lab": "L2", "Rule": "L2_CTL", "TA Commit": "2e88112", "TA Analysis": "short"},
-    {"_row": 3, "Team": "red", "Lab": "L2", "Rule": "L2_RUN", "TA Commit": "2e88112", "TA Analysis": "none",
-     "Completeness": 0.9, "_check": {"Completeness": "0.7 at the last export"}}
-  ]
-}
-`
-	write(t, filepath.Join(dir, "evaluation.json"), pending)
-
-	r := e.run(t, "", "sheet", "blocks", "evaluation")
-	for _, want := range []string{
-		"3 blocks of the tab Evaluation wait in " + filepath.Join(dir, "evaluation.json"),
-		"1      Evaluation!L2:L3  2 × 1  \n",
-		"2      Evaluation!O2:O3  2 × 1  \n",
-		"3      Evaluation!G3     1 × 1  G3 Completeness: 0.7 at the last export\n",
-	} {
-		if r.exitCode != 0 || !strings.Contains(r.stdout, want) {
-			t.Errorf("mc sheet blocks: exit code %d, stdout misses %q:\n%s\nstderr:\n%s", r.exitCode, want, r.stdout, r.stderr)
-		}
-	}
-
-	r = e.run(t, "", "sheet", "copy", "evaluation", "1", "--print")
-	if r.exitCode != 0 || r.stdout != "'2e88112\n'2e88112\n" || !strings.Contains(r.stderr, "Block 1 of 3, Evaluation!L2:L3 (2 × 1)") {
-		t.Errorf("mc sheet copy --print: exit code %d, stdout %q, stderr:\n%s", r.exitCode, r.stdout, r.stderr)
-	}
-
-	// The teacher pastes the blocks 1 and 2, and leaves the completeness to check alone.
-	r = e.run(t, "", "sheet", "pasted", "evaluation", "1", "2")
-	if r.exitCode != 0 || !strings.Contains(r.stdout, "Recorded 4 cells of 2 blocks as the last export") ||
-		!strings.Contains(r.stdout, "1 block waits still in") {
-		t.Errorf("mc sheet pasted: exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
-	}
-
-	// The tab, as the script of mc sheet snippet copies it: texts, and a cell that the teacher
-	// changed.
-	read := `{
-  "tab": "Evaluation",
-  "keys": ["Team", "Lab", "Rule"],
-  "columns": {"A": "Team", "D": "Lab", "E": "Rule", "G": "Completeness", "L": "TA Commit", "O": "TA Analysis"},
-  "rows": [
-    {"_row": 2, "Team": "red", "Lab": "L2", "Rule": "L2_CTL", "TA Commit": "2e88112", "TA Analysis": "short"},
-    {"_row": 3, "Team": "red", "Lab": "L2", "Rule": "L2_RUN", "Completeness": "0.7", "TA Commit": "2e88112", "TA Analysis": "short"}
-  ]
-}
-`
-	write(t, filepath.Join(dir, "evaluation.read.json"), read)
-	r = e.run(t, "", "sheet", "verify", "evaluation")
-	if want := `Evaluation!O3 red L2 L2_RUN, TA Analysis: "short" in the tab, "none" at the export` + "\n"; r.exitCode != 1 || r.stdout != want {
-		t.Errorf("mc sheet verify: exit code %d, stdout:\n%s\nwant:\n%s", r.exitCode, r.stdout, want)
-	}
-
-	write(t, filepath.Join(dir, "evaluation.read.json"), strings.Replace(read, `"TA Analysis": "short"}`+"\n  ]", `"TA Analysis": "none"}`+"\n  ]", 1))
-	r = e.run(t, "", "sheet", "verify", "evaluation")
-	if r.exitCode != 0 || r.stdout != "The tab Evaluation holds the last export: 2 rows.\n" {
-		t.Errorf("mc sheet verify of the tab as written: exit code %d, stdout:\n%s\nstderr:\n%s", r.exitCode, r.stdout, r.stderr)
-	}
+// export is the file of mc eval export, as the script of the spreadsheet reads it.
+type export struct {
+	Spreadsheet string `json:"spreadsheet"`
+	Tabs        []struct {
+		Name     string            `json:"name"`
+		Keys     []string          `json:"keys"`
+		Columns  map[string]string `json:"columns"`
+		Formulas map[string]string `json:"formulas"`
+		Fill     []string          `json:"fill"`
+		Rows     []map[string]any  `json:"rows"`
+	} `json:"tabs"`
 }
 
-func TestSheetSnippetRefusesAnotherSpreadsheet(t *testing.T) {
-	e := newEnv(t)
-	write(t, filepath.Join(e.home, ".mc", "2026", "sheet", "rules.exported.json"), `{
-  "tab": "Rules",
-  "keys": ["Rule ID"],
-  "columns": {"C": "Rule ID", "E": "Coefficient"},
-  "rows": []
-}
-`)
-	teamFile := filepath.Join(t.TempDir(), "teams.yaml")
-	write(t, teamFile, `evaluation_sheet: https://docs.google.com/spreadsheets/d/0123456789/edit
-teams: []
-`)
-	r := e.run(t, "", "sheet", "snippet", "rules", "--team-file", teamFile)
-	for _, want := range []string{
-		`// mc sheet snippet: reads the columns C, E of the tab "Rules"`,
-		`  sheet: "0123456789",`,
-		`  path: "` + filepath.Join(e.home, ".mc", "2026", "sheet", "rules.read.json") + `",`,
-	} {
-		if r.exitCode != 0 || !strings.Contains(r.stdout, want) {
-			t.Errorf("mc sheet snippet: exit code %d, stdout misses %q:\n%s\nstderr:\n%s", r.exitCode, want, r.stdout, r.stderr)
-		}
-	}
-	r = e.run(t, "", "sheet", "snippet", "scores")
-	if r.exitCode != 1 || !strings.Contains(r.stderr, "no columns to read: neither") {
-		t.Errorf("mc sheet snippet of a tab without files: exit code %d, stderr:\n%s", r.exitCode, r.stderr)
-	}
-}
-
-// write writes a file, and its directory.
-func write(t *testing.T, path, content string) {
+// readExport reads the export of mc eval export, and checks that the clipboard holds it.
+func (e *env) readExport(t *testing.T) export {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	data, err := os.ReadFile(filepath.Join(e.home, ".mc", "2026", "sheet", "export.json"))
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+	if copied := e.readClipboard(t); copied != string(data) {
+		t.Errorf("the clipboard holds another text than the export:\n%s", copied)
+	}
+	var x export
+	if err := json.Unmarshal(data, &x); err != nil {
 		t.Fatal(err)
+	}
+	return x
+}
+
+// readClipboard returns what mc copied to the clipboard last.
+func (e *env) readClipboard(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile(e.clipboard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// rowOf returns the row of a tab of the export with the given first key.
+func rowOf(t *testing.T, x export, tab, key string) map[string]any {
+	t.Helper()
+	for _, tb := range x.Tabs {
+		if tb.Name != tab {
+			continue
+		}
+		for _, row := range tb.Rows {
+			if row[tb.Keys[0]] == key {
+				return row
+			}
+		}
+	}
+	t.Fatalf("no row %s in the tab %s of the export", key, tab)
+	return nil
+}
+
+// TestEvalExport exports the evaluations of Lab 2 three times: a first export, a pass that raises
+// the completeness of coral and lowers the one of teal, then the same pass again.
+func TestEvalExport(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, []string{"teal", "coral"}, map[string]string{
+		"teal":  "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567",
+		"coral": "0a1b2c3ffffffffffffffffffffffffffffffff",
+	})
+	// The facts of teal give the images and the screenshots of L2_POD.
+	e.writeFile(t, ".mc/2026/teacher/k8s-teal/docs/lab-2.facts.md", "---\ncommit: 0a1b2c3d4e5f60718293a4b5c6d7e8f901234567\nmc: 949d7aa740ab\n"+
+		"rules:\n  L2_POD:\n    images: \"1.1.0 b80767bd1a2c\"\n    screenshots: 2\n---\n\n# Lab 2\n")
+	e.writeFile(t, "teams.yaml", "evaluation_sheet: https://docs.google.com/spreadsheets/d/0123456789/edit\n"+
+		"teams:\n  - name: teal\n    members: []\n  - name: coral\n    members: []\n")
+	file := filepath.Join(e.home, ".mc", "2026", "sheet", "export.json")
+	exportCmd := append([]string{"eval", "export"}, flags...)
+	next := "Next, in the spreadsheet: the menu \"mc\", then \"Import\", paste it in the text box, then Import.\n" +
+		"The first time, add the script of mc sheet script: \"Extensions\", then \"Apps Script\".\n"
+
+	// The first export: every row is new.
+	r := e.run(t, "", exportCmd...)
+	want := "Exported 4 rules and 2 rows of the tab Evaluation to " + file + ", from 2 evaluations of L2.\n" +
+		"No last export: every row is new.\n"
+	if r.exitCode != 0 || !strings.HasPrefix(r.stdout, want) || !strings.HasSuffix(r.stdout, next) || r.stderr != "" {
+		t.Errorf("mc eval export = %d, stdout\n%s\nstderr %q, want 0, stdout\n%s...\n%s", r.exitCode, r.stdout, r.stderr, want, next)
+	}
+	x := e.readExport(t)
+	if x.Spreadsheet != "0123456789" || len(x.Tabs) != 2 || x.Tabs[0].Name != "Rules" || x.Tabs[1].Name != "Evaluation" {
+		t.Fatalf("the export has the spreadsheet %q and %d tabs, want 0123456789, then Rules and Evaluation", x.Spreadsheet, len(x.Tabs))
+	}
+	evaluation := x.Tabs[1]
+	for _, letter := range []string{"B", "C", "H", "J", "K"} {
+		if header, ok := evaluation.Columns[letter]; ok {
+			t.Errorf("the export writes the column %s, %q, which is not of mc", letter, header)
+		}
+	}
+	if !reflect.DeepEqual(evaluation.Fill, []string{"B", "C"}) || evaluation.Columns["G"] != "TA Completeness" || evaluation.Columns["V"] != "TA Comment" {
+		t.Errorf("the tab Evaluation fills %v, with G %q and V %q, want B and C, TA Completeness and TA Comment",
+			evaluation.Fill, evaluation.Columns["G"], evaluation.Columns["V"])
+	}
+	teal := rowOf(t, x, "Evaluation", "teal")
+	for header, want := range map[string]any{
+		"Lab": "L2", "Rule": "L2_POD", "TA Completeness": 0.8, "TA Commit": "0a1b2c3",
+		"TA Docker Images": "1.1.0 b80767bd1a2c", "TA Screenshots": 2.0, "TA Action Items": "Run it yourself",
+	} {
+		if got := teal[header]; got != want {
+			t.Errorf("teal L2_POD, %s = %v, want %v", header, got, want)
+		}
+	}
+	rowOf(t, x, "Rules", "L2")
+
+	// A pass: a higher completeness for coral, and a lower one for teal, which keeps the former one.
+	e.writeFile(t, ".mc/2026/evaluations/lab-2/coral.yaml",
+		strings.NewReplacer("team: teal", "team: coral", "completeness: 0.8", "completeness: 1").Replace(evaluationOfTeal))
+	e.writeFile(t, ".mc/2026/evaluations/lab-2/teal.yaml", strings.Replace(evaluationOfTeal, "completeness: 0.8", "completeness: 0.5", 1))
+	r = e.run(t, "", append(exportCmd, "-l", "L2")...)
+	want = "Exported 4 rules and 2 rows of the tab Evaluation to " + file + ", from 2 evaluations of L2.\n\n" +
+		"TAB         ROW              COLUMN           CHANGE\n" +
+		"Evaluation  coral L2 L2_POD  TA Completeness  0.8 -> 1\n" +
+		"Evaluation  teal L2 L2_POD   TA Completeness  kept 0.8, not 0.5: lower than the former pass\n" +
+		"Evaluation  teal L2 L2_POD   TA To Check      nothing -> \"The pass of 0a1b2c3 gives 0.5, lower tha...\"\n\n" +
+		"Copied the export to the clipboard, "
+	if r.exitCode != 0 || !strings.HasPrefix(r.stdout, want) || r.stderr != "" {
+		t.Errorf("mc eval export of a pass = %d, stdout\n%s\nstderr %q, want 0, stdout\n%s...", r.exitCode, r.stdout, r.stderr, want)
+	}
+	x = e.readExport(t)
+	if got := rowOf(t, x, "Evaluation", "teal")["TA Completeness"]; got != 0.8 {
+		t.Errorf("teal L2_POD, TA Completeness = %v after a lower one, want 0.8", got)
+	}
+
+	// The same pass again changes no cell, but says again that a completeness is kept.
+	r = e.run(t, "", exportCmd...)
+	want = "\n\nTAB         ROW             COLUMN           CHANGE\n" +
+		"Evaluation  teal L2 L2_POD  TA Completeness  kept 0.8, not 0.5: lower than the former pass\n\nCopied the export"
+	if r.exitCode != 0 || !strings.Contains(r.stdout, want) {
+		t.Errorf("mc eval export of the same pass = %d, stdout\n%s\nstderr %q, want the completeness kept only", r.exitCode, r.stdout, r.stderr)
+	}
+
+	// Without evaluation of coral, its row stays as it was in the last export.
+	if err := os.Remove(filepath.Join(e.home, ".mc", "2026", "evaluations", "lab-2", "coral.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	r = e.run(t, "", exportCmd...)
+	if got := rowOf(t, e.readExport(t), "Evaluation", "coral")["TA Completeness"]; r.exitCode != 0 || got != 1.0 {
+		t.Errorf("mc eval export without coral = %d, coral L2_POD, TA Completeness = %v, want 1, stderr %q", r.exitCode, got, r.stderr)
+	}
+}
+
+func TestEvalExportRefusesAnExportOfAnotherLayout(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, []string{"teal"}, map[string]string{"teal": "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567"})
+	// The tab Evaluation as before the column of the teacher: the completeness of mc in G, named
+	// Completeness.
+	e.writeFile(t, ".mc/2026/sheet/export.json", `{
+  "tabs": [
+    {"name": "Evaluation", "keys": ["Team", "Lab", "Rule"], "columns": {"A": "Team", "D": "Lab", "E": "Rule", "G": "Completeness"},
+     "rows": [{"Team": "teal", "Lab": "L2", "Rule": "L2_POD", "Completeness": 0.5}]}
+  ]
+}
+`)
+	r := e.run(t, "", append([]string{"eval", "export"}, flags...)...)
+	want := "the tab Evaluation of the last export has another layout than the one of mc: migrate it first"
+	if r.exitCode != 1 || !strings.Contains(r.stderr, want) {
+		t.Errorf("mc eval export after an export of another layout = %d, stderr %q, want 1 and %q", r.exitCode, r.stderr, want)
+	}
+	if _, err := os.Stat(e.clipboard); err == nil {
+		t.Error("mc eval export copied an export, though it stopped")
+	}
+}
+
+func TestEvalExportOfATeamWithoutEvaluation(t *testing.T) {
+	e := newEnv(t)
+	flags := e.writeEvaluations(t, []string{"teal"}, map[string]string{"teal": "0a1b2c3d4e5f60718293a4b5c6d7e8f901234567"})
+	r := e.run(t, "", append([]string{"eval", "export", "-t", "olive"}, flags...)...)
+	if r.exitCode != 1 || !strings.Contains(r.stderr, "no evaluation of olive") {
+		t.Errorf("mc eval export -t olive = %d, stderr %q, want 1 and no evaluation of olive", r.exitCode, r.stderr)
+	}
+}
+
+// TestSheetScript prints the script of the spreadsheet, then copies it to the clipboard.
+func TestSheetScript(t *testing.T) {
+	e := newEnv(t)
+	r := e.run(t, "", "sheet", "script")
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "@OnlyCurrentDoc") || !strings.Contains(r.stdout, "function mcImport(") {
+		t.Errorf("mc sheet script = %d, stdout\n%s\nstderr %q, want the script", r.exitCode, r.stdout, r.stderr)
+	}
+	script := r.stdout
+
+	r = e.run(t, "", "sheet", "script", "--copy")
+	if r.exitCode != 0 || !strings.HasPrefix(r.stdout, "Copied the script to the clipboard, ") {
+		t.Errorf("mc sheet script --copy = %d, stdout %q, stderr %q", r.exitCode, r.stdout, r.stderr)
+	}
+	if copied := e.readClipboard(t); copied != script {
+		t.Errorf("mc sheet script --copy copied another text than the script:\n%s", copied)
 	}
 }

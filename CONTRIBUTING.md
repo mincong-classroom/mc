@@ -3,7 +3,7 @@
 ## Commands
 
 A command of `mc` is a resource type, in the singular, then an action: `mc rule ls`, `mc team ls`,
-`mc eval sync`. The teacher dictates the commands at times, so a name that follows one pattern is
+`mc eval export`. The teacher dictates the commands at times, so a name that follows one pattern is
 easier to guess, and to say. There is no alias, such as `mc rules` for `mc rule`: an alias is a
 second name to remember, and it hides the pattern.
 
@@ -65,14 +65,13 @@ classDiagram
         Load(path) File
         Check(opts) Problems
         Teams(labDir) []string
-        Sync(opts) SyncResult
-        SyncRules(opts) RulesSyncResult
+        Export(opts) ExportResult
     }
     class sheet {
-        File
-        Load(path) File
-        Blocks(f) []Block
-        Verify(read, exported) []string
+        Export
+        Tab
+        LoadExport(path) Export
+        ImportScript() string
     }
     class annotate {
         Mark
@@ -105,9 +104,9 @@ What each package does, in the order of the diagram:
 | `cmd/git` | The commands on the clones of the teams: `mc git clone`, `pull`, `show` and `exec`. |
 | `cmd/team` | The commands on the teams: `mc team ls`, `mc team <team> provision`, etc. The only package that changes GitHub. |
 | `evidence` | Gathers the facts of a lab for a team: the rules of the lab from `rubric`, the pushes from `github`, the files of the clone with `git`, the evidence that the evaluator made, and the tags on Docker Hub. It takes the rules and the team as arguments, so it doesn't import `common`. |
-| `evaluation` | Reads the evaluation of a lab for a team, one YAML file per team and lab, as the evaluator writes it. It checks it against the rules of `rubric`, and against the commit of the facts of `mc eval gather-facts`, which `cmd` reads and passes to it. It computes the cells that write the evaluations of a lab in the tab Evaluation, and the rules of the year in the tab Rules, as files of `sheet`. |
+| `evaluation` | Reads the evaluation of a lab for a team, one YAML file per team and lab, as the evaluator writes it. It checks it against the rules of `rubric`, and against the commit of the facts of `mc eval gather-facts`, which `cmd` reads and passes to it. It computes the export of the evaluation spreadsheet, an `Export` of `sheet`: the rules of the year in the tab Rules, and the evaluations in the tab Evaluation, by the rules of a pass against the last export. |
 | `annotate` | Finds a text in a screenshot with `tesseract`, and draws numbered boxes around what the evaluator found. It imports no package of `mc`. |
-| `sheet` | Keeps the data of a tab of the evaluation spreadsheet in JSON files, one object per row: the blocks of cells to paste, the script that reads the tab in a browser, and the check of the tab against the last export. It imports no package of `mc`. |
+| `sheet` | The export of the evaluation spreadsheet, a JSON file with the range of `mc` in each tab, one object per row, and the script of the spreadsheet that imports it, in Apps Script. It imports no package of `mc`. |
 | `common` | What every command shares: the settings of `~/.mc/settings.yaml`, the year, the commit of `mc` that runs, the team registry and the paths of the clones. It imports no package of `mc`. |
 | `github` | Runs the CLI `gh` on the organization: the repositories, the teams and their members, and the pushes to `main`. |
 | `rubric` | Reads the YAML of the evaluation rules, checks it and renders its page. It imports no package of `mc`: its tests only need the made-up file of `rubric/testdata/`. |

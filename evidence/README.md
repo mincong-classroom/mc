@@ -74,8 +74,8 @@ it, the check wouldn't find the report, and every team would be gathered again. 
 lists what a pass renamed.
 
 `ReadFacts` reads the same front matter for other commands: `mc eval run` checks that an evaluation
-is about the commit of the facts, and `mc eval sync` writes the images and the screenshots of each
-rule in the columns TA Docker Images and TA Screenshots.
+is about the commit of the facts, and `mc eval export` writes the images and the screenshots of
+each rule to the columns TA Docker Images and TA Screenshots.
 
 ## Code
 

@@ -66,10 +66,11 @@ The files of the package:
 | File | What it holds |
 |---|---|
 | `e2e_test.go` | `TestMain`, the home of a test (`env`), its helpers, and the tests of the commands |
-| `sheet_test.go` | The tests of `mc sheet`: a paste, then a check of the tab |
+| `sheet_test.go` | The tests of `mc eval export` and `mc sheet script`: the export of the evaluation sheet, and the script that imports it |
 | `testdata/mc/` | The team registry of the tests, with made-up teams and names |
 | `testdata/test-teams-2026.yaml` | Another registry, for the flag `--team-file` |
 | `testdata/bin/gh` | The fake `gh`, a shell script |
+| `testdata/bin/pbcopy` | The fake clipboard: it writes what `mc` copies to a file of the test, so that the clipboard of the machine stays as it is |
 | `testdata/github/` | The answers of the API of GitHub, one JSON file per path |
 
 Run them with `go test ./e2e/`. `mc` is public: a test uses made-up teams and names only, never a

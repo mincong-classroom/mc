@@ -2,10 +2,8 @@ package evaluation
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"math"
-	"sort"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -82,89 +80,52 @@ const (
 	headerDescription = "Rule Description"
 )
 
-// rulesLayout is the layout of the tab Rules. Its column J, Troubleshooting Instructions, is the
-// teacher's: mc never reads it.
-var rulesLayout = layout{
-	tab:  RulesTab,
-	keys: []string{headerLabSession, headerRuleEnd},
-	columns: map[string]string{
-		"A": headerLabSession,
-		"B": headerRuleEnd,
-		"C": headerRuleID,
-		"D": headerRuleName,
-		"E": headerCoefficient,
-		"F": headerRulePoints,
-		"G": headerExercise,
-		"H": headerExerciseID,
-		"I": headerDescription,
-	},
-	command: "mc rule sync",
+// rulesColumns are the columns of the tab Rules, by their letters: all of them are mc's, from the
+// YAML. Its column J, Troubleshooting Instructions, is the teacher's: mc never writes it.
+var rulesColumns = map[string]string{
+	"A": headerLabSession,
+	"B": headerRuleEnd,
+	"C": headerRuleID,
+	"D": headerRuleName,
+	"E": headerCoefficient,
+	"F": headerRulePoints,
+	"G": headerExercise,
+	"H": headerExerciseID,
+	"I": headerDescription,
 }
 
-// RulesSheetFile returns an empty file of the tab Rules, with the columns that mc reads: the
-// layout of the script that reads the tab.
-func RulesSheetFile() *sheet.File {
-	return rulesLayout.file()
-}
-
-// RulesSyncOptions are the options of SyncRules.
-type RulesSyncOptions struct {
-	// Rules are the rules of the YAML, in their order.
-	Rules []rubric.Rule
-	// Read is the tab, as read after the last paste.
-	Read *sheet.File
-	// Exported is what mc wrote last in the tab, nil before the first export: a cell of the tab
-	// that differs from it was changed by someone else, such as the teacher.
-	Exported *sheet.File
-}
-
-// RulesSyncResult is what SyncRules computed.
-type RulesSyncResult struct {
-	// Pending is what waits to be written now: the file of mc sheet.
-	Pending *sheet.File
-	// Changes are the cells of the rows of the tab that the sync writes, in the order of the rules.
-	Changes []Change
-	// Added are the rules that the tab doesn't have yet, each one in a new row.
-	Added []RuleRow
-	// Extra are the rows of the tab whose rule the YAML no longer has: mc never deletes them.
-	Extra []RuleRow
-}
-
-// RuleRow is a rule and its row in the tab.
-type RuleRow struct {
-	ID  string // Such as L2_FBP.
-	Row int
-}
-
-// SyncRules computes the cells that write the rules of the YAML in the tab Rules:
-//
-//   - A row is found by its Lab Session and its Rule, the end of the Rule ID. A missing rule gets
-//     a new row after the last one, with the formulas of C, F and H.
-//   - The name, the coefficient, the exercise and the description follow the YAML. A cell that mc
-//     didn't write, such as a coefficient of the teacher, waits with a check.
-//   - A formula whose value is not the one that it gives, such as a Rule ID typed over it, is
-//     written again with a check.
-//   - A row whose rule the YAML no longer has is listed, never deleted.
-func SyncRules(opts RulesSyncOptions) (*RulesSyncResult, error) {
-	if opts.Read == nil {
-		return nil, errors.New("no read of the tab")
+// RulesLayout returns the layout of the tab Rules in an export: a tab without rows.
+func RulesLayout() *sheet.Tab {
+	p := sheet.RowPlaceholder
+	return &sheet.Tab{
+		Name:    RulesTab,
+		Keys:    []string{headerLabSession, headerRuleEnd},
+		Columns: maps.Clone(rulesColumns),
+		Formulas: map[string]string{
+			headerRuleID:     `=CONCAT(A` + p + `, CONCAT("_", B` + p + `))`,
+			headerRulePoints: "=20*E" + p,
+			headerExerciseID: `=CONCAT(CONCAT(A` + p + `, "_"), CONCAT("EX", G` + p + `))`,
+		},
+		Fill: []string{},
 	}
-	if err := rulesLayout.check("the tab read", opts.Read, true); err != nil {
-		return nil, err
-	}
-	read := ruleRowsByKey(opts.Read)
-	exported := map[string]sheet.Row{}
-	if opts.Exported != nil {
-		exported = ruleRowsByKey(opts.Exported)
-	}
-	last := 0
-	for _, row := range opts.Read.Rows {
-		last = max(last, row.Number)
-	}
+}
 
-	result := &RulesSyncResult{Pending: RulesSheetFile()}
-	synced := map[string]bool{}
-	for _, rule := range opts.Rules {
+// exportRules returns the tab Rules: one row per rule of the YAML, in its order. It records the
+// cells that change since the last export, the new rules, and the rules that the YAML no longer
+// has.
+func exportRules(rules []rubric.Rule, last *sheet.Tab, result *ExportResult) (*sheet.Tab, error) {
+	tab := RulesLayout()
+	former := map[string]map[string]any{}
+	if last != nil {
+		if err := sameLayout(tab, last); err != nil {
+			return nil, err
+		}
+		for _, row := range last.Rows {
+			former[ruleKey(text(row[headerLabSession]), text(row[headerRuleEnd]))] = row
+		}
+	}
+	exported := map[string]bool{}
+	for _, rule := range rules {
 		lab, end, ok := strings.Cut(rule.ID, "_")
 		if !ok || lab != rule.Lab || end == "" {
 			return nil, fmt.Errorf("the rule %s: its ID is not its lab %s, an underscore, then its letters", rule.ID, rule.Lab)
@@ -173,39 +134,37 @@ func SyncRules(opts RulesSyncOptions) (*RulesSyncResult, error) {
 		if err != nil {
 			return nil, err
 		}
-		k := ruleKey(lab, end)
-		synced[k] = true
-		r := ruleSync{rule: rule, result: result}
-		if row, ok := read[k]; ok {
-			r.row = sheet.Row{Number: row.Number, Cells: map[string]any{}}
-			r.read, r.exported = row, exported[k]
-			r.existing(cells)
-		} else {
-			last++
-			r.row = sheet.Row{Number: last, Cells: map[string]any{}, New: true}
-			r.added(cells)
-			result.Added = append(result.Added, RuleRow{ID: rule.ID, Row: last})
+		row := map[string]any{headerLabSession: lab, headerRuleEnd: end}
+		for _, c := range cells {
+			row[c.header] = c.value
 		}
-		if len(r.row.Cells) == 0 {
+		k := ruleKey(lab, end)
+		exported[k] = true
+		tab.Rows = append(tab.Rows, row)
+		before, ok := former[k]
+		if !ok {
+			if last != nil {
+				result.Added[RulesTab] = append(result.Added[RulesTab], rule.ID)
+			}
 			continue
 		}
-		r.row.Cells[headerLabSession] = lab
-		r.row.Cells[headerRuleEnd] = end
-		result.Pending.Rows = append(result.Pending.Rows, r.row)
-	}
-	for _, row := range opts.Read.Rows {
-		lab, end := text(row.Cells[headerLabSession]), text(row.Cells[headerRuleEnd])
-		if !synced[ruleKey(lab, end)] {
-			result.Extra = append(result.Extra, RuleRow{ID: lab + "_" + end, Row: row.Number})
+		for _, letter := range tab.Letters() {
+			header := tab.Columns[letter]
+			if _, formula := tab.Formulas[header]; formula || sameCell(before[header], row[header]) {
+				continue
+			}
+			result.Changes = append(result.Changes, Change{Tab: RulesTab, Row: rule.ID, Header: header, From: before[header], To: row[header]})
 		}
 	}
-
-	pending := result.Pending
-	sort.SliceStable(pending.Rows, func(i, j int) bool { return pending.Rows[i].Number < pending.Rows[j].Number })
-	if problems := pending.Problems(); len(problems) > 0 {
-		return nil, fmt.Errorf("the rows to write are not valid: %s", strings.Join(problems, "; "))
+	if last != nil {
+		for _, row := range last.Rows {
+			lab, end := text(row[headerLabSession]), text(row[headerRuleEnd])
+			if !exported[ruleKey(lab, end)] {
+				result.Removed = append(result.Removed, lab+"_"+end)
+			}
+		}
 	}
-	return result, nil
+	return tab, nil
 }
 
 // ruleCell is a cell of a rule that follows the YAML.
@@ -246,100 +205,6 @@ func exerciseValue(exercise string) any {
 	return exercise
 }
 
-// ruleSync computes the cells of the row of a rule.
-type ruleSync struct {
-	rule     rubric.Rule
-	result   *RulesSyncResult
-	row      sheet.Row // The cells to write.
-	read     sheet.Row // The row of the tab, empty for a new row.
-	exported sheet.Row // The row of the last export, empty if none.
-}
-
-// added writes a new row: its cells, then its formulas, the same as those of the rows of the tab.
-func (r *ruleSync) added(cells []ruleCell) {
-	for _, c := range cells {
-		r.row.Cells[c.header] = c.value
-	}
-	n := strconv.Itoa(r.row.Number)
-	r.row.Cells[headerRuleID] = `=CONCAT(A` + n + `, CONCAT("_", B` + n + `))`
-	r.row.Cells[headerRulePoints] = "=20*E" + n
-	r.row.Cells[headerExerciseID] = `=CONCAT(CONCAT(A` + n + `, "_"), CONCAT("EX", G` + n + `))`
-}
-
-// existing writes the cells of a row of the tab that change, then the formulas that the tab lost.
-func (r *ruleSync) existing(cells []ruleCell) {
-	for _, c := range cells {
-		r.set(c.header, c.value)
-	}
-	n := strconv.Itoa(r.row.Number)
-	lab, end := text(r.read.Cells[headerLabSession]), text(r.read.Cells[headerRuleEnd])
-	exercise := text(r.read.Cells[headerExercise])
-	r.formula(headerRuleID, `=CONCAT(A`+n+`, CONCAT("_", B`+n+`))`, lab+"_"+end)
-	r.formula(headerExerciseID, `=CONCAT(CONCAT(A`+n+`, "_"), CONCAT("EX", G`+n+`))`, lab+"_EX"+exercise)
-	if coefficient, ok := number(r.read.Cells[headerCoefficient]); ok {
-		points := strconv.FormatFloat(20*coefficient, 'f', -1, 64)
-		if got, ok := number(r.read.Cells[headerRulePoints]); !ok || math.Abs(got-20*coefficient) > epsilon {
-			r.rewrite(headerRulePoints, "=20*E"+n, points)
-		}
-	}
-}
-
-// set writes a cell, unless the tab holds its value already. A cell that holds another value, which
-// mc didn't write, such as one of the teacher, waits with a check.
-func (r *ruleSync) set(header string, value any) {
-	from, written := r.read.Cells[header], r.exported.Cells[header]
-	if !isEmpty(from) && sheet.SameValue(from, value) {
-		return
-	}
-	r.row.Cells[header] = value
-	c := Change{Cell: r.cell(header), Row: r.rule.ID, Header: header, From: from, To: value}
-	if !isEmpty(from) && (written == nil || !sheet.SameValue(from, written)) {
-		c.Check = fmt.Sprintf("the tab has %s, which mc didn't write", brief(from))
-		r.check(header, c.Check)
-	}
-	r.result.Changes = append(r.result.Changes, c)
-}
-
-// formula writes a formula again when the cell doesn't hold the text that it gives.
-func (r *ruleSync) formula(header, formula, want string) {
-	if strings.TrimSpace(text(r.read.Cells[header])) != want {
-		r.rewrite(header, formula, want)
-	}
-}
-
-// rewrite writes a formula over the value of the tab, with a check: someone may have typed it.
-func (r *ruleSync) rewrite(header, formula, want string) {
-	from := r.read.Cells[header]
-	r.row.Cells[header] = formula
-	why := fmt.Sprintf("the tab has %s, whereas the formula gives %s", brief(from), strconv.Quote(want))
-	r.check(header, why)
-	r.result.Changes = append(r.result.Changes, Change{
-		Cell: r.cell(header), Row: r.rule.ID, Header: header, From: from, To: formula, Check: why,
-	})
-}
-
-// check records why the teacher should look at a cell before it is written.
-func (r *ruleSync) check(header, why string) {
-	if r.row.Check == nil {
-		r.row.Check = map[string]string{}
-	}
-	r.row.Check[header] = why
-}
-
-// cell returns the address of the cell of the row under the header, such as Rules!E5.
-func (r *ruleSync) cell(header string) string {
-	return RulesTab + "!" + rulesLayout.letterOf(header) + strconv.Itoa(r.row.Number)
-}
-
-// ruleRowsByKey returns the rows of a file of the tab Rules by their keys.
-func ruleRowsByKey(f *sheet.File) map[string]sheet.Row {
-	rows := make(map[string]sheet.Row, len(f.Rows))
-	for _, row := range f.Rows {
-		rows[ruleKey(text(row.Cells[headerLabSession]), text(row.Cells[headerRuleEnd]))] = row
-	}
-	return rows
-}
-
 func ruleKey(lab, end string) string {
 	return lab + "\x1f" + end
 }
@@ -347,4 +212,16 @@ func ruleKey(lab, end string) string {
 // oneLine returns a text on one line, its spaces and line breaks squeezed to one space.
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(s), " ")
+}
+
+// brief returns the value of a cell for a message, quoted, and cut after 40 characters.
+func brief(v any) string {
+	if isEmpty(v) {
+		return "nothing"
+	}
+	s := []rune(text(v))
+	if len(s) > 40 {
+		return strconv.Quote(string(s[:40]) + "...")
+	}
+	return strconv.Quote(string(s))
 }
