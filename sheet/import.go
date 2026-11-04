@@ -9,14 +9,16 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
 
 // Export is what mc writes in a spreadsheet: the range of mc of each tab, every row of it. The
 // script of ImportScript imports it in the spreadsheet: it finds each row by its keys, then
-// rewrites the range of mc, so that a cell that the export doesn't give becomes empty. The other
-// columns, such as those of the teacher, are never written.
+// rewrites the range of mc, so that a cell that the export doesn't give becomes empty, except on a
+// confirmed row, which it leaves as it is. The other columns, such as those of the teacher, are
+// never written.
 type Export struct {
 	// Spreadsheet is the ID of the spreadsheet: the script refuses to import the export in another
 	// one. Empty, it imports it anywhere.
@@ -28,7 +30,7 @@ type Export struct {
 type Tab struct {
 	// Name is the name of the tab, such as "Evaluation".
 	Name string
-	// Keys are the headers whose values find a row, such as Team, Lab and Rule.
+	// Keys are the headers whose values find a row, such as "Team", "Lab" and "Rule".
 	Keys []string
 	// Columns are the headers of the columns of mc by their letters, such as "G": "TA
 	// Completeness": the keys, and the range of mc. The script checks that the first row of the tab
@@ -40,6 +42,11 @@ type Tab struct {
 	// Fill are the letters of the columns that a new row copies from the row above, like a fill
 	// down, such as the formulas of the students in B and C, which mc never reads.
 	Fill []string
+	// Confirmed is the column of the teacher that confirms a row, by its letter, such as "H":
+	// "Completeness": once its cell is filled, the import never writes the row, and its summary
+	// lists the cells of the row that differ from the export. At most one column, out of Columns,
+	// whose header the script checks as the others. Empty, the import writes every row.
+	Confirmed map[string]string
 	// Rows are the rows of the tab, in the order of the tab: a new key gets a new row at the end.
 	// Their cells are by header: a text, a json.Number or a bool, and a text that starts with = is
 	// a formula, such as a penalty, where {row} is the number of the row. A header absent is an
@@ -177,7 +184,7 @@ func (t *Tab) Problems() []string {
 			problems = append(problems, fmt.Sprintf("formulas: %q is not a header of the columns", header))
 		}
 		if !strings.HasPrefix(t.Formulas[header], "=") {
-			problems = append(problems, fmt.Sprintf("formulas: %s: %q doesn't start with =", header, t.Formulas[header]))
+			problems = append(problems, fmt.Sprintf("formulas: %q: %q doesn't start with =", header, t.Formulas[header]))
 		}
 	}
 	for _, letter := range t.Fill {
@@ -186,6 +193,23 @@ func (t *Tab) Problems() []string {
 		}
 		if header, ok := t.Columns[letter]; ok {
 			problems = append(problems, fmt.Sprintf("fill: the column %s is the one of %q, which the import writes", letter, header))
+		}
+	}
+	if len(t.Confirmed) > 1 {
+		problems = append(problems, fmt.Sprintf("confirmed: %d columns, at most one", len(t.Confirmed)))
+	}
+	for _, letter := range sortedKeys(t.Confirmed) {
+		if _, err := columnIndex(letter); err != nil {
+			problems = append(problems, fmt.Sprintf("confirmed: %v", err))
+		}
+		if t.Confirmed[letter] == "" {
+			problems = append(problems, fmt.Sprintf("confirmed: the column %s has no header", letter))
+		}
+		if header, ok := t.Columns[letter]; ok {
+			problems = append(problems, fmt.Sprintf("confirmed: the column %s is the one of %q, which the import writes", letter, header))
+		}
+		if slices.Contains(t.Fill, letter) {
+			problems = append(problems, fmt.Sprintf("confirmed: the column %s is a column to fill", letter))
 		}
 	}
 	seen := map[string]int{}
@@ -201,7 +225,7 @@ func (t *Tab) Problems() []string {
 				continue
 			}
 			if err := checkValue(row[header]); err != nil {
-				problems = append(problems, fmt.Sprintf("%s: %s: %v", where, header, err))
+				problems = append(problems, fmt.Sprintf("%s: %q: %v", where, header, err))
 			}
 		}
 		values := make([]string, len(t.Keys))
@@ -270,12 +294,13 @@ type exportJSON struct {
 }
 
 type tabJSON struct {
-	Name     string                       `json:"name"`
-	Keys     []string                     `json:"keys"`
-	Columns  map[string]string            `json:"columns"`
-	Formulas map[string]string            `json:"formulas"`
-	Fill     []string                     `json:"fill"`
-	Rows     []map[string]json.RawMessage `json:"rows"`
+	Name      string                       `json:"name"`
+	Keys      []string                     `json:"keys"`
+	Columns   map[string]string            `json:"columns"`
+	Formulas  map[string]string            `json:"formulas"`
+	Fill      []string                     `json:"fill"`
+	Confirmed map[string]string            `json:"confirmed"`
+	Rows      []map[string]json.RawMessage `json:"rows"`
 }
 
 // UnmarshalJSON decodes an export, its numbers as json.Number. An unknown attribute is an error,
@@ -295,7 +320,7 @@ func (e *Export) UnmarshalJSON(data []byte) error {
 		if err := decoder.Decode(&t); err != nil {
 			return fmt.Errorf("tabs[%d]: %w", i, err)
 		}
-		tab := &Tab{Name: t.Name, Keys: t.Keys, Columns: t.Columns, Formulas: t.Formulas, Fill: t.Fill}
+		tab := &Tab{Name: t.Name, Keys: t.Keys, Columns: t.Columns, Formulas: t.Formulas, Fill: t.Fill, Confirmed: t.Confirmed}
 		for j, attributes := range t.Rows {
 			row := make(map[string]any, len(attributes))
 			for _, name := range sortedKeys(attributes) {
@@ -356,6 +381,18 @@ func (t *Tab) marshal(b *bytes.Buffer) {
 	}
 	b.WriteString(`},"fill":`)
 	writeJSON(b, nonNil(t.Fill))
+	if len(t.Confirmed) > 0 {
+		b.WriteString(`,"confirmed":{`)
+		for i, letter := range sortedKeys(t.Confirmed) {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			writeJSON(b, letter)
+			b.WriteByte(':')
+			writeJSON(b, t.Confirmed[letter])
+		}
+		b.WriteByte('}')
+	}
 	b.WriteString(`,"rows":[`)
 	for i, row := range t.Rows {
 		if i > 0 {

@@ -55,9 +55,6 @@ func changes(result *ExportResult) []string {
 	lines := make([]string, len(result.Changes))
 	for i, c := range result.Changes {
 		lines[i] = fmt.Sprintf("%s %s %s: %v -> %v", c.Tab, c.Row, c.Header, c.From, c.To)
-		if c.Kept != "" {
-			lines[i] += ", kept: " + c.Kept
-		}
 	}
 	return lines
 }
@@ -135,16 +132,15 @@ func TestExportAPassAfterAFormerOne(t *testing.T) {
 	}
 
 	want := []string{
-		// coral: a higher completeness, and a penalty that the pass doesn't give.
+		// coral: a higher completeness, and a penalty that the pass doesn't give, which goes.
 		"Evaluation coral L2 L2_POD TA Completeness: 0.4 -> 0.7",
 		"Evaluation coral L2 L2_POD TA Comment: <nil> -> Done well: The Pod runs. To improve: Show the logs.",
-		"Evaluation coral L2 L2_POD TA Penalty: =-0.2*IF(ISBLANK(H{row}),G{row},H{row})*F{row} -> <nil>, kept: a penalty that this pass doesn't give, which a pass never clears",
-		"Evaluation coral L2 L2_POD TA To Check: <nil> -> A former pass gave a penalty that the pass of 0a1b2c3 doesn't give: it is kept.",
 		"Evaluation coral L2 L2_POD TA Commit: <nil> -> 0a1b2c3",
 		"Evaluation coral L2 L2_POD TA Analysis: <nil> -> short",
 		"Evaluation coral L2 L2_POD TA Writing Style: <nil> -> own words",
 		"Evaluation coral L2 L2_POD TA Time Spent: <nil> -> Session only",
 		"Evaluation coral L2 L2_POD TA Action Items: <nil> -> Run it yourself",
+		"Evaluation coral L2 L2_POD TA Penalty: =-0.2*IF(ISBLANK(H{row}),G{row},H{row})*F{row} -> <nil>",
 		// teal L2_POD: a higher completeness, with its comment.
 		"Evaluation teal L2 L2_POD TA Completeness: 0.6 -> 0.9",
 		"Evaluation teal L2 L2_POD TA Comment: Done well: old. -> Done well: The Pod runs. To improve: Show the logs.",
@@ -152,9 +148,9 @@ func TestExportAPassAfterAFormerOne(t *testing.T) {
 		"Evaluation teal L2 L2_POD TA Writing Style: <nil> -> own words",
 		"Evaluation teal L2 L2_POD TA Time Spent: <nil> -> Session only",
 		"Evaluation teal L2 L2_POD TA Action Items: <nil> -> Run it yourself",
-		// teal L2_LOG: a lower completeness keeps the former one.
-		"Evaluation teal L2 L2_LOG TA Completeness: 1 -> 0.8, kept: lower than the former pass",
-		"Evaluation teal L2 L2_LOG TA To Check: <nil> -> The pass of 0a1b2c3 gives 0.8, lower than 1, which is kept: what changed?",
+		// teal L2_LOG: a lower completeness replaces the former one too.
+		"Evaluation teal L2 L2_LOG TA Completeness: 1 -> 0.8",
+		"Evaluation teal L2 L2_LOG TA Comment: <nil> -> Done well: The Pod runs. To improve: Show the logs.",
 		"Evaluation teal L2 L2_LOG TA Commit: <nil> -> 0a1b2c3",
 		"Evaluation teal L2 L2_LOG TA Writing Style: <nil> -> own words",
 		"Evaluation teal L2 L2_LOG TA Time Spent: <nil> -> Session only",
@@ -163,9 +159,19 @@ func TestExportAPassAfterAFormerOne(t *testing.T) {
 	if got := changes(result); !reflect.DeepEqual(got, want) {
 		t.Errorf("Changes =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
+	var lower []string
+	for _, c := range result.Changes {
+		if c.Lower() {
+			lower = append(lower, c.Row)
+		}
+	}
+	if want := []string{"teal L2 L2_LOG"}; !reflect.DeepEqual(lower, want) {
+		t.Errorf("the lower completenesses = %q, want %q", lower, want)
+	}
 	rows := rowsOf(t, result, SheetTab)
-	if len(rows) != 4 || !strings.Contains(rows[2], `"TA Penalty":"=-0.2*`) || rows[3] != `{"Lab":"L3","Rule":"L3_SVC","TA Completeness":0.7,"Team":"olive"}` {
-		t.Errorf("rows =\n%s\nwant the 4 rows of the last export, the penalty kept, and the row of L3 as it was", strings.Join(rows, "\n"))
+	if len(rows) != 4 || strings.Contains(rows[2], `"TA Penalty"`) || !strings.Contains(rows[1], `"TA Completeness":0.8`) ||
+		rows[3] != `{"Lab":"L3","Rule":"L3_SVC","TA Completeness":0.7,"Team":"olive"}` {
+		t.Errorf("rows =\n%s\nwant the 4 rows of the last export, the lower completeness, no penalty, and the row of L3 as it was", strings.Join(rows, "\n"))
 	}
 	if len(result.Added[SheetTab]) != 0 {
 		t.Errorf("Added = %q, want none", result.Added[SheetTab])
@@ -182,14 +188,57 @@ func TestExportAPassAfterAFormerOne(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var left []string
-	for _, line := range changes(again) {
-		if !strings.Contains(line, ", kept: ") {
-			left = append(left, line)
+	if got := changes(again); len(got) != 0 {
+		t.Errorf("Changes of the same pass again = %q, want none", got)
+	}
+}
+
+func TestExportClearsWhatTheEvaluationNoLongerSays(t *testing.T) {
+	last := lastExport(t, `{"Team": "teal", "Lab": "L1", "Rule": "L1_TAG", "TA Completeness": 1, "TA To Check": "Check the logs.",
+		"TA Docker Images": "1.0.0 b80767bd1a2c", "TA Writing Style": "own words", "TA Comment": "Done well: The Pod runs. To improve: Show the logs."}`)
+	bare := rule("L1_TAG", 1)
+	bare.WritingStyle = ""
+	result, err := Export(ExportOptions{
+		Labs: []LabEvaluations{{
+			Lab:   "L1",
+			Files: []*File{evaluationOf("teal", bare)},
+			Facts: map[string]map[string]RuleFacts{"teal": {"L1_TAG": {}}},
+		}},
+		Last: last,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cleared []string
+	for _, c := range result.Changes {
+		if c.To == nil {
+			cleared = append(cleared, c.Header)
 		}
 	}
-	if len(left) != 0 {
-		t.Errorf("Changes of the same pass again = %q, want none but the cells kept", left)
+	if want := []string{"TA To Check", "TA Writing Style", "TA Docker Images"}; !reflect.DeepEqual(cleared, want) {
+		t.Errorf("the cells cleared = %q, want %q", cleared, want)
+	}
+	for _, header := range []string{"TA To Check", "TA Writing Style", "TA Docker Images"} {
+		if v, ok := result.Export.Tab(SheetTab).Rows[0][header]; ok {
+			t.Errorf("the row still has %s = %v, want the cell cleared", header, v)
+		}
+	}
+}
+
+func TestChangeLower(t *testing.T) {
+	for _, tc := range []struct {
+		c    Change
+		want bool
+	}{
+		{Change{Tab: SheetTab, Header: headerCompleteness, From: json.Number("1"), To: json.Number("0.7")}, true},
+		{Change{Tab: SheetTab, Header: headerCompleteness, From: json.Number("0.7"), To: json.Number("1")}, false},
+		{Change{Tab: SheetTab, Header: headerCompleteness, From: nil, To: json.Number("0.5")}, false},
+		{Change{Tab: SheetTab, Header: headerScreenshots, From: json.Number("2"), To: json.Number("0")}, false},
+		{Change{Tab: RulesTab, Header: headerCompleteness, From: json.Number("1"), To: json.Number("0.7")}, false},
+	} {
+		if got := tc.c.Lower(); got != tc.want {
+			t.Errorf("%+v.Lower() = %v, want %v", tc.c, got, tc.want)
+		}
 	}
 }
 
@@ -274,6 +323,9 @@ func TestTheFormulasFollowTheLayout(t *testing.T) {
 	}
 	if _, ok := sheetColumns["H"]; ok {
 		t.Error("the column H is the completeness of the teacher, which mc never writes")
+	}
+	if got := EvaluationLayout().Confirmed; !reflect.DeepEqual(got, map[string]string{"H": "Completeness"}) {
+		t.Errorf("the confirmed column = %v, want H, the completeness of the teacher", got)
 	}
 	if got, want := scoreFormula("7"), "=IF(ISBLANK(H7),G7,H7)*F7+T7"; got != want {
 		t.Errorf("scoreFormula = %q, want %q", got, want)

@@ -258,10 +258,10 @@ The made-up file of the tests shows the format,
 
 `mc eval export` writes the rules to the tab "Rules" of the evaluation sheet, where the tab
 "Evaluation" looks up the score of each rule: see [Evaluation](#evaluation) and [Sheet](#sheet). A
-row is found by its Lab Session and its Rule, the end of the Rule ID. A new rule gets a new row,
-with the formulas of the tab. A rule that the file no longer has is listed, and its row is never
-deleted. The [README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives the
-columns.
+row is found by its "Lab Session" and its "Rule", the end of the "Rule ID". A new rule gets a new
+row, with the formulas of the tab. A rule that the file no longer has is listed, and its row is
+never deleted. The [README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives
+the columns.
 
 ## Facts
 
@@ -487,24 +487,27 @@ mc eval export --sheet-dir DIR  # export.json in DIR, instead of ~/.mc/{year}/sh
 ```
 
 The export checks the files first, as `mc eval run --check-only` does. Then it starts from the last
-export, and follows the rules of a pass:
+export, and replaces the cells of `mc` with the files:
 
 - a row is found by its team, its lab and its rule. A new row comes after the last one, with the
-  formulas of Rule Score, Score and TA Lab Flag
-- the TA Completeness goes to an empty cell, or over the former one when it is higher, with its
-  TA Comment: "Done well: ... To improve: ...". A lower one keeps the former value, since the work
-  of a team only grows, and TA To Check says why. The Score takes the completeness of the teacher,
-  in the column H, once the teacher fills it
-- the other TA columns follow the files, but a cell is never cleared
-- TA Docker Images and TA Screenshots follow the facts of `mc eval gather-facts` the same way: the
-  tags of the images of the rule, and the number of screenshots of the team for its exercise
-- a penalty becomes the formula of TA Penalty, such as
-  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`, and its reason goes to the TA Comment. A
-  penalty of a former pass that the pass doesn't give is kept, and TA To Check says so
+  formulas of "Rule Score", "Score" and "TA Lab Flag"
+- every TA column follows the files: the "TA Completeness", even when it is lower than in the last
+  export, with its "TA Comment": "Done well: ... To improve: ...". A text that the file leaves empty
+  clears its cell
+- "TA Docker Images" and "TA Screenshots" follow the facts of `mc eval gather-facts` the same way:
+  the tags of the images of the rule, and the number of screenshots of the team for its exercise
+- a penalty becomes the formula of "TA Penalty", such as
+  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`, and its reason goes to the "TA Comment". Without
+  a penalty, the cell is cleared
+- the "Score" takes the completeness of the teacher, in the column H, once the teacher fills it. A
+  filled H also means that the teacher reviewed the evaluation of the rule and confirmed it: it is
+  final, so the import never writes its row, see [Sheet](#sheet)
 
-The export prints each cell that changed since the last export, or that it kept, then the new rows.
-For a made-up team `teal`, whose second pass gives a higher completeness to a rule and a lower one
-to another, and a new team `coral`:
+So the sheet shows what the files say: a new rule, a new judgment or a fix reaches it, even when it
+lowers a completeness. The export prints each cell that changed since the last export, then the new
+rows, and counts the completenesses that went down: check them before the import. For a made-up
+team `teal`, whose second pass gives a higher completeness to a rule and a lower one to another,
+and a new team `coral`:
 
 ```
 $ mc eval export -l L2
@@ -513,8 +516,10 @@ Exported 4 rules and 4 rows of the tab Evaluation to /Users/me/.mc/2026/sheet/ex
 TAB         ROW             COLUMN           CHANGE
 Evaluation  teal L2 L2_POD  TA Completeness  0.6 -> 0.8
 Evaluation  teal L2 L2_POD  TA Comment       "Done well: The Pod runs. To improve: Sho..." -> "Done well: The Pod runs the image of Lab..."
-Evaluation  teal L2 L2_LOG  TA Completeness  kept 1, not 0.5: lower than the former pass
-Evaluation  teal L2 L2_LOG  TA To Check      nothing -> "The pass of 0a1b2c3 gives 0.5, lower tha..."
+Evaluation  teal L2 L2_LOG  TA Completeness  1 -> 0.5, lower
+Evaluation  teal L2 L2_LOG  TA To Check      nothing -> "The logs of the second container are mis..."
+
+1 completeness lower than the last export, to check before the import.
 
 New 2 rows of the tab Evaluation: coral L2 L2_POD, coral L2 L2_LOG.
 
@@ -581,6 +586,7 @@ export, with a made-up team, and some columns only:
       "columns": {"A": "Team", "D": "Lab", "E": "Rule", "F": "Rule Score", "G": "TA Completeness", "I": "Score", "M": "TA Commit", "V": "TA Comment"},
       "formulas": {"Rule Score": "=VLOOKUP(E{row},Rules!C:F,4,FALSE)", "Score": "=IF(ISBLANK(H{row}),G{row},H{row})*F{row}+T{row}"},
       "fill": ["B", "C"],
+      "confirmed": {"H": "Completeness"},
       "rows": [
         {"Team": "teal", "Lab": "L2", "Rule": "L2_POD", "TA Completeness": 0.8, "TA Commit": "0a1b2c3",
          "TA Comment": "Done well: The Pod runs the image of Lab 1. To improve: Show the logs of the Pod."}
@@ -594,10 +600,13 @@ As you can see:
 
 - `columns` is the range of `mc` in the tab: the letter of each header. The other columns are
   never written, such as B and C, which hold the students, and H, J and K, which are the teacher's
-- the keys, Team, Lab and Rule, find a row
+- the keys, "Team", "Lab" and "Rule", find a row
 - `formulas` gives the formula of a column on every row, where `{row}` is the number of the row
 - `fill` names the columns that a new row copies from the row above, such as the formulas that
   find the students of its team
+- `confirmed` names the column that confirms a row: H, the completeness of the teacher. A filled H
+  means that the teacher reviewed the evaluation of the rule, and it is final: the import never
+  writes that row. The script reads this column, but never writes it
 - a row holds the values of its cells, and a cell not given becomes empty: the export holds the
   whole range of `mc`, not the changes
 - `spreadsheet` is the ID of the `evaluation_sheet` of the team registry: the script refuses an
@@ -605,18 +614,20 @@ As you can see:
 
 The import runs in 4 steps, for each tab:
 
-1. It reads the headers of the first row, and the columns of the keys. When a header of the export
-   is not at its letter, it stops before any write.
+1. It reads the headers of the first row, the columns of the keys and the confirmed column. When a
+   header of the export is not at its letter, it stops before any write.
 2. It finds the row of each key, and gives a new key a new row at the end, whose `fill` columns it
    copies from the row above.
-3. It writes the columns of `mc` on every row, with one call per group of adjacent columns. A text
+3. It writes the columns of `mc` on every row but the confirmed ones, with one call per group of
+   adjacent columns and run of rows. A text
    that Sheets would read as something else, such as the commit `2e88112` (a number), starts with
    an apostrophe, which keeps it a text.
 4. It reads the cells back, compares them with the export, and shows a summary: the rows imported,
-   the new ones, and each cell that differs.
+   the new ones, and each cell that differs. It also lists the confirmed rows, with their cells
+   that differ from the export, left as they are.
 
 A row of the tab whose keys are not in the export keeps its keys, and its other cells of `mc`
-become empty: the summary lists it, to delete by hand.
+become empty, unless it is confirmed: the summary lists it, to delete by hand.
 
 ## Key Components
 
