@@ -51,11 +51,13 @@ flowchart LR
    clipboard.
 2. **Paste.** The menu "mc", then "Import", opens a dialog with a text box, where the export is
    pasted.
-3. **Write.** The script reads the headers of each tab and its columns of keys, and stops before
-   any write if a header is not at its letter. Then it finds the row of each key, adds the new rows
-   at the end, and rewrites the range of `mc` on every row.
+3. **Write.** The script reads the headers of each tab, its columns of keys and its confirmed
+   column, and stops before any write if a header is not at its letter. Then it finds the row of
+   each key, adds the new rows at the end, and rewrites the range of `mc` on every row but the
+   confirmed ones.
 4. **Check.** The script reads the cells back and compares them with the export. Its summary gives
-   the rows imported, the new ones, and each cell that differs.
+   the rows imported, the new ones, and each cell that differs. It lists the confirmed rows too,
+   with their cells that differ from the export.
 
 The export is the whole range of `mc`, not the changes since the last one: an import that stops
 halfway is fixed by the next import of the same file.
@@ -73,6 +75,7 @@ made-up team, and some columns only:
   "columns": {"A": "Team", "D": "Lab", "E": "Rule", "F": "Rule Score", "G": "TA Completeness", "T": "TA Penalty"},
   "formulas": {"Rule Score": "=VLOOKUP(E{row},Rules!C:F,4,FALSE)"},
   "fill": ["B", "C"],
+  "confirmed": {"H": "Completeness"},
   "rows": [
     {"Team": "teal", "Lab": "L2", "Rule": "L2_POD", "TA Completeness": 0.8,
      "TA Penalty": "=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}"}
@@ -87,6 +90,9 @@ made-up team, and some columns only:
   row gives no cell of such a column.
 - `fill` names the columns that a new row copies from the row above, such as the formulas that
   find the students of its team. They are out of `columns`.
+- `confirmed` names the column that confirms a row, at most one: once its cell is filled, the
+  import never writes that row. The script reads it with the keys, and never writes it. It is out
+  of `columns` and of `fill`.
 - A cell of a row is a number, a text, or a formula of its own, such as a penalty. A cell not given
   becomes empty.
 
@@ -96,9 +102,15 @@ made-up team, and some columns only:
 stops with the header that differs, and writes nothing.
 
 **The columns of the teacher are never written.** The script writes the columns of the export
-only, and reads none of the others, the keys aside. In the tab Evaluation, the completeness of the
-teacher stands next to the one of `mc`, and the score takes the one of the teacher once it is
-filled.
+only, and reads none of the others, the keys and the confirmed column aside. In the tab Evaluation,
+the completeness of the teacher stands next to the one of `mc`, and the score takes the one of the
+teacher once it is filled.
+
+**A confirmed row is never written.** In the tab Evaluation, a filled completeness of the teacher
+(H) means that the teacher reviewed the evaluation of the rule and confirmed it: it is final. The
+script skips that row, so a new pass of the evaluations changes neither its penalty nor its
+"TA Comment". The summary lists the cells of `mc` where it differs from the export, for the teacher
+to check.
 
 **A text stays a text.** Sheets reads a text written with `setValues` as if it was typed, so the
 commit `2e88112` would become a number. The script starts each text with an apostrophe, which
@@ -111,16 +123,12 @@ the teams.
 
 ## Limits
 
-**A row of the tab whose keys are not in the export loses its cells of `mc`.** It keeps its keys,
-and the summary lists it, to delete by hand. It happens when a rule is gone, or when a row was
-added by hand.
+**A row of the tab whose keys are not in the export loses its cells of `mc`**, unless it is
+confirmed. It keeps its keys, and the summary lists it, to delete by hand. It happens when a rule
+is gone, or when a row was added by hand.
 
-**A confirmed row is rewritten too.** In the tab Evaluation, a filled completeness of the teacher
-(H) means that the teacher reviewed the evaluation of the rule and confirmed it: it is final. The
-script never reads H, so an import rewrites the range of `mc` on a confirmed row as on any other.
-The Score keeps H, but a new penalty in TA Penalty changes it, and a new TA Comment no longer says
-what the teacher confirmed. So a new pass of the evaluations leaves the confirmed rules as they
-are.
+**A confirmed row of the export stays out of the tab.** Its cells of `mc` keep the values of the
+import before the teacher confirmed it. To write it again, the teacher empties its H first.
 
 **The script is a copy.** `mc sheet script` prints the version of `mc`: after a change of
 `import.gs`, paste it again in the spreadsheet.

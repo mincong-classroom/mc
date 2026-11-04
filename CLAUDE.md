@@ -180,20 +180,21 @@ the made-up rules of `rubric/testdata/`.
 YAML (`exportRules`, `rules.go`, layout `RulesLayout`: A to I, formulas C, F and H, J is the
 teacher's) and the tab Evaluation from the files (`exportEvaluations`, layout `EvaluationLayout`:
 `sheetColumns` A, D to G, I, L to V; B and C, the students, are `Fill`, copied from the row above
-by the script; H, J and K are the teacher's, never in the export; a filled H means that the
-teacher confirmed the evaluation of the rule, final, but the script doesn't read H, so an import
-still rewrites the TA cells of a confirmed row). The rows start from the last
-export (`ExportOptions.Last`), whose tab must have the same layout (`sameLayout`), or it is an
-error: migrate the file first. A row is found by Team, Lab and Rule (`rowKey`); a new one is
-appended. The rules of a pass (`pass`): the TA Completeness is written when the last cell is empty
-or the new one higher, with the TA Comment; a lower one is kept (`keep`, a `Change` with `Kept`),
-with a sentence in TA To Check; a former penalty that the pass doesn't give is kept, with a
-sentence too; the other TA cells are set when not empty (`setText`: never cleared, never a text
-starting with `=`). The Score is `=IF(ISBLANK(H{row}),G{row},H{row})*F{row}+T{row}`, the penalty
+by the script; H, J and K are the teacher's, never in the export; H is the `Confirmed` column:
+a filled H means that the teacher confirmed the evaluation of the rule, final, and the script never
+writes that row). The rows start from the last export (`ExportOptions.Last`), whose tab must have
+the same layout (`sameLayout`, which ignores `Confirmed`), or it is an error: migrate the file
+first. A row is found by "Team", "Lab" and "Rule" (`rowKey`); a new one is appended. A pass
+(`pass.row`) replaces every TA cell of its row with the evaluation, even a lower "TA Completeness":
+`set` with `nil` clears a cell, `setText` clears it for an empty text and refuses a text starting
+with `=`, and no penalty clears "TA Penalty". "TA Docker Images" and "TA Screenshots" follow the
+facts, when the rule has some. Each cell that differs from the last export is a `Change`;
+`Change.Lower` tells a "TA Completeness" that went down, which the output marks and counts. The
+"Score" is `=IF(ISBLANK(H{row}),G{row},H{row})*F{row}+T{row}`, the penalty
 `=-x*IF(ISBLANK(H{row}),G{row},H{row})*F{row}` (`penaltyFormula`). `ExportResult` lists the
 `Changes` against the last export, the `Added` keys per tab (none without a last export) and the
 `Removed` rules. `cmd/eval_export.go` passes the facts of each team (`readFacts`,
-`LabEvaluations.Facts`) for TA Docker Images and TA Screenshots, saves the export to
+`LabEvaluations.Facts`) for "TA Docker Images" and "TA Screenshots", saves the export to
 `~/.mc/{year}/sheet/export.json` and copies it to the clipboard (`toClipboard`).
 
 **Annotate** (`annotate/`) — `Read(ctx, img)` runs `tesseract --psm 11` on the image enlarged twice
@@ -209,13 +210,16 @@ dialog of the script (the menu mc > Import), which `mc sheet script` prints (`Im
 embedded `import.gs`). An `Export` has the `Spreadsheet` ID (from `evaluation_sheet`, checked by
 the script) and its `Tabs`; a `Tab` has its `Keys`, `Columns` (letter → header: the range of mc,
 rewritten on every row), `Formulas` (header → formula with `{row}`, `RowPlaceholder`), `Fill`
-(letters copied from the row above for a new row) and `Rows` (header → value: `json.Number`, a
-text, or a formula with `{row}`; a cell not given is cleared). `LoadExport` decodes strictly
+(letters copied from the row above for a new row), `Confirmed` (at most one letter → header,
+out of `Columns` and `Fill`: a row whose cell is filled is never written) and `Rows` (header →
+value: `json.Number`, a text, or a formula with `{row}`; a cell not given is cleared). `LoadExport` decodes strictly
 (`DisallowUnknownFields`, `UseNumber`) and checks `Problems`; `Save` writes it indented, 0600,
 through a temporary file, without escaping `<`, `>` and `&`, the rows in the order of the columns.
-The script (`import.gs`) checks the headers of row 1 and the keys before any write (`mcPlan`),
-appends the new keys, copies the `Fill` columns, writes each group of adjacent columns with
-`setValues` (`mcGrid`: a text starts with `'`), reads back and compares (`mcCompare`), then shows a
+The script (`import.gs`) checks the headers of row 1, the confirmed column and the keys before any
+write (`mcPlan`, which returns the confirmed rows), appends the new keys, copies the `Fill`
+columns, writes each group of adjacent columns with `setValues` for each run of rows without a
+confirmed one (`mcRuns`, `mcGrid`: a text starts with `'`), reads back and compares (`mcCompare`:
+the `differences` of the written rows, and the cells `held` on the confirmed rows), then shows a
 summary (`mcSummary`) and a toast. Its pure functions are tested with node (`import_test.js`, run
 by `TestImportScript`, skipped without node). The tests use made-up teams only.
 

@@ -19,6 +19,7 @@ const (
 
 	headerTeam         = "Team"
 	headerLab          = "Lab"
+	headerConfirmed    = "Completeness" // The completeness of the teacher, which confirms a row.
 	headerRule         = "Rule"
 	headerRuleScore    = "Rule Score"
 	headerCompleteness = "TA Completeness"
@@ -40,10 +41,10 @@ const (
 var sheetKeys = []string{headerTeam, headerLab, headerRule}
 
 // sheetColumns are the columns of mc in the tab Evaluation, by their letters: the keys, the
-// formulas, and the TA columns, which the import rewrites on every row. The others are never
-// written: B and C hold the students of the team, whose formulas a new row copies from the row
-// above, and H, J and K are the teacher's: the completeness of the teacher, which the Score takes
-// when it is filled, the Comment and the Troubleshooting Instructions.
+// formulas, and the TA columns, which the import rewrites on every row but the confirmed ones. The
+// others are never written: B and C hold the students of the team, whose formulas a new row copies
+// from the row above, and H, J and K are the teacher's: the completeness of the teacher, which the
+// "Score" takes when it is filled, the "Comment" and the "Troubleshooting Instructions".
 var sheetColumns = map[string]string{
 	"A": headerTeam,
 	"D": headerLab,
@@ -68,7 +69,11 @@ var sheetColumns = map[string]string{
 // above, like a fill down: mc never reads them.
 var fillColumns = []string{"B", "C"}
 
-// The formulas of the tab Evaluation, for the row n: sheet.RowPlaceholder in an export. The Score
+// confirmedColumn is the completeness of the teacher, by its letter. Once the teacher fills it, the
+// teacher reviewed the evaluation of the rule and confirmed it: the import never writes the row.
+var confirmedColumn = map[string]string{"H": headerConfirmed}
+
+// The formulas of the tab Evaluation, for the row n: sheet.RowPlaceholder in an export. The "Score"
 // takes the completeness of the teacher, H, when the teacher filled it, and the one of mc, G,
 // otherwise.
 func ruleScoreFormula(n string) string {
@@ -88,7 +93,7 @@ func penaltyFormula(remove float64, n string) string {
 	return "=-" + formatFloat(remove) + "*" + completenessFormula(n) + "*F" + n
 }
 
-// completenessFormula returns the completeness that the Score takes: the one of the teacher, else
+// completenessFormula returns the completeness that the "Score" takes: the one of the teacher, else
 // the one of mc.
 func completenessFormula(n string) string {
 	return "IF(ISBLANK(H" + n + "),G" + n + ",H" + n + ")"
@@ -106,18 +111,19 @@ func EvaluationLayout() *sheet.Tab {
 			headerScore:     scoreFormula(p),
 			headerLabFlag:   labFlagFormula(p),
 		},
-		Fill: slices.Clone(fillColumns),
+		Fill:      slices.Clone(fillColumns),
+		Confirmed: maps.Clone(confirmedColumn),
 	}
 }
 
 // RuleFacts are the facts of mc for a rule of a team, at the commit of its evaluation.
 type RuleFacts struct {
 	// Images are the tags of the images of the rule on Docker Hub, with the start of their digests,
-	// such as "1.0.0 b80767bd1a2c, 1.0.1 0f3e5d6c7b8a", or "none": TA Docker Images. Empty when the
-	// rule has no image.
+	// such as "1.0.0 b80767bd1a2c, 1.0.1 0f3e5d6c7b8a", or "none": "TA Docker Images". Empty when
+	// the rule has no image.
 	Images string
-	// Screenshots is the number of screenshots of the team for the exercise of the rule: TA
-	// Screenshots.
+	// Screenshots is the number of screenshots of the team for the exercise of the rule:
+	// "TA Screenshots".
 	Screenshots int
 }
 
@@ -149,8 +155,8 @@ type LabEvaluations struct {
 type ExportResult struct {
 	// Export is the new export: the tabs Rules and Evaluation.
 	Export *sheet.Export
-	// Changes are the cells that change since the last export, and those that a pass keeps, tab
-	// by tab, in the order of the rows. The cells of a new row are not among them.
+	// Changes are the cells that change since the last export, tab by tab, in the order of the rows.
+	// The cells of a new row are not among them.
 	Changes []Change
 	// Added are the new rows, which the last export doesn't have, by tab: "teal L2 L2_POD" in the
 	// tab Evaluation, "L2_FBP" in the tab Rules.
@@ -160,32 +166,41 @@ type ExportResult struct {
 	Removed []string
 }
 
-// Change is a cell that changes since the last export, or that a pass keeps.
+// Change is a cell that changes since the last export.
 type Change struct {
 	Tab    string
 	Row    string // The keys of the row: "teal L2 L2_POD", or "L2_FBP" in the tab Rules.
 	Header string
 	From   any // The value of the last export, nil when the cell is empty.
-	To     any // The value exported, or the value of the evaluation when the cell is kept.
-	// Kept says why the cell keeps the value of the last export, empty when it changes.
-	Kept string
+	To     any // The value exported, nil when the cell becomes empty.
+}
+
+// Lower reports whether the change lowers a "TA Completeness", such as 1 -> 0.7: a pass that gives
+// less than the former one, which the teacher checks before the import.
+func (c Change) Lower() bool {
+	if c.Tab != SheetTab || c.Header != headerCompleteness {
+		return false
+	}
+	from, okFrom := number(c.From)
+	to, okTo := number(c.To)
+	return okFrom && okTo && to < from-epsilon
 }
 
 // Export computes the export of the evaluation sheet: the tab Rules from the YAML, and the tab
-// Evaluation from the evaluations, by the rules of a pass, against the last export:
+// Evaluation from the evaluations, against the last export:
 //
 //   - A row is found by its team, its lab and its rule. A row that the last export doesn't have is
 //     added after the last row.
-//   - The TA Completeness is written in an empty cell, or over the former one when it is higher,
-//     with its TA Comment: what the team did well, and what it can improve. A lower one keeps the
-//     former value, and TA To Check says why.
-//   - The other TA columns follow the evaluation, but a cell is never cleared, since a pass only
-//     adds to the work of a team.
-//   - TA Docker Images and TA Screenshots follow the facts of mc, the same way.
-//   - A penalty becomes the formula of TA Penalty, and its reason goes to the TA Comment. A former
-//     penalty that the pass doesn't give is kept, and TA To Check says so.
+//   - Every TA column of the row follows the evaluation, and replaces the one of the last export:
+//     the "TA Completeness", even when lower, with its "TA Comment", what the team did well and
+//     what it can improve. A text that the evaluation leaves empty clears its cell.
+//   - "TA Docker Images" and "TA Screenshots" follow the facts of mc, the same way. A team or a
+//     rule without facts leaves them as they are.
+//   - A penalty becomes the formula of "TA Penalty", and its reason goes to the "TA Comment".
+//     Without a penalty, the cell is cleared.
 //
-// The rows of the labs and the teams that the options don't give stay as they are.
+// The rows of the labs and the teams that the options don't give stay as they are. The import
+// never writes a confirmed row, whose completeness of the teacher is filled.
 func Export(opts ExportOptions) (*ExportResult, error) {
 	result := &ExportResult{Added: map[string][]string{}}
 	var lastRules, lastEvaluation *sheet.Tab
@@ -233,14 +248,14 @@ func exportEvaluations(labs []LabEvaluations, last *sheet.Tab, result *ExportRes
 				if ok {
 					p.last = tab.Rows[i]
 					p.cells = maps.Clone(p.last)
-					if err := p.existing(); err != nil {
+					if err := p.row(); err != nil {
 						return nil, err
 					}
 					tab.Rows[i] = p.cells
 					continue
 				}
 				p.cells = map[string]any{headerTeam: f.Team, headerLab: lab.Lab, headerRule: rule.ID}
-				if err := p.added(); err != nil {
+				if err := p.row(); err != nil {
 					return nil, err
 				}
 				index[k] = len(tab.Rows)
@@ -252,7 +267,8 @@ func exportEvaluations(labs []LabEvaluations, last *sheet.Tab, result *ExportRes
 	return tab, nil
 }
 
-// sameLayout returns an error if the tab of the last export doesn't have the layout of mc.
+// sameLayout returns an error if the tab of the last export doesn't have the layout of mc. The
+// confirmed column is not compared: it says which rows the import writes, not what a row holds.
 func sameLayout(want, last *sheet.Tab) error {
 	if !slices.Equal(want.Keys, last.Keys) || !maps.Equal(want.Columns, last.Columns) || !maps.Equal(want.Formulas, last.Formulas) ||
 		!slices.Equal(want.Fill, last.Fill) {
@@ -261,7 +277,7 @@ func sameLayout(want, last *sheet.Tab) error {
 	return nil
 }
 
-// pass computes the row of a rule of a team, by the rules of a pass.
+// pass computes the row of a rule of a team from its evaluation.
 type pass struct {
 	file     *File
 	rule     Rule
@@ -273,47 +289,12 @@ type pass struct {
 	result   *ExportResult
 }
 
-// added computes a new row.
-func (p *pass) added() error {
+// row computes every TA cell of the row from the evaluation, in place of the last export.
+func (p *pass) row() error {
 	p.set(headerCompleteness, completenessCell(p.rule.Completeness))
-	if err := p.setText(headerComment, p.comment()); err != nil {
-		return err
-	}
-	if err := p.setText(headerToCheck, p.rule.ToCheck); err != nil {
-		return err
-	}
-	return p.taCells()
-}
-
-// existing computes a row of the last export.
-func (p *pass) existing() error {
-	toCheck := p.rule.ToCheck
-	former, filled := number(p.last[headerCompleteness])
-	switch {
-	case !filled, p.rule.Completeness > former+epsilon:
-		p.set(headerCompleteness, completenessCell(p.rule.Completeness))
-		if err := p.setText(headerComment, p.comment()); err != nil {
-			return err
-		}
-	case p.rule.Completeness < former-epsilon:
-		p.keep(headerCompleteness, completenessCell(p.rule.Completeness), "lower than the former pass")
-		toCheck = joinSentences(fmt.Sprintf("The pass of %s gives %s, lower than %s, which is kept: what changed?",
-			short(p.file.Commit), formatFloat(p.rule.Completeness), formatFloat(former)), toCheck)
-	}
-	if p.rule.Penalty == nil && !isEmpty(p.last[headerPenalty]) {
-		p.keep(headerPenalty, nil, "a penalty that this pass doesn't give, which a pass never clears")
-		toCheck = joinSentences(toCheck, fmt.Sprintf("A former pass gave a penalty that the pass of %s doesn't give: it is kept.",
-			short(p.file.Commit)))
-	}
-	if err := p.setText(headerToCheck, toCheck); err != nil {
-		return err
-	}
-	return p.taCells()
-}
-
-// taCells computes the TA columns that follow the evaluation, and the penalty.
-func (p *pass) taCells() error {
 	texts := []struct{ header, value string }{
+		{headerComment, p.comment()},
+		{headerToCheck, p.rule.ToCheck},
 		{headerCommit, short(p.file.Commit)},
 		{headerAnalysis, p.rule.Analysis},
 		{headerWritingStyle, p.rule.WritingStyle},
@@ -333,41 +314,42 @@ func (p *pass) taCells() error {
 	}
 	if pen := p.rule.Penalty; pen != nil {
 		p.set(headerPenalty, penaltyFormula(pen.Remove, sheet.RowPlaceholder))
+	} else {
+		p.set(headerPenalty, nil)
 	}
 	return nil
 }
 
-// setText sets a text on one line, unless it is empty: a cell is never cleared.
+// setText sets a text on one line. An empty text clears the cell.
 func (p *pass) setText(header, value string) error {
 	value = strings.Join(strings.Fields(value), " ")
 	if value == "" {
+		p.set(header, nil)
 		return nil
 	}
 	if strings.HasPrefix(value, "=") {
-		return fmt.Errorf("%s, %s: %q starts with =, which the tab would read as a formula", p.key, header, value)
+		return fmt.Errorf("%s, %q: %q starts with =, which the tab would read as a formula", p.key, header, value)
 	}
 	p.set(header, value)
 	return nil
 }
 
-// set sets a cell, and records the change when the last export had another value.
+// set sets a cell, or clears it when the value is nil, and records the change when the last export
+// had another value.
 func (p *pass) set(header string, value any) {
 	from := p.last[header]
-	p.cells[header] = value
+	if value == nil {
+		delete(p.cells, header)
+	} else {
+		p.cells[header] = value
+	}
 	if p.last == nil || sameCell(from, value) {
 		return
 	}
 	p.result.Changes = append(p.result.Changes, Change{Tab: SheetTab, Row: p.key, Header: header, From: from, To: value})
 }
 
-// keep records that a cell keeps the value of the last export, and why.
-func (p *pass) keep(header string, value any, why string) {
-	p.result.Changes = append(p.result.Changes, Change{
-		Tab: SheetTab, Row: p.key, Header: header, From: p.last[header], To: value, Kept: why,
-	})
-}
-
-// comment returns the TA Comment of the rule: what the team did well, what it can improve, and
+// comment returns the "TA Comment" of the rule: what the team did well, what it can improve, and
 // the reason of the penalty, if any.
 func (p *pass) comment() string {
 	parts := []string{"Done well: " + sentence(p.rule.DoneWell), "To improve: " + sentence(p.rule.ToImprove)}
@@ -435,15 +417,4 @@ func sentence(s string) string {
 		return s
 	}
 	return s + "."
-}
-
-// joinSentences joins the texts that are not empty, each one a sentence.
-func joinSentences(texts ...string) string {
-	var parts []string
-	for _, t := range texts {
-		if t = sentence(t); t != "" {
-			parts = append(parts, t)
-		}
-	}
-	return strings.Join(parts, " ")
 }

@@ -96,16 +96,46 @@ func TestExportProblems(t *testing.T) {
 	e.Tabs[0].Formulas["Team"] = "Team"
 	want := []string{
 		`tabs[0] (Evaluation): formulas: "Team" is a key`,
-		`tabs[0] (Evaluation): formulas: Team: "Team" doesn't start with =`,
+		`tabs[0] (Evaluation): formulas: "Team": "Team" doesn't start with =`,
 		`tabs[0] (Evaluation): fill: the column D is the one of "TA Completeness", which the import writes`,
 		`tabs[0] (Evaluation): rows[0]: "Score" has the formula of its column`,
-		`tabs[0] (Evaluation): rows[0]: TA Comment: an empty text "": leave the header out for an empty cell`,
+		`tabs[0] (Evaluation): rows[0]: "TA Comment": an empty text "": leave the header out for an empty cell`,
 		`tabs[0] (Evaluation): rows[0]: "Team" has the formula of its column`,
 		`tabs[0] (Evaluation): rows[1]: "Students" is not a header of the columns`,
 		`tabs[0] (Evaluation): rows[1]: "Team" has the formula of its column`,
 		`tabs[0] (Evaluation): rows[1]: the keys of rows[0] too, blue L1_BLD`,
-		`tabs[0] (Evaluation): rows[2]: TA Completeness: [1] is not a text, a number or a boolean`,
+		`tabs[0] (Evaluation): rows[2]: "TA Completeness": [1] is not a text, a number or a boolean`,
 		`tabs[0] (Evaluation): rows[2]: no key "Team", a text`,
+	}
+	if got := e.Problems(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Problems =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestTheConfirmedColumn(t *testing.T) {
+	e := export(map[string]any{"Team": "blue", "Rule": "L1_BLD", "TA Completeness": json.Number("0.8")})
+	e.Tabs[0].Confirmed = map[string]string{"E": "Completeness"}
+	if problems := e.Problems(); len(problems) != 0 {
+		t.Errorf("Problems = %q, want none", problems)
+	}
+	path := filepath.Join(t.TempDir(), "export.json")
+	if err := e.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadExport(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := loaded.Tabs[0].Confirmed; !reflect.DeepEqual(got, map[string]string{"E": "Completeness"}) {
+		t.Errorf("the confirmed column after a load = %v, want E", got)
+	}
+
+	e.Tabs[0].Confirmed = map[string]string{"C": "", "D": "Completeness"}
+	want := []string{
+		"tabs[0] (Evaluation): confirmed: 2 columns, at most one",
+		"tabs[0] (Evaluation): confirmed: the column C has no header",
+		"tabs[0] (Evaluation): confirmed: the column C is a column to fill",
+		`tabs[0] (Evaluation): confirmed: the column D is the one of "TA Completeness", which the import writes`,
 	}
 	if got := e.Problems(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Problems =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

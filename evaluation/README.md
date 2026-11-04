@@ -128,23 +128,26 @@ flowchart LR
    are.
 5. **The import**, with the script of the spreadsheet.
 
-The rules of a pass decide each cell:
+The evaluation replaces the cells of `mc` on its row:
 
 - A row that the last export doesn't have is added after the last row.
-- The TA Completeness goes to an empty cell, or over the former one when it is higher, with its TA
-  Comment. A lower one keeps the former value, since the work of a team only grows: TA To Check
-  says why.
-- The other TA columns follow the evaluation, but a cell is never cleared.
-- TA Docker Images and TA Screenshots follow the facts the same way. A rule without images leaves
-  TA Docker Images alone.
-- TA Comment says "Done well: ... To improve: ...", and the reason of a penalty, if any. The
-  penalty itself becomes the formula of TA Penalty, such as
-  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`. A penalty of a former pass that the pass
-  doesn't give is kept, and TA To Check says so.
+- Every TA column follows the evaluation: the "TA Completeness", even when it is lower than in the
+  last export, with its "TA Comment". A text that the evaluation leaves empty clears its cell.
+- "TA Docker Images" and "TA Screenshots" follow the facts the same way: a rule without images
+  clears "TA Docker Images". Without facts for the rule, both stay as in the last export.
+- "TA Comment" says "Done well: ... To improve: ...", and the reason of a penalty, if any. The
+  penalty itself becomes the formula of "TA Penalty", such as
+  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`. Without a penalty, "TA Penalty" is cleared.
 - A text that starts with `=` is an error, since Sheets would read it as a formula.
 
-`ExportResult` gives what changed since the last export, cell by cell, the cells kept, the new rows,
-and the rules of the last export that the YAML no longer has, for the output of `mc eval export`.
+The tab Evaluation gives H as its confirmed column (`sheet.Tab.Confirmed`): a filled H means that
+the teacher confirmed the evaluation of the rule, so the script of the spreadsheet never writes
+that row. The export still computes it: `mc` can't read H, and the summary of the import lists the
+cells of a confirmed row that differ from the export.
+
+`ExportResult` gives what changed since the last export, cell by cell, the new rows, and the rules
+of the last export that the YAML no longer has, for the output of `mc eval export`. `Change.Lower`
+tells a "TA Completeness" that went down, which the output marks and counts.
 
 Here are the columns of the tab Evaluation. The range of `mc` is A, D to G, I, and L to V:
 
@@ -156,7 +159,7 @@ Here are the columns of the tab Evaluation. The range of `mc` is A, D to G, I, a
 | E | Rule | The ID of the rule, a key |
 | F | Rule Score | The points of the rule, a formula that looks up the tab Rules, `=VLOOKUP(E2,Rules!C:F,4,FALSE)` |
 | G | TA Completeness | The completeness of the evaluation, from 0 to 1 |
-| H | Completeness | The completeness of the teacher, which `mc` never writes: once filled, the Score takes it instead of G, and the evaluation of the rule is confirmed by the teacher, final. Empty, the evaluation is not confirmed yet |
+| H | Completeness | The completeness of the teacher, which `mc` never writes: once filled, the "Score" takes it instead of G, and the evaluation of the rule is confirmed by the teacher, final, so the import never writes the row. Empty, the evaluation is not confirmed yet |
 | I | Score | A formula, `=IF(ISBLANK(H2),G2,H2)*F2+T2` |
 | J, K | Comment, Troubleshooting Instructions | The teacher's |
 | L to R | TA To Check, TA Commit, TA Docker Images, TA Screenshots, TA Analysis, TA Writing Style, TA Time Spent | The evaluation and the facts |
@@ -166,16 +169,16 @@ Here are the columns of the tab Evaluation. The range of `mc` is A, D to G, I, a
 
 ## From the Rules to the Sheet
 
-The tab Rules of the export holds the rules of the YAML, where the Rule Score of the tab
+The tab Rules of the export holds the rules of the YAML, where the "Rule Score" of the tab
 Evaluation looks up the score of each rule. Here are its columns, with the rules `L1_BLD` and
 `L2_LOG` of the made-up file of the tests,
 [`rubric/testdata/evaluation-rules.yaml`](../rubric/testdata/evaluation-rules.yaml), as examples:
 
 | Column | Header | What it holds | Examples |
 |---|---|---|---|
-| A | Lab Session | The lab of the rule, the key `lab` of the YAML. With the Rule, it finds the row of a rule | `L1`, `L2` |
-| B | Rule | The end of the Rule ID, after the lab and the underscore. With the Lab Session, it finds the row of a rule | `BLD`, `LOG` |
-| C | Rule ID | The ID of the rule, a formula that joins A and B, `=CONCAT(A2, CONCAT("_", B2))`. The Rule Score of the tab Evaluation looks it up | `L1_BLD`, `L2_LOG` |
+| A | Lab Session | The lab of the rule, the key `lab` of the YAML. With the "Rule", it finds the row of a rule | `L1`, `L2` |
+| B | Rule | The end of the "Rule ID", after the lab and the underscore. With the "Lab Session", it finds the row of a rule | `BLD`, `LOG` |
+| C | Rule ID | The ID of the rule, a formula that joins A and B, `=CONCAT(A2, CONCAT("_", B2))`. The "Rule Score" of the tab Evaluation looks it up | `L1_BLD`, `L2_LOG` |
 | D | Rule Name | The name of the rule, the key `name` of the YAML | `Build Test`, `Logs Test` |
 | E | Coefficient | The share of the 20 points of the lab that the rule gives, the key `coefficient` of the YAML. A bonus, such as `L2_LOG`, counts on top of the 20 points | `0.6`, `0.1` |
 | F | Score | The points of the rule, a formula, `=20*E2` | `12`, `2` |
@@ -183,7 +186,7 @@ Evaluation looks up the score of each rule. Here are its columns, with the rules
 | H | Exercise ID | The ID of the exercise, a formula that joins A and G, `=CONCAT(CONCAT(A2, "_"), CONCAT("EX", G2))` | `L1_EX1`, `L2_EX2.1` |
 | I | Rule Description | What the team is expected to deliver, the key `description` of the YAML, on one line | "The team is expected to follow the logs of the Pod. This rule is a bonus." |
 
-The column J, Troubleshooting Instructions, belongs to the teacher: `mc` never writes it.
+The column J, "Troubleshooting Instructions", belongs to the teacher: `mc` never writes it.
 
 - A row is found by A and B, whose values the YAML gives, rather than by C, which is a formula. A
   rule that the last export doesn't have gets a new row after the last one.
