@@ -156,7 +156,7 @@ Here are the columns of the tab Evaluation. The range of `mc` is A, D to G, I, a
 | E | Rule | The ID of the rule, a key |
 | F | Rule Score | The points of the rule, a formula that looks up the tab Rules, `=VLOOKUP(E2,Rules!C:F,4,FALSE)` |
 | G | TA Completeness | The completeness of the evaluation, from 0 to 1 |
-| H | Completeness | The completeness of the teacher, which `mc` never writes: once filled, the Score takes it instead of G |
+| H | Completeness | The completeness of the teacher, which `mc` never writes: once filled, the Score takes it instead of G, and the evaluation of the rule is confirmed by the teacher, final. Empty, the evaluation is not confirmed yet |
 | I | Score | A formula, `=IF(ISBLANK(H2),G2,H2)*F2+T2` |
 | J, K | Comment, Troubleshooting Instructions | The teacher's |
 | L to R | TA To Check, TA Commit, TA Docker Images, TA Screenshots, TA Analysis, TA Writing Style, TA Time Spent | The evaluation and the facts |

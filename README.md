@@ -494,7 +494,10 @@ export, and follows the rules of a pass:
 - the TA Completeness goes to an empty cell, or over the former one when it is higher, with its
   TA Comment: "Done well: ... To improve: ...". A lower one keeps the former value, since the work
   of a team only grows, and TA To Check says why. The Score takes the completeness of the teacher,
-  in the column H, once the teacher fills it
+  in the column H, once the teacher fills it. A filled H also means that the teacher reviewed the
+  evaluation of the rule and confirmed it: it is final, so a new pass leaves it as it is. The
+  script doesn't read H: an import still rewrites the TA columns of a confirmed row, and a new
+  penalty would change its Score
 - the other TA columns follow the files, but a cell is never cleared
 - TA Docker Images and TA Screenshots follow the facts of `mc eval gather-facts` the same way: the
   tags of the images of the rule, and the number of screenshots of the team for its exercise

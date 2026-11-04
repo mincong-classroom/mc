@@ -44,7 +44,8 @@ the rules of a pass, against the last export:
   - The TA Completeness goes to an empty cell, or over the former one when it is higher, with its
     TA Comment: what the team did well, and what it can improve. A lower one keeps the former
     value, and TA To Check says why. The Score takes the completeness of the teacher, in H, when
-    the teacher filled it.
+    the teacher filled it. A filled H means that the teacher confirmed the evaluation of the rule:
+    it is final. The script doesn't read H, so leave a confirmed rule as it is in a new pass.
   - The other TA columns follow the evaluation, but a cell is never cleared.
   - TA Docker Images and TA Screenshots follow the facts of mc eval gather-facts, the same way:
     the tags of the images of the rule, and the number of screenshots of the team.

@@ -180,7 +180,9 @@ the made-up rules of `rubric/testdata/`.
 YAML (`exportRules`, `rules.go`, layout `RulesLayout`: A to I, formulas C, F and H, J is the
 teacher's) and the tab Evaluation from the files (`exportEvaluations`, layout `EvaluationLayout`:
 `sheetColumns` A, D to G, I, L to V; B and C, the students, are `Fill`, copied from the row above
-by the script; H, J and K are the teacher's, never in the export). The rows start from the last
+by the script; H, J and K are the teacher's, never in the export; a filled H means that the
+teacher confirmed the evaluation of the rule, final, but the script doesn't read H, so an import
+still rewrites the TA cells of a confirmed row). The rows start from the last
 export (`ExportOptions.Last`), whose tab must have the same layout (`sameLayout`), or it is an
 error: migrate the file first. A row is found by Team, Lab and Rule (`rowKey`); a new one is
 appended. The rules of a pass (`pass`): the TA Completeness is written when the last cell is empty

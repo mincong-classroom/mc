@@ -115,6 +115,13 @@ the teams.
 and the summary lists it, to delete by hand. It happens when a rule is gone, or when a row was
 added by hand.
 
+**A confirmed row is rewritten too.** In the tab Evaluation, a filled completeness of the teacher
+(H) means that the teacher reviewed the evaluation of the rule and confirmed it: it is final. The
+script never reads H, so an import rewrites the range of `mc` on a confirmed row as on any other.
+The Score keeps H, but a new penalty in TA Penalty changes it, and a new TA Comment no longer says
+what the teacher confirmed. So a new pass of the evaluations leaves the confirmed rules as they
+are.
+
 **The script is a copy.** `mc sheet script` prints the version of `mc`: after a change of
 `import.gs`, paste it again in the spreadsheet.
 
