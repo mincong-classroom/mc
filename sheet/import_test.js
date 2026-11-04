@@ -9,7 +9,7 @@ const vm = require("node:vm");
 
 const context = vm.createContext({});
 vm.runInContext(fs.readFileSync(path.join(__dirname, "import.gs"), "utf8"), context);
-const { mcParse, mcPlan, mcGrid, mcCompare, mcSummary, mcColumnIndex, mcLetters, mcNormalizeFormula } = context;
+const { mcParse, mcPlan, mcRuns, mcGrid, mcCompare, mcSummary, mcColumnIndex, mcLetters, mcNormalizeFormula } = context;
 
 // An export of one tab: the keys in A and B, the students in C (filled down), the teacher in E.
 function tab(rows) {
@@ -82,13 +82,57 @@ test("the cells read back are compared with what was written", () => {
   const t = tab([{ Team: "blue", Rule: "L1_BLD", "TA Completeness": 0.8, "TA Comment": "1.0.0" }]);
   const plan = mcPlan(t, headers, { Team: ["blue"], Rule: ["L1_BLD"] });
   const fg = plan.groups[2];
-  assert.deepEqual(plain(mcCompare(t, plan, fg, [[1.6, "1.0.0"]], [["=d2 * 2", ""]])), []);
-  assert.deepEqual(plain(mcCompare(t, plan, fg, [[1.6, "1.0"]], [["=D2*3", ""]])), [
+  assert.deepEqual(plain(mcCompare(t, plan, fg, [[1.6, "1.0.0"]], [["=d2 * 2", ""]]).differences), []);
+  assert.deepEqual(plain(mcCompare(t, plan, fg, [[1.6, "1.0"]], [["=D2*3", ""]]).differences), [
     'Evaluation!F2: =D2*3, not =D2*2',
     'Evaluation!G2: "1.0", not "1.0.0"',
   ]);
-  assert.deepEqual(plain(mcCompare(t, plan, plan.groups[1], [[0.8]], [[""]])), []);
-  assert.deepEqual(plain(mcCompare(t, plan, plan.groups[1], [["0.8"]], [[""]])), ['Evaluation!D2: "0.8", not 0.8']);
+  assert.deepEqual(plain(mcCompare(t, plan, plan.groups[1], [[0.8]], [[""]]).differences), []);
+  assert.deepEqual(plain(mcCompare(t, plan, plan.groups[1], [["0.8"]], [[""]]).differences), ['Evaluation!D2: "0.8", not 0.8']);
+});
+
+// confirmedTab is the tab of tab(), whose rows are confirmed by the completeness of the teacher, E.
+function confirmedTab(rows) {
+  return Object.assign(tab(rows), { confirmed: { E: "Completeness" } });
+}
+
+test("a confirmed row is never written, and its cells that differ are held", () => {
+  const t = confirmedTab([
+    { Team: "blue", Rule: "L1_BLD", "TA Completeness": 0.7 },
+    { Team: "gold", Rule: "L1_BLD", "TA Completeness": 0.5 },
+    { Team: "pink", Rule: "L1_BLD", "TA Completeness": 1 },
+    { Team: "teal", Rule: "L1_BLD", "TA Completeness": 0.9 },
+  ]);
+  const keys = { Team: ["blue", "gold", "pink", "red"], Rule: ["L1_BLD", "L1_BLD", "L1_BLD", "L1_BLD"] };
+  const plan = mcPlan(t, headers, keys, [1, "", " 0.5 ", 0.8]);
+  assert.deepEqual(plain(plan.confirmed), [2, 4, 5]);
+  assert.deepEqual(plain(plan.added), [6]);
+  // The rows 3 (gold) and 6 (teal, new) are written; 2, 4 and 5 are left as they are.
+  assert.deepEqual(plain(mcRuns(plan)), [[3, 3], [6, 6]]);
+  const d = plan.groups[1];
+  const compared = mcCompare(t, plan, d, [[1], [0.5], [1], ["x"], [0.9]], [[""], [""], [""], [""], [""]]);
+  // blue keeps 1 against 0.7 of the export: held. pink holds 1 as the export: nothing. The row 5,
+  // red, is not in the export: neither held nor a difference.
+  assert.deepEqual(plain(compared), { differences: [], held: ["Evaluation!D2"] });
+  const summary = mcSummary([{ tab: t, plan, differences: [], held: compared.held }], 0.5);
+  assert.equal(summary, [
+    "Imported 4 rows in 0.5 s, 1 new, 3 confirmed left as they are, and every cell read back as imported.",
+    "- Evaluation: 4 rows, 1 new, 10 cells of the columns A:B, D, F:G. New rows: 6 to 6." +
+      " Not in the export, so cleared but for their keys, to delete by hand: row 5 (red L1_BLD, confirmed: left as it is)." +
+      " 3 rows confirmed in E, left as they are. Their cells that differ from the export: row 2 (blue L1_BLD): D.",
+  ].join("\n"));
+});
+
+test("without a confirmed column, every row is written", () => {
+  const t = tab([{ Team: "blue", Rule: "L1_BLD", "TA Completeness": 1 }]);
+  const plan = mcPlan(t, headers, { Team: ["blue", "gold"], Rule: ["L1_BLD", "L1_BLD"] });
+  assert.deepEqual(plain(plan.confirmed), []);
+  assert.deepEqual(plain(mcRuns(plan)), [[2, 3]]);
+});
+
+test("the import stops when the confirmed column moved", () => {
+  const moved = ["Team", "Rule", "Students", "TA Completeness", "Comment", "Score", "TA Comment"];
+  assert.throws(() => mcPlan(confirmedTab([]), moved, { Team: [], Rule: [] }, []), /E1 is "Comment", not "Completeness"/);
 });
 
 test("a formula is compared without its spaces and its case, but in its texts", () => {
@@ -99,6 +143,10 @@ test("an export without tabs, or a key without a column, is refused", () => {
   assert.throws(() => mcParse("{"), /Not the JSON of mc eval export/);
   assert.throws(() => mcParse('{"tabs": []}'), /no tabs/);
   assert.throws(() => mcParse('{"tabs": [{"name": "Rules", "keys": ["Rule"], "columns": {"A": "Lab"}, "rows": []}]}'), /key "Rule"/);
+  assert.throws(
+    () => mcParse('{"tabs": [{"name": "Evaluation", "keys": ["Team"], "columns": {"A": "Team"}, "confirmed": {"A": "Team"}, "rows": []}]}'),
+    /confirmed column/,
+  );
 });
 
 test("the summary says what the import did", () => {

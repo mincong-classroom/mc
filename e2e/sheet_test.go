@@ -13,12 +13,13 @@ import (
 type export struct {
 	Spreadsheet string `json:"spreadsheet"`
 	Tabs        []struct {
-		Name     string            `json:"name"`
-		Keys     []string          `json:"keys"`
-		Columns  map[string]string `json:"columns"`
-		Formulas map[string]string `json:"formulas"`
-		Fill     []string          `json:"fill"`
-		Rows     []map[string]any  `json:"rows"`
+		Name      string            `json:"name"`
+		Keys      []string          `json:"keys"`
+		Columns   map[string]string `json:"columns"`
+		Formulas  map[string]string `json:"formulas"`
+		Fill      []string          `json:"fill"`
+		Confirmed map[string]string `json:"confirmed"`
+		Rows      []map[string]any  `json:"rows"`
 	} `json:"tabs"`
 }
 
@@ -101,6 +102,9 @@ func TestEvalExport(t *testing.T) {
 			t.Errorf("the export writes the column %s, %q, which is not of mc", letter, header)
 		}
 	}
+	if got := evaluation.Confirmed; !reflect.DeepEqual(got, map[string]string{"H": "Completeness"}) {
+		t.Errorf("the tab Evaluation is confirmed by %v, want H, the completeness of the teacher", got)
+	}
 	if !reflect.DeepEqual(evaluation.Fill, []string{"B", "C"}) || evaluation.Columns["G"] != "TA Completeness" || evaluation.Columns["V"] != "TA Comment" {
 		t.Errorf("the tab Evaluation fills %v, with G %q and V %q, want B and C, TA Completeness and TA Comment",
 			evaluation.Fill, evaluation.Columns["G"], evaluation.Columns["V"])
@@ -116,7 +120,7 @@ func TestEvalExport(t *testing.T) {
 	}
 	rowOf(t, x, "Rules", "L2")
 
-	// A pass: a higher completeness for coral, and a lower one for teal, which keeps the former one.
+	// A pass: a higher completeness for coral, and a lower one for teal, which replaces the former one.
 	e.writeFile(t, ".mc/2026/evaluations/lab-2/coral.yaml",
 		strings.NewReplacer("team: teal", "team: coral", "completeness: 0.8", "completeness: 1").Replace(evaluationOfTeal))
 	e.writeFile(t, ".mc/2026/evaluations/lab-2/teal.yaml", strings.Replace(evaluationOfTeal, "completeness: 0.8", "completeness: 0.5", 1))
@@ -124,23 +128,21 @@ func TestEvalExport(t *testing.T) {
 	want = "Exported 4 rules and 2 rows of the tab Evaluation to " + file + ", from 2 evaluations of L2.\n\n" +
 		"TAB         ROW              COLUMN           CHANGE\n" +
 		"Evaluation  coral L2 L2_POD  TA Completeness  0.8 -> 1\n" +
-		"Evaluation  teal L2 L2_POD   TA Completeness  kept 0.8, not 0.5: lower than the former pass\n" +
-		"Evaluation  teal L2 L2_POD   TA To Check      nothing -> \"The pass of 0a1b2c3 gives 0.5, lower tha...\"\n\n" +
+		"Evaluation  teal L2 L2_POD   TA Completeness  0.8 -> 0.5, lower\n\n" +
+		"1 completeness lower than the last export, to check before the import.\n\n" +
 		"Copied the export to the clipboard, "
 	if r.exitCode != 0 || !strings.HasPrefix(r.stdout, want) || r.stderr != "" {
 		t.Errorf("mc eval export of a pass = %d, stdout\n%s\nstderr %q, want 0, stdout\n%s...", r.exitCode, r.stdout, r.stderr, want)
 	}
 	x = e.readExport(t)
-	if got := rowOf(t, x, "Evaluation", "teal")["TA Completeness"]; got != 0.8 {
-		t.Errorf("teal L2_POD, TA Completeness = %v after a lower one, want 0.8", got)
+	if got := rowOf(t, x, "Evaluation", "teal")["TA Completeness"]; got != 0.5 {
+		t.Errorf("teal L2_POD, TA Completeness = %v after a lower one, want 0.5", got)
 	}
 
-	// The same pass again changes no cell, but says again that a completeness is kept.
+	// The same pass again changes no cell.
 	r = e.run(t, "", exportCmd...)
-	want = "\n\nTAB         ROW             COLUMN           CHANGE\n" +
-		"Evaluation  teal L2 L2_POD  TA Completeness  kept 0.8, not 0.5: lower than the former pass\n\nCopied the export"
-	if r.exitCode != 0 || !strings.Contains(r.stdout, want) {
-		t.Errorf("mc eval export of the same pass = %d, stdout\n%s\nstderr %q, want the completeness kept only", r.exitCode, r.stdout, r.stderr)
+	if r.exitCode != 0 || !strings.Contains(r.stdout, "No change since the last export.") || strings.Contains(r.stdout, "CHANGE") {
+		t.Errorf("mc eval export of the same pass = %d, stdout\n%s\nstderr %q, want no change", r.exitCode, r.stdout, r.stderr)
 	}
 
 	// Without evaluation of coral, its row stays as it was in the last export.

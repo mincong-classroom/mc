@@ -112,6 +112,36 @@ func TestExportProblems(t *testing.T) {
 	}
 }
 
+func TestTheConfirmedColumn(t *testing.T) {
+	e := export(map[string]any{"Team": "blue", "Rule": "L1_BLD", "TA Completeness": json.Number("0.8")})
+	e.Tabs[0].Confirmed = map[string]string{"E": "Completeness"}
+	if problems := e.Problems(); len(problems) != 0 {
+		t.Errorf("Problems = %q, want none", problems)
+	}
+	path := filepath.Join(t.TempDir(), "export.json")
+	if err := e.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadExport(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := loaded.Tabs[0].Confirmed; !reflect.DeepEqual(got, map[string]string{"E": "Completeness"}) {
+		t.Errorf("the confirmed column after a load = %v, want E", got)
+	}
+
+	e.Tabs[0].Confirmed = map[string]string{"C": "", "D": "Completeness"}
+	want := []string{
+		"tabs[0] (Evaluation): confirmed: 2 columns, at most one",
+		"tabs[0] (Evaluation): confirmed: the column C has no header",
+		"tabs[0] (Evaluation): confirmed: the column C is a column to fill",
+		`tabs[0] (Evaluation): confirmed: the column D is the one of "TA Completeness", which the import writes`,
+	}
+	if got := e.Problems(); !reflect.DeepEqual(got, want) {
+		t.Errorf("Problems =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
 func TestLoadExportRefusesAnUnknownAttribute(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "export.json")
 	if err := os.WriteFile(path, []byte(`{"spreadsheet": "", "tabs": [{"name": "Rules", "kyes": []}]}`), 0o600); err != nil {
