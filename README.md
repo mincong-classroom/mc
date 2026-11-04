@@ -258,10 +258,10 @@ The made-up file of the tests shows the format,
 
 `mc eval export` writes the rules to the tab "Rules" of the evaluation sheet, where the tab
 "Evaluation" looks up the score of each rule: see [Evaluation](#evaluation) and [Sheet](#sheet). A
-row is found by its Lab Session and its Rule, the end of the Rule ID. A new rule gets a new row,
-with the formulas of the tab. A rule that the file no longer has is listed, and its row is never
-deleted. The [README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives the
-columns.
+row is found by its "Lab Session" and its "Rule", the end of the "Rule ID". A new rule gets a new
+row, with the formulas of the tab. A rule that the file no longer has is listed, and its row is
+never deleted. The [README of `evaluation`](evaluation/README.md#from-the-rules-to-the-sheet) gives
+the columns.
 
 ## Facts
 
@@ -490,16 +490,16 @@ The export checks the files first, as `mc eval run --check-only` does. Then it s
 export, and replaces the cells of `mc` with the files:
 
 - a row is found by its team, its lab and its rule. A new row comes after the last one, with the
-  formulas of Rule Score, Score and TA Lab Flag
-- every TA column follows the files: the TA Completeness, even when it is lower than in the last
-  export, with its TA Comment: "Done well: ... To improve: ...". A text that the file leaves empty
+  formulas of "Rule Score", "Score" and "TA Lab Flag"
+- every TA column follows the files: the "TA Completeness", even when it is lower than in the last
+  export, with its "TA Comment": "Done well: ... To improve: ...". A text that the file leaves empty
   clears its cell
-- TA Docker Images and TA Screenshots follow the facts of `mc eval gather-facts` the same way: the
-  tags of the images of the rule, and the number of screenshots of the team for its exercise
-- a penalty becomes the formula of TA Penalty, such as
-  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`, and its reason goes to the TA Comment. Without
+- "TA Docker Images" and "TA Screenshots" follow the facts of `mc eval gather-facts` the same way:
+  the tags of the images of the rule, and the number of screenshots of the team for its exercise
+- a penalty becomes the formula of "TA Penalty", such as
+  `=-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}`, and its reason goes to the "TA Comment". Without
   a penalty, the cell is cleared
-- the Score takes the completeness of the teacher, in the column H, once the teacher fills it. A
+- the "Score" takes the completeness of the teacher, in the column H, once the teacher fills it. A
   filled H also means that the teacher reviewed the evaluation of the rule and confirmed it: it is
   final, so the import never writes its row, see [Sheet](#sheet)
 
@@ -600,7 +600,7 @@ As you can see:
 
 - `columns` is the range of `mc` in the tab: the letter of each header. The other columns are
   never written, such as B and C, which hold the students, and H, J and K, which are the teacher's
-- the keys, Team, Lab and Rule, find a row
+- the keys, "Team", "Lab" and "Rule", find a row
 - `formulas` gives the formula of a column on every row, where `{row}` is the number of the row
 - `fill` names the columns that a new row copies from the row above, such as the formulas that
   find the students of its team

@@ -19,22 +19,22 @@ const RulesTab = "Rules"
 // them: one row per rule of the YAML. The examples are the rules L1_BLD and L2_LOG of the made-up
 // file rubric/testdata/evaluation-rules.yaml.
 const (
-	// headerLabSession is the lab of the rule, the key lab of the YAML. With the Rule, it finds the
-	// row of a rule.
+	// headerLabSession is the lab of the rule, the key lab of the YAML. With the "Rule", it finds
+	// the row of a rule.
 	//
 	// column: A
 	// examples: L1, L2
 	headerLabSession = "Lab Session"
 
-	// headerRuleEnd is the end of the Rule ID, after the lab and the underscore. With the Lab
-	// Session, it finds the row of a rule.
+	// headerRuleEnd is the end of the "Rule ID", after the lab and the underscore. With the
+	// "Lab Session", it finds the row of a rule.
 	//
 	// column: B
 	// examples: BLD, LOG
 	headerRuleEnd = "Rule"
 
 	// headerRuleID is the ID of the rule, a formula that joins A and B,
-	// =CONCAT(A2, CONCAT("_", B2)). The Rule Score of the tab Evaluation looks it up.
+	// =CONCAT(A2, CONCAT("_", B2)). The "Rule Score" of the tab Evaluation looks it up.
 	//
 	// column: C
 	// examples: L1_BLD, L2_LOG
@@ -81,7 +81,7 @@ const (
 )
 
 // rulesColumns are the columns of the tab Rules, by their letters: all of them are mc's, from the
-// YAML. Its column J, Troubleshooting Instructions, is the teacher's: mc never writes it.
+// YAML. Its column J, "Troubleshooting Instructions", is the teacher's: mc never writes it.
 var rulesColumns = map[string]string{
 	"A": headerLabSession,
 	"B": headerRuleEnd,
@@ -188,7 +188,7 @@ func ruleCells(rule rubric.Rule) ([]ruleCell, error) {
 		case ok && s == "":
 			continue
 		case ok && strings.HasPrefix(s, "="):
-			return nil, fmt.Errorf("the rule %s, %s: %s starts with =, which the tab would read as a formula", rule.ID, c.header, brief(s))
+			return nil, fmt.Errorf("the rule %s, %q: %s starts with =, which the tab would read as a formula", rule.ID, c.header, brief(s))
 		}
 		cells = append(cells, c)
 	}

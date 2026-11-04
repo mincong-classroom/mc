@@ -25,8 +25,8 @@ type metadata struct {
 	Rules map[string]RuleFacts `yaml:"rules,omitempty"`
 }
 
-// RuleFacts are the facts of a rule that the evaluation sheet shows, in the columns TA Docker
-// Images and TA Screenshots.
+// RuleFacts are the facts of a rule that the evaluation sheet shows, in the columns
+// "TA Docker Images" and "TA Screenshots".
 type RuleFacts struct {
 	// Images are the tags of the images of the rule on Docker Hub, the tag of the rule and its later
 	// patches, each with the first 12 characters of its digest: "1.0.0 b80767bd1a2c, 1.0.1

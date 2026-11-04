@@ -30,7 +30,7 @@ type Export struct {
 type Tab struct {
 	// Name is the name of the tab, such as "Evaluation".
 	Name string
-	// Keys are the headers whose values find a row, such as Team, Lab and Rule.
+	// Keys are the headers whose values find a row, such as "Team", "Lab" and "Rule".
 	Keys []string
 	// Columns are the headers of the columns of mc by their letters, such as "G": "TA
 	// Completeness": the keys, and the range of mc. The script checks that the first row of the tab
@@ -184,7 +184,7 @@ func (t *Tab) Problems() []string {
 			problems = append(problems, fmt.Sprintf("formulas: %q is not a header of the columns", header))
 		}
 		if !strings.HasPrefix(t.Formulas[header], "=") {
-			problems = append(problems, fmt.Sprintf("formulas: %s: %q doesn't start with =", header, t.Formulas[header]))
+			problems = append(problems, fmt.Sprintf("formulas: %q: %q doesn't start with =", header, t.Formulas[header]))
 		}
 	}
 	for _, letter := range t.Fill {
@@ -225,7 +225,7 @@ func (t *Tab) Problems() []string {
 				continue
 			}
 			if err := checkValue(row[header]); err != nil {
-				problems = append(problems, fmt.Sprintf("%s: %s: %v", where, header, err))
+				problems = append(problems, fmt.Sprintf("%s: %q: %v", where, header, err))
 			}
 		}
 		values := make([]string, len(t.Keys))

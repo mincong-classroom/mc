@@ -184,16 +184,17 @@ by the script; H, J and K are the teacher's, never in the export; H is the `Conf
 a filled H means that the teacher confirmed the evaluation of the rule, final, and the script never
 writes that row). The rows start from the last export (`ExportOptions.Last`), whose tab must have
 the same layout (`sameLayout`, which ignores `Confirmed`), or it is an error: migrate the file
-first. A row is found by Team, Lab and Rule (`rowKey`); a new one is appended. A pass (`pass.row`)
-replaces every TA cell of its row with the evaluation, even a lower TA Completeness: `set` with
-`nil` clears a cell, `setText` clears it for an empty text and refuses a text starting with `=`,
-and no penalty clears TA Penalty. TA Docker Images and TA Screenshots follow the facts, when the
-rule has some. Each cell that differs from the last export is a `Change`; `Change.Lower` tells a
-TA Completeness that went down, which the output marks and counts. The Score is `=IF(ISBLANK(H{row}),G{row},H{row})*F{row}+T{row}`, the penalty
+first. A row is found by "Team", "Lab" and "Rule" (`rowKey`); a new one is appended. A pass
+(`pass.row`) replaces every TA cell of its row with the evaluation, even a lower "TA Completeness":
+`set` with `nil` clears a cell, `setText` clears it for an empty text and refuses a text starting
+with `=`, and no penalty clears "TA Penalty". "TA Docker Images" and "TA Screenshots" follow the
+facts, when the rule has some. Each cell that differs from the last export is a `Change`;
+`Change.Lower` tells a "TA Completeness" that went down, which the output marks and counts. The
+"Score" is `=IF(ISBLANK(H{row}),G{row},H{row})*F{row}+T{row}`, the penalty
 `=-x*IF(ISBLANK(H{row}),G{row},H{row})*F{row}` (`penaltyFormula`). `ExportResult` lists the
 `Changes` against the last export, the `Added` keys per tab (none without a last export) and the
 `Removed` rules. `cmd/eval_export.go` passes the facts of each team (`readFacts`,
-`LabEvaluations.Facts`) for TA Docker Images and TA Screenshots, saves the export to
+`LabEvaluations.Facts`) for "TA Docker Images" and "TA Screenshots", saves the export to
 `~/.mc/{year}/sheet/export.json` and copies it to the clipboard (`toClipboard`).
 
 **Annotate** (`annotate/`) — `Read(ctx, img)` runs `tesseract --psm 11` on the image enlarged twice

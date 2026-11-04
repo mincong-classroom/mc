@@ -106,7 +106,7 @@ func TestEvalExport(t *testing.T) {
 		t.Errorf("the tab Evaluation is confirmed by %v, want H, the completeness of the teacher", got)
 	}
 	if !reflect.DeepEqual(evaluation.Fill, []string{"B", "C"}) || evaluation.Columns["G"] != "TA Completeness" || evaluation.Columns["V"] != "TA Comment" {
-		t.Errorf("the tab Evaluation fills %v, with G %q and V %q, want B and C, TA Completeness and TA Comment",
+		t.Errorf("the tab Evaluation fills %v, with G %q and V %q, want B and C, \"TA Completeness\" and \"TA Comment\"",
 			evaluation.Fill, evaluation.Columns["G"], evaluation.Columns["V"])
 	}
 	teal := rowOf(t, x, "Evaluation", "teal")
@@ -136,7 +136,7 @@ func TestEvalExport(t *testing.T) {
 	}
 	x = e.readExport(t)
 	if got := rowOf(t, x, "Evaluation", "teal")["TA Completeness"]; got != 0.5 {
-		t.Errorf("teal L2_POD, TA Completeness = %v after a lower one, want 0.5", got)
+		t.Errorf("teal L2_POD, \"TA Completeness\" = %v after a lower one, want 0.5", got)
 	}
 
 	// The same pass again changes no cell.
@@ -151,7 +151,7 @@ func TestEvalExport(t *testing.T) {
 	}
 	r = e.run(t, "", exportCmd...)
 	if got := rowOf(t, e.readExport(t), "Evaluation", "coral")["TA Completeness"]; r.exitCode != 0 || got != 1.0 {
-		t.Errorf("mc eval export without coral = %d, coral L2_POD, TA Completeness = %v, want 1, stderr %q", r.exitCode, got, r.stderr)
+		t.Errorf("mc eval export without coral = %d, coral L2_POD, \"TA Completeness\" = %v, want 1, stderr %q", r.exitCode, got, r.stderr)
 	}
 }
 

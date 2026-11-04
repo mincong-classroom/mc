@@ -108,9 +108,9 @@ teacher once it is filled.
 
 **A confirmed row is never written.** In the tab Evaluation, a filled completeness of the teacher
 (H) means that the teacher reviewed the evaluation of the rule and confirmed it: it is final. The
-script skips that row, so a new pass of the evaluations changes neither its penalty nor its TA
-Comment. The summary lists the cells of `mc` where it differs from the export, for the teacher to
-check.
+script skips that row, so a new pass of the evaluations changes neither its penalty nor its
+"TA Comment". The summary lists the cells of `mc` where it differs from the export, for the teacher
+to check.
 
 **A text stays a text.** Sheets reads a text written with `setValues` as if it was typed, so the
 commit `2e88112` would become a number. The script starts each text with an apostrophe, which

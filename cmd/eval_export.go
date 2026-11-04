@@ -42,14 +42,15 @@ The files of each lab are checked first, as by mc eval run --check-only. Then th
 the cells of the last export with the evaluations:
 
   - A row is found by its team, its lab and its rule. A missing row is added after the last row.
-  - Every TA column follows the evaluation: the TA Completeness, even when lower than the last
-    export, with its TA Comment, what the team did well and what it can improve. A text that the
+  - Every TA column follows the evaluation: the "TA Completeness", even when lower than the last
+    export, with its "TA Comment", what the team did well and what it can improve. A text that the
     evaluation leaves empty clears its cell.
-  - TA Docker Images and TA Screenshots follow the facts of mc eval gather-facts, the same way:
+  - "TA Docker Images" and "TA Screenshots" follow the facts of mc eval gather-facts, the same way:
     the tags of the images of the rule, and the number of screenshots of the team.
-  - A penalty becomes the formula of TA Penalty, such as =-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row},
-    and its reason goes to the TA Comment. Without a penalty, the cell is cleared.
-  - The Score takes the completeness of the teacher, in H, when the teacher filled it. A filled H
+  - A penalty becomes the formula of "TA Penalty", such as
+    =-0.1*IF(ISBLANK(H{row}),G{row},H{row})*F{row}, and its reason goes to the "TA Comment". Without
+    a penalty, the cell is cleared.
+  - The "Score" takes the completeness of the teacher, in H, when the teacher filled it. A filled H
     confirms the row: the teacher reviewed the evaluation of the rule, and it is final. The import
     never writes a confirmed row, and its summary lists the cells that differ from the export.
 

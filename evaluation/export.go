@@ -44,7 +44,7 @@ var sheetKeys = []string{headerTeam, headerLab, headerRule}
 // formulas, and the TA columns, which the import rewrites on every row but the confirmed ones. The
 // others are never written: B and C hold the students of the team, whose formulas a new row copies
 // from the row above, and H, J and K are the teacher's: the completeness of the teacher, which the
-// Score takes when it is filled, the Comment and the Troubleshooting Instructions.
+// "Score" takes when it is filled, the "Comment" and the "Troubleshooting Instructions".
 var sheetColumns = map[string]string{
 	"A": headerTeam,
 	"D": headerLab,
@@ -73,7 +73,7 @@ var fillColumns = []string{"B", "C"}
 // teacher reviewed the evaluation of the rule and confirmed it: the import never writes the row.
 var confirmedColumn = map[string]string{"H": headerConfirmed}
 
-// The formulas of the tab Evaluation, for the row n: sheet.RowPlaceholder in an export. The Score
+// The formulas of the tab Evaluation, for the row n: sheet.RowPlaceholder in an export. The "Score"
 // takes the completeness of the teacher, H, when the teacher filled it, and the one of mc, G,
 // otherwise.
 func ruleScoreFormula(n string) string {
@@ -93,7 +93,7 @@ func penaltyFormula(remove float64, n string) string {
 	return "=-" + formatFloat(remove) + "*" + completenessFormula(n) + "*F" + n
 }
 
-// completenessFormula returns the completeness that the Score takes: the one of the teacher, else
+// completenessFormula returns the completeness that the "Score" takes: the one of the teacher, else
 // the one of mc.
 func completenessFormula(n string) string {
 	return "IF(ISBLANK(H" + n + "),G" + n + ",H" + n + ")"
@@ -119,11 +119,11 @@ func EvaluationLayout() *sheet.Tab {
 // RuleFacts are the facts of mc for a rule of a team, at the commit of its evaluation.
 type RuleFacts struct {
 	// Images are the tags of the images of the rule on Docker Hub, with the start of their digests,
-	// such as "1.0.0 b80767bd1a2c, 1.0.1 0f3e5d6c7b8a", or "none": TA Docker Images. Empty when the
-	// rule has no image.
+	// such as "1.0.0 b80767bd1a2c, 1.0.1 0f3e5d6c7b8a", or "none": "TA Docker Images". Empty when
+	// the rule has no image.
 	Images string
-	// Screenshots is the number of screenshots of the team for the exercise of the rule: TA
-	// Screenshots.
+	// Screenshots is the number of screenshots of the team for the exercise of the rule:
+	// "TA Screenshots".
 	Screenshots int
 }
 
@@ -175,7 +175,7 @@ type Change struct {
 	To     any // The value exported, nil when the cell becomes empty.
 }
 
-// Lower reports whether the change lowers a TA Completeness, such as 1 -> 0.7: a pass that gives
+// Lower reports whether the change lowers a "TA Completeness", such as 1 -> 0.7: a pass that gives
 // less than the former one, which the teacher checks before the import.
 func (c Change) Lower() bool {
 	if c.Tab != SheetTab || c.Header != headerCompleteness {
@@ -192,12 +192,12 @@ func (c Change) Lower() bool {
 //   - A row is found by its team, its lab and its rule. A row that the last export doesn't have is
 //     added after the last row.
 //   - Every TA column of the row follows the evaluation, and replaces the one of the last export:
-//     the TA Completeness, even when lower, with its TA Comment, what the team did well and what it
-//     can improve. A text that the evaluation leaves empty clears its cell.
-//   - TA Docker Images and TA Screenshots follow the facts of mc, the same way. A team or a rule
-//     without facts leaves them as they are.
-//   - A penalty becomes the formula of TA Penalty, and its reason goes to the TA Comment. Without
-//     a penalty, the cell is cleared.
+//     the "TA Completeness", even when lower, with its "TA Comment", what the team did well and
+//     what it can improve. A text that the evaluation leaves empty clears its cell.
+//   - "TA Docker Images" and "TA Screenshots" follow the facts of mc, the same way. A team or a
+//     rule without facts leaves them as they are.
+//   - A penalty becomes the formula of "TA Penalty", and its reason goes to the "TA Comment".
+//     Without a penalty, the cell is cleared.
 //
 // The rows of the labs and the teams that the options don't give stay as they are. The import
 // never writes a confirmed row, whose completeness of the teacher is filled.
@@ -328,7 +328,7 @@ func (p *pass) setText(header, value string) error {
 		return nil
 	}
 	if strings.HasPrefix(value, "=") {
-		return fmt.Errorf("%s, %s: %q starts with =, which the tab would read as a formula", p.key, header, value)
+		return fmt.Errorf("%s, %q: %q starts with =, which the tab would read as a formula", p.key, header, value)
 	}
 	p.set(header, value)
 	return nil
@@ -349,7 +349,7 @@ func (p *pass) set(header string, value any) {
 	p.result.Changes = append(p.result.Changes, Change{Tab: SheetTab, Row: p.key, Header: header, From: from, To: value})
 }
 
-// comment returns the TA Comment of the rule: what the team did well, what it can improve, and
+// comment returns the "TA Comment" of the rule: what the team did well, what it can improve, and
 // the reason of the penalty, if any.
 func (p *pass) comment() string {
 	parts := []string{"Done well: " + sentence(p.rule.DoneWell), "To improve: " + sentence(p.rule.ToImprove)}

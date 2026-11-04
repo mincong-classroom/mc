@@ -75,7 +75,7 @@ lists what a pass renamed.
 
 `ReadFacts` reads the same front matter for other commands: `mc eval run` checks that an evaluation
 is about the commit of the facts, and `mc eval export` writes the images and the screenshots of
-each rule to the columns TA Docker Images and TA Screenshots.
+each rule to the columns "TA Docker Images" and "TA Screenshots".
 
 ## Code
 
