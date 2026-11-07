@@ -6,6 +6,7 @@ import (
 	"io"
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -71,16 +72,9 @@ type labView struct {
 	RuleCount int
 	Facts     string
 	Intro     string
-	Rows      []rowView
-	Rules     []ruleView
-}
-
-type rowView struct {
-	ID          string
-	Exercise    string
-	Name        string
-	Coefficient string
-	Points      string
+	// Table holds the lines of the table of the rules, with their total.
+	Table []string
+	Rules []ruleView
 }
 
 type ruleView struct {
@@ -152,22 +146,63 @@ func (r *Rubric) labView(lab Lab, w wrapper, root string) labView {
 		facts += " The reference answer: " + fileLink(root, lab.Reference) + "."
 	}
 	v.Facts = w.wrap(facts, "", "")
-	for _, rule := range r.LabRules(lab.ID) {
-		v.RuleCount++
-		name := rule.Name
-		if rule.Optional() {
-			name += ", bonus"
-		}
-		v.Rows = append(v.Rows, rowView{
-			ID:          rule.ID,
-			Exercise:    rule.Exercise,
-			Name:        name,
-			Coefficient: number(rule.Coefficient),
-			Points:      number(rule.Points()),
-		})
+	rules := r.LabRules(lab.ID)
+	v.RuleCount = len(rules)
+	v.Table = ruleTable(rules)
+	for _, rule := range rules {
 		v.Rules = append(v.Rules, newRuleView(rule, w, root))
 	}
 	return v
+}
+
+// ruleTable returns the lines of the table of the rules of a lab, then their total: the
+// coefficients of the mandatory rules add up to 1, the 20 points of the lab. A lab with an
+// optional rule has a column Bonus: the points of an optional rule go there instead of the
+// column Points, and its coefficient adds to the total after a "+".
+func ruleTable(rules []Rule) []string {
+	bonus := slices.ContainsFunc(rules, Rule.Optional)
+	header := []string{"Rule", "Exercise", "Name", "Coefficient", "Points"}
+	if bonus {
+		header = append(header, "Bonus")
+	}
+	lines := []string{tableRow(header), "|" + strings.Repeat("---|", len(header))}
+	var mandatory, optional float64 // the sums of the coefficients
+	for _, rule := range rules {
+		points, extra := number(rule.Points()), ""
+		if rule.Optional() {
+			points, extra = "", points
+			optional += rule.Coefficient
+		} else {
+			mandatory += rule.Coefficient
+		}
+		row := []string{"`" + rule.ID + "`", rule.Exercise, rule.Name, number(rule.Coefficient), points}
+		if bonus {
+			row = append(row, extra)
+		}
+		lines = append(lines, tableRow(row))
+	}
+	coefficient := number(mandatory)
+	if bonus {
+		coefficient += " + " + number(optional)
+	}
+	total := []string{"**Total**", "", "", "**" + coefficient + "**", "**" + number(mandatory*20) + "**"}
+	if bonus {
+		total = append(total, "**"+number(optional*20)+"**")
+	}
+	return append(lines, tableRow(total))
+}
+
+// tableRow writes the cells of a row of a Markdown table, an empty cell as "| |".
+func tableRow(cells []string) string {
+	var b strings.Builder
+	b.WriteString("|")
+	for _, cell := range cells {
+		if cell != "" {
+			b.WriteString(" " + cell)
+		}
+		b.WriteString(" |")
+	}
+	return b.String()
 }
 
 func newRuleView(rule Rule, w wrapper, root string) ruleView {
