@@ -2,9 +2,11 @@
 # {{.Title}}
 
 {{.Notice}}
+{{if .Intro}}
+## Introduction
 
 {{.Intro}}
-
+{{end}}
 ## Labs
 
 | Lab | Title | Deadline | Rules |
@@ -50,10 +52,7 @@ The levels of analysis:
 
 {{.Intro}}
 
-| Rule | Exercise | Name | Coefficient | Points |
-|---|---|---|---|---|
-{{range .Rows -}}
-| `{{.ID}}` | {{.Exercise}} | {{.Name}} | {{.Coefficient}} | {{.Points}} |
+{{range .Table}}{{.}}
 {{end}}{{range .Rules}}
 ### {{.Heading}}
 

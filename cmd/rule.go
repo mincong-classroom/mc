@@ -72,9 +72,10 @@ var (
 var ruleRenderCmd = &cobra.Command{
 	Use:   "render",
 	Short: "Render the evaluation rules of the YAML as a Markdown page",
-	Long: `Check the YAML of the evaluation rules, then render it as a Markdown page: the labs, how the
-score works, the evidence, the observations, then each lab with the table of its rules and each
-rule. The texts are wrapped at 96 characters.`,
+	Long: `Check the YAML of the evaluation rules, then render it as a Markdown page: the introduction, the
+labs, how the score works, the evidence, the observations, then each lab with the table of its
+rules and their total, and each rule. The points of an optional rule go to a column Bonus, on top
+of the 20 of the lab. The texts are wrapped at 96 characters.`,
 	Args:         cobra.NoArgs,
 	RunE:         runRuleRender,
 	SilenceUsage: true,
